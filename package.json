@@ -1,0 +1,22 @@
+{
+  "name": "pasteleria-cocina-app",
+  "version": "1.0.0",
+  "description": "Aplicación móvil interna para gestión de pedidos en pastelería",
+  "main": "index.js",
+  "scripts": {
+    "frontend": "cd frontend && npm start",
+    "frontend:install": "cd frontend && npm install",
+    "backend": "cd backend && npm start",
+    "backend:install": "cd backend && npm install",
+    "install:all": "npm run frontend:install && npm run backend:install",
+    "dev": "concurrently \"npm run frontend\" \"npm run backend\""
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "private": true
+}
