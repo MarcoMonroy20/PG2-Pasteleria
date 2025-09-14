@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
 import Colors from '../../constants/Colors';
 
 interface LoginScreenProps {
@@ -10,12 +10,22 @@ const PASSWORD = 'pasteleria2024';
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const handleLogin = () => {
     if (password === PASSWORD) {
+      setError(''); // Limpiar error si la contraseña es correcta
       onLogin();
     } else {
-      Alert.alert('Clave incorrecta', 'Por favor, intenta nuevamente.');
+      setError('Contraseña incorrecta. Intenta nuevamente.');
+      setPassword(''); // Limpiar el campo de contraseña
+      
+      // Mostrar mensaje de error según la plataforma
+      if (Platform.OS === 'web') {
+        alert('Clave incorrecta. Por favor, intenta nuevamente.');
+      } else {
+        Alert.alert('Clave incorrecta', 'Por favor, intenta nuevamente.');
+      }
     }
   };
 
@@ -24,13 +34,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>Acceso al sistema</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, error && styles.inputError]}
         placeholder="Contraseña"
         secureTextEntry
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (error) setError(''); // Limpiar error al escribir
+        }}
         placeholderTextColor={Colors.light.buttonPrimary}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>INGRESAR</Text>
@@ -92,6 +106,18 @@ const styles = StyleSheet.create({
     color: Colors.light.buttonText,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  inputError: {
+    borderColor: '#ff4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 14,
+    marginTop: 8,
+    marginBottom: 16,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 
