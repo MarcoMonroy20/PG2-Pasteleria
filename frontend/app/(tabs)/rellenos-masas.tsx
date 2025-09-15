@@ -12,7 +12,7 @@ import {
   Switch,
   Platform,
 } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useFocusEffect } from 'expo-router';
 import {
   initDB,
   obtenerSabores,
@@ -45,6 +45,13 @@ export default function RellenosMasasScreen() {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  // Recargar datos cuando la pantalla se enfoque
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarDatos();
+    }, [])
+  );
 
   const cargarDatos = async () => {
     try {

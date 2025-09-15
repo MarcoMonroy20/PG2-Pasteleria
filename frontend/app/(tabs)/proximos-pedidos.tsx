@@ -13,7 +13,8 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useFocusEffect } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { initDB, obtenerPedidos, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos } from '../../services/db';
 import Colors from '../../constants/Colors';
 
@@ -30,8 +31,13 @@ export default function ProximosPedidosScreen() {
     monto_abonado: '',
     descripcion: '',
     productos: [] as Producto[],
+    fecha_entrega: '',
   });
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
+  const [editFechaDate, setEditFechaDate] = useState<Date>(new Date());
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [showEditProductModal, setShowEditProductModal] = useState(false);
+  const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
   const [nuevoProducto, setNuevoProducto] = useState<Partial<Producto>>({
     tipo: 'pastel',
     sabor: '',
@@ -48,6 +54,13 @@ export default function ProximosPedidosScreen() {
     cargarPedidos();
     cargarSaboresYRellenos();
   }, []);
+
+  // Recargar datos cuando la pantalla se enfoque
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarSaboresYRellenos();
+    }, [])
+  );
 
   const cargarSaboresYRellenos = async () => {
     try {
@@ -87,7 +100,9 @@ export default function ProximosPedidosScreen() {
       monto_abonado: pedido.monto_abonado.toString(),
       descripcion: pedido.descripcion || '',
       productos: pedido.productos || [],
+      fecha_entrega: pedido.fecha_entrega,
     });
+    setEditFechaDate(new Date(pedido.fecha_entrega));
     setShowEditModal(true);
   };
 
@@ -102,6 +117,7 @@ export default function ProximosPedidosScreen() {
         monto_abonado: parseFloat(editForm.monto_abonado),
         descripcion: editForm.descripcion || undefined,
         productos: editForm.productos,
+        fecha_entrega: editForm.fecha_entrega,
       };
 
       await actualizarPedido(pedidoEditando.id!, pedidoActualizado);
@@ -174,7 +190,8 @@ export default function ProximosPedidosScreen() {
   };
 
   const handleGuardarNuevoProducto = () => {
-    if (!nuevoProducto.tipo || !nuevoProducto.sabor) {
+    const requiereSabor = nuevoProducto.tipo !== 'otros';
+    if (!nuevoProducto.tipo || (requiereSabor && !nuevoProducto.sabor)) {
       if (Platform.OS === 'web') {
         alert('Por favor completa el tipo y sabor del producto');
       } else {
@@ -199,6 +216,56 @@ export default function ProximosPedidosScreen() {
     });
 
     setShowAddProductModal(false);
+  };
+
+  const handleEditarProducto = (index: number) => {
+    const producto = editForm.productos[index];
+    setNuevoProducto({
+      tipo: producto.tipo,
+      sabor: producto.sabor,
+      relleno: producto.relleno,
+      tamaño: producto.tamaño,
+      cantidad: producto.cantidad,
+      esMinicupcake: producto.esMinicupcake,
+      descripcion: producto.descripcion,
+    });
+    setEditingProductIndex(index);
+    setShowEditProductModal(true);
+  };
+
+  const handleGuardarEdicionProducto = () => {
+    const requiereSabor = nuevoProducto.tipo !== 'otros';
+    if (!nuevoProducto.tipo || (requiereSabor && !nuevoProducto.sabor)) {
+      if (Platform.OS === 'web') {
+        alert('Por favor completa el tipo y sabor del producto');
+      } else {
+        Alert.alert('Error', 'Por favor completa el tipo y sabor del producto');
+      }
+      return;
+    }
+
+    const productoCompleto: Producto = {
+      tipo: nuevoProducto.tipo as 'pastel' | 'cupcakes' | 'otros',
+      sabor: nuevoProducto.sabor || '',
+      relleno: nuevoProducto.relleno || '',
+      tamaño: nuevoProducto.tamaño || '',
+      cantidad: nuevoProducto.cantidad || 1,
+      esMinicupcake: nuevoProducto.esMinicupcake || false,
+      descripcion: nuevoProducto.descripcion || '',
+    };
+
+    const nuevosProductos = [...editForm.productos];
+    if (editingProductIndex !== null) {
+      nuevosProductos[editingProductIndex] = productoCompleto;
+    }
+
+    setEditForm({
+      ...editForm,
+      productos: nuevosProductos
+    });
+
+    setShowEditProductModal(false);
+    setEditingProductIndex(null);
   };
 
   const formatearFecha = (fecha: string) => {
@@ -332,6 +399,55 @@ export default function ProximosPedidosScreen() {
               showsVerticalScrollIndicator={false}
             >
             <Text style={styles.modalTitle}>Editar Pedido</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Fecha de Entrega</Text>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={editForm.fecha_entrega}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    setEditFechaDate(new Date(e.target.value));
+                    setEditForm({...editForm, fecha_entrega: e.target.value});
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: `1px solid ${Colors.light.inputBorder}`,
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    backgroundColor: Colors.light.background,
+                    color: Colors.light.inputText,
+                    fontFamily: 'System',
+                  }}
+                />
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.dateButton}
+                    onPress={() => setShowEditDatePicker(true)}
+                  >
+                    <Text style={styles.dateButtonText}>{editFechaDate.toLocaleDateString('es-ES')}</Text>
+                    <Text style={styles.dateButtonIcon}>📅</Text>
+                  </TouchableOpacity>
+                  {showEditDatePicker && (
+                    <DateTimePicker
+                      value={editFechaDate}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
+                      minimumDate={new Date()}
+                      onChange={(event, selectedDate) => {
+                        setShowEditDatePicker(false);
+                        if (selectedDate) {
+                          setEditFechaDate(selectedDate);
+                          setEditForm({...editForm, fecha_entrega: selectedDate.toISOString().split('T')[0]});
+                        }
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </View>
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Nombre del Pedido</Text>
@@ -397,15 +513,23 @@ export default function ProximosPedidosScreen() {
                       {item.esMinicupcake && <Text style={styles.productoEditDetalle}>Minicupcakes</Text>}
                       {item.descripcion && <Text style={styles.productoEditDetalle}>{item.descripcion}</Text>}
                     </View>
-                    <TouchableOpacity
-                      style={styles.eliminarProductoBtn}
-                      onPress={() => {
-                        const nuevosProductos = editForm.productos.filter((_, i) => i !== index);
-                        setEditForm({...editForm, productos: nuevosProductos});
-                      }}
-                    >
-                      <Text style={styles.eliminarProductoBtnText}>🗑️</Text>
-                    </TouchableOpacity>
+                    <View style={styles.productoEditActions}>
+                      <TouchableOpacity
+                        style={styles.editarProductoBtn}
+                        onPress={() => handleEditarProducto(index)}
+                      >
+                        <Text style={styles.editarProductoBtnText}>✏️</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.eliminarProductoBtn}
+                        onPress={() => {
+                          const nuevosProductos = editForm.productos.filter((_, i) => i !== index);
+                          setEditForm({...editForm, productos: nuevosProductos});
+                        }}
+                      >
+                        <Text style={styles.eliminarProductoBtnText}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
                 keyExtractor={(_, index) => index.toString()}
@@ -459,7 +583,13 @@ export default function ProximosPedidosScreen() {
                       styles.comboOption,
                       nuevoProducto.tipo === tipo && styles.comboOptionSelected
                     ]}
-                    onPress={() => setNuevoProducto({...nuevoProducto, tipo: tipo as any})}
+                    onPress={() => setNuevoProducto({
+                      ...nuevoProducto,
+                      tipo: tipo as any,
+                      // limpiar campos no aplicables cuando es 'otros'
+                      sabor: tipo === 'otros' ? '' : nuevoProducto.sabor,
+                      relleno: tipo === 'otros' ? '' : nuevoProducto.relleno,
+                    })}
                   >
                     <Text style={[
                       styles.comboOptionText,
@@ -472,74 +602,82 @@ export default function ProximosPedidosScreen() {
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Sabor *</Text>
-              <View style={styles.comboContainer}>
-                {sabores.filter(s => s.tipo === nuevoProducto.tipo).map((sabor) => (
-                  <TouchableOpacity
-                    key={sabor.id}
-                    style={[
-                      styles.comboOption,
-                      nuevoProducto.sabor === sabor.nombre && styles.comboOptionSelected
-                    ]}
-                    onPress={() => setNuevoProducto({...nuevoProducto, sabor: sabor.nombre})}
-                  >
-                    <Text style={[
-                      styles.comboOptionText,
-                      nuevoProducto.sabor === sabor.nombre && styles.comboOptionTextSelected
-                    ]}>
-                      {sabor.nombre}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {nuevoProducto.tipo !== 'otros' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Sabor *</Text>
+                <View style={styles.comboContainer}>
+                  {sabores.filter(s => s.tipo === nuevoProducto.tipo).map((sabor) => (
+                    <TouchableOpacity
+                      key={sabor.id}
+                      style={[
+                        styles.comboOption,
+                        nuevoProducto.sabor === sabor.nombre && styles.comboOptionSelected
+                      ]}
+                      onPress={() => setNuevoProducto({...nuevoProducto, sabor: sabor.nombre})}
+                    >
+                      <Text style={[
+                        styles.comboOptionText,
+                        nuevoProducto.sabor === sabor.nombre && styles.comboOptionTextSelected
+                      ]}>
+                        {sabor.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Relleno</Text>
-              <View style={styles.comboContainer}>
-                {rellenos.map((relleno) => (
-                  <TouchableOpacity
-                    key={relleno.id}
-                    style={[
-                      styles.comboOption,
-                      nuevoProducto.relleno === relleno.nombre && styles.comboOptionSelected
-                    ]}
-                    onPress={() => setNuevoProducto({...nuevoProducto, relleno: relleno.nombre})}
-                  >
-                    <Text style={[
-                      styles.comboOptionText,
-                      nuevoProducto.relleno === relleno.nombre && styles.comboOptionTextSelected
-                    ]}>
-                      {relleno.nombre}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {nuevoProducto.tipo !== 'otros' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Relleno</Text>
+                <View style={styles.comboContainer}>
+                  {rellenos.map((relleno) => (
+                    <TouchableOpacity
+                      key={relleno.id}
+                      style={[
+                        styles.comboOption,
+                        nuevoProducto.relleno === relleno.nombre && styles.comboOptionSelected
+                      ]}
+                      onPress={() => setNuevoProducto({...nuevoProducto, relleno: relleno.nombre})}
+                    >
+                      <Text style={[
+                        styles.comboOptionText,
+                        nuevoProducto.relleno === relleno.nombre && styles.comboOptionTextSelected
+                      ]}>
+                        {relleno.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Tamaño</Text>
-              <TextInput
-                style={styles.input}
-                value={nuevoProducto.tamaño || ''}
-                onChangeText={(text) => setNuevoProducto({...nuevoProducto, tamaño: text})}
-                placeholder="Ej: Pequeño, Mediano, Grande"
-                placeholderTextColor={Colors.light.inputText}
-              />
-            </View>
+            {nuevoProducto.tipo !== 'otros' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Tamaño</Text>
+                <TextInput
+                  style={styles.input}
+                  value={nuevoProducto.tamaño || ''}
+                  onChangeText={(text) => setNuevoProducto({...nuevoProducto, tamaño: text})}
+                  placeholder="Ej: Pequeño, Mediano, Grande"
+                  placeholderTextColor={Colors.light.inputText}
+                />
+              </View>
+            )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Cantidad</Text>
-              <TextInput
-                style={styles.input}
-                value={nuevoProducto.cantidad?.toString() || ''}
-                onChangeText={(text) => setNuevoProducto({...nuevoProducto, cantidad: parseInt(text) || 1})}
-                placeholder="1"
-                keyboardType="numeric"
-                placeholderTextColor={Colors.light.inputText}
-              />
-            </View>
+            {nuevoProducto.tipo !== 'otros' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Cantidad</Text>
+                <TextInput
+                  style={styles.input}
+                  value={nuevoProducto.cantidad?.toString() || ''}
+                  onChangeText={(text) => setNuevoProducto({...nuevoProducto, cantidad: parseInt(text) || 1})}
+                  placeholder="1"
+                  keyboardType="numeric"
+                  placeholderTextColor={Colors.light.inputText}
+                />
+              </View>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Descripción</Text>
@@ -567,6 +705,157 @@ export default function ProximosPedidosScreen() {
                 onPress={handleGuardarNuevoProducto}
               >
                 <Text style={styles.confirmBtnText}>Agregar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para editar producto */}
+      <Modal visible={showEditProductModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView 
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+            <Text style={styles.modalTitle}>Editar Producto</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Tipo de Producto *</Text>
+              <View style={styles.comboContainer}>
+                {['pastel', 'cupcakes', 'otros'].map((tipo) => (
+                  <TouchableOpacity
+                    key={tipo}
+                    style={[
+                      styles.comboOption,
+                      nuevoProducto.tipo === tipo && styles.comboOptionSelected
+                    ]}
+                    onPress={() => setNuevoProducto({
+                      ...nuevoProducto,
+                      tipo: tipo as any,
+                      sabor: tipo === 'otros' ? '' : nuevoProducto.sabor,
+                      relleno: tipo === 'otros' ? '' : nuevoProducto.relleno,
+                    })}
+                  >
+                    <Text style={[
+                      styles.comboOptionText,
+                      nuevoProducto.tipo === tipo && styles.comboOptionTextSelected
+                    ]}>
+                      {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {nuevoProducto.tipo !== 'otros' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Sabor *</Text>
+              <View style={styles.comboContainer}>
+                {sabores.filter(s => s.tipo === nuevoProducto.tipo).map((sabor) => (
+                  <TouchableOpacity
+                    key={sabor.id}
+                    style={[
+                      styles.comboOption,
+                      nuevoProducto.sabor === sabor.nombre && styles.comboOptionSelected
+                    ]}
+                    onPress={() => setNuevoProducto({...nuevoProducto, sabor: sabor.nombre})}
+                  >
+                    <Text style={[
+                      styles.comboOptionText,
+                      nuevoProducto.sabor === sabor.nombre && styles.comboOptionTextSelected
+                    ]}>
+                      {sabor.nombre}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            )}
+
+            {nuevoProducto.tipo !== 'otros' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Relleno</Text>
+              <View style={styles.comboContainer}>
+                {rellenos.map((relleno) => (
+                  <TouchableOpacity
+                    key={relleno.id}
+                    style={[
+                      styles.comboOption,
+                      nuevoProducto.relleno === relleno.nombre && styles.comboOptionSelected
+                    ]}
+                    onPress={() => setNuevoProducto({...nuevoProducto, relleno: relleno.nombre})}
+                  >
+                    <Text style={[
+                      styles.comboOptionText,
+                      nuevoProducto.relleno === relleno.nombre && styles.comboOptionTextSelected
+                    ]}>
+                      {relleno.nombre}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            )}
+
+            {nuevoProducto.tipo !== 'otros' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Tamaño</Text>
+              <TextInput
+                style={styles.input}
+                value={nuevoProducto.tamaño || ''}
+                onChangeText={(text) => setNuevoProducto({...nuevoProducto, tamaño: text})}
+                placeholder="Ej: Pequeño, Mediano, Grande"
+                placeholderTextColor={Colors.light.inputText}
+              />
+            </View>
+            )}
+
+            {nuevoProducto.tipo !== 'otros' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Cantidad</Text>
+              <TextInput
+                style={styles.input}
+                value={nuevoProducto.cantidad?.toString() || ''}
+                onChangeText={(text) => setNuevoProducto({...nuevoProducto, cantidad: parseInt(text) || 1})}
+                placeholder="1"
+                keyboardType="numeric"
+                placeholderTextColor={Colors.light.inputText}
+              />
+            </View>
+            )}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Descripción</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={nuevoProducto.descripcion || ''}
+                onChangeText={(text) => setNuevoProducto({...nuevoProducto, descripcion: text})}
+                placeholder="Descripción del producto"
+                multiline
+                numberOfLines={2}
+                placeholderTextColor={Colors.light.inputText}
+              />
+            </View>
+            </ScrollView>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => {
+                  setShowEditProductModal(false);
+                  setEditingProductIndex(null);
+                }}
+              >
+                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={handleGuardarEdicionProducto}
+              >
+                <Text style={styles.confirmBtnText}>Guardar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -840,6 +1129,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: Colors.light.background,
+    marginTop: 8,
+  },
+  dateButtonText: {
+    color: Colors.light.inputText,
+    fontSize: 16,
+  },
+  dateButtonIcon: {
+    fontSize: 16,
+  },
   productosEditList: {
     maxHeight: 200,
     marginBottom: 12,
@@ -918,5 +1226,18 @@ const styles = StyleSheet.create({
   comboOptionTextSelected: {
     color: Colors.light.buttonText,
     fontWeight: 'bold',
+  },
+  productoEditActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editarProductoBtn: {
+    backgroundColor: Colors.light.buttonSecondary,
+    padding: 8,
+    borderRadius: 6,
+  },
+  editarProductoBtnText: {
+    color: Colors.light.buttonText,
+    fontSize: 16,
   },
 }); 

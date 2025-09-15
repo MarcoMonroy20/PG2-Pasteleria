@@ -217,3 +217,48 @@ Comienza por generar:
 
 Trabajaremos el resto en etapas. Todo debe estar optimizado para uso interno, fluido y claro para el usuario."
 
+## Bitácora de trabajo — 2025-09-14
+
+### Cambios funcionales
+- Nuevo Pedido:
+  - Selector de fecha: DateTimePicker en móvil y `<input type="date">` en web. Calendario visible y fecha mínima hoy.
+  - Productos: combos de Sabores y Rellenos poblados desde “Rellenos y Masas”.
+  - Validaciones numéricas: precio y abonado; se impide abonado > precio.
+  - Feedback al guardar: confirmación (Alert en móvil / confirm nativo en web), limpieza del formulario y regreso automático.
+- Próximos Pedidos:
+  - Eliminar pedido con confirmación multiplataforma.
+  - Edición completa: ahora se puede editar Fecha de entrega y Productos (agregar, editar y eliminar) desde el modal.
+  - Modal de Agregar/Editar Producto: tipo (pastel/cupcakes/otros), sabores filtrados por tipo, rellenos, tamaño, cantidad y descripción.
+  - Regla para “otros”: se ocultan Sabor/Relleno/Tamaño/Cantidad y solo se usa Descripción.
+- Rellenos y Masas:
+  - Botón eliminar con confirmación multiplataforma.
+  - Lista con recarga automática tras crear/editar/eliminar.
+- Login:
+  - Feedback de error: Alert/alert y mensaje visual bajo el input.
+
+### Sincronización de datos
+- Se agregó recarga automática con `useFocusEffect` en:
+  - Nuevo Pedido (sabores/rellenos),
+  - Próximos Pedidos (sabores/rellenos),
+  - Rellenos y Masas (lista).
+
+### UX/Responsive
+- Modales de edición ahora son responsivos: scroll interno, altura máx. 80–90%, ancho 100% (máx. 500px), botones accesibles fijos.
+- Combos con altura limitada y mejor legibilidad.
+
+### Detalles técnicos
+- Uso de `Platform.OS` para comportamientos web/móvil (Alert vs confirm, pickers de fecha).
+- Persistencia de `fecha_entrega` en edición de pedidos.
+
+### Cómo probar hoy
+1) Crear/editar pedido desde “Nuevo Pedido”: elegir fecha en calendario, añadir productos, guardar (ver confirmación y regreso).
+2) En “Rellenos y Masas” crear/eliminar sabores o rellenos y verificar que “Nuevo Pedido” y “Próximos Pedidos” reflejan los cambios al volver.
+3) En “Próximos Pedidos” editar: cambiar fecha, agregar/editar/eliminar productos y guardar.
+4) Probar productos de tipo “otros”: solo aparece y se guarda la descripción.
+5) Login: introducir clave incorrecta y ver feedback visual.
+
+### Pendientes próximos
+- Pantalla de Configuración con notificaciones locales (recordatorios por fecha de entrega).
+- Búsqueda y filtros en Próximos Pedidos.
+- Exportar/backup (CSV/JSON) y totales por rango.
+

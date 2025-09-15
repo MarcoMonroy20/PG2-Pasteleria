@@ -12,7 +12,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { initDB, crearPedido, Producto, obtenerSabores, obtenerRellenos, Sabor, Relleno } from '../../services/db';
@@ -43,17 +43,25 @@ export default function NuevoPedidoScreen() {
   const [rellenos, setRellenos] = useState<Relleno[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const cargarSaboresYRellenos = async () => {
+    try {
+      const [saboresData, rellenosData] = await Promise.all([
+        obtenerSabores(),
+        obtenerRellenos(),
+      ]);
+      setSabores(saboresData);
+      setRellenos(rellenosData);
+    } catch (error) {
+      console.error('Error cargando sabores y rellenos:', error);
+    }
+  };
+
   useEffect(() => {
     // Inicializar la base de datos y cargar datos
     const initializeData = async () => {
       try {
         await initDB();
-        const [saboresData, rellenosData] = await Promise.all([
-          obtenerSabores(),
-          obtenerRellenos(),
-        ]);
-        setSabores(saboresData);
-        setRellenos(rellenosData);
+        await cargarSaboresYRellenos();
         
         // Establecer fecha por defecto (mañana)
         const tomorrow = new Date();
@@ -64,9 +72,16 @@ export default function NuevoPedidoScreen() {
         console.error('Error inicializando datos:', error);
       }
     };
-    
+
     initializeData();
   }, []);
+
+  // Recargar datos cuando la pantalla se enfoque
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarSaboresYRellenos();
+    }, [])
+  );
 
   const handleAgregarProducto = () => {
     if (!nuevoProducto.tipo) {
