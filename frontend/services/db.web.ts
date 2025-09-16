@@ -36,11 +36,18 @@ export interface Relleno {
   activo: boolean;
 }
 
+export interface AppSettings {
+  notifications_enabled: boolean;
+  days_before: number;
+}
+
 // Simulación de base de datos usando localStorage
 const STORAGE_KEYS = {
   PEDIDOS: 'pasteleria_pedidos',
   SABORES: 'pasteleria_sabores',
   RELLENOS: 'pasteleria_rellenos',
+  SETTINGS: 'pasteleria_settings',
+  NOTIFICATIONS: 'pasteleria_notifications', // pedido_id -> notification_id
 };
 
 let nextId = 1;
@@ -83,6 +90,14 @@ const initDefaultData = () => {
       { id: 8, nombre: 'Sin Relleno', activo: true },
     ];
     localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify(rellenosPorDefecto));
+  }
+
+  if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
+    const defaultSettings: AppSettings = { notifications_enabled: false, days_before: 0 };
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify({}));
   }
 };
 
@@ -151,6 +166,48 @@ export const obtenerPedidosPorFecha = (fechaInicio: string, fechaFin: string): P
       p.fecha_entrega >= fechaInicio && p.fecha_entrega <= fechaFin
     );
     resolve(filteredPedidos.sort((a: Pedido, b: Pedido) => new Date(a.fecha_entrega).getTime() - new Date(b.fecha_entrega).getTime()));
+  });
+};
+
+// Settings
+export const obtenerSettings = (): Promise<AppSettings> => {
+  return new Promise((resolve) => {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{"notifications_enabled":false,"days_before":0}');
+    resolve(s);
+  });
+};
+
+export const guardarSettings = (settings: AppSettings): Promise<void> => {
+  return new Promise((resolve) => {
+    const clamped = { ...settings, days_before: Math.max(0, Math.min(7, settings.days_before)) };
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(clamped));
+    resolve();
+  });
+};
+
+// Notifications mapping
+export const getNotificationIdForPedido = (pedidoId: number): Promise<string | null> => {
+  return new Promise((resolve) => {
+    const map = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '{}');
+    resolve(map[String(pedidoId)] ?? null);
+  });
+};
+
+export const setNotificationIdForPedido = (pedidoId: number, notificationId: string): Promise<void> => {
+  return new Promise((resolve) => {
+    const map = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '{}');
+    map[String(pedidoId)] = notificationId;
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(map));
+    resolve();
+  });
+};
+
+export const clearNotificationForPedido = (pedidoId: number): Promise<void> => {
+  return new Promise((resolve) => {
+    const map = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || '{}');
+    delete map[String(pedidoId)];
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(map));
+    resolve();
   });
 };
 

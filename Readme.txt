@@ -262,3 +262,50 @@ Trabajaremos el resto en etapas. Todo debe estar optimizado para uso interno, fl
 - Búsqueda y filtros en Próximos Pedidos.
 - Exportar/backup (CSV/JSON) y totales por rango.
 
+## Bitácora de trabajo — 2025-09-16
+
+### Cambios funcionales
+- Configuración de Notificaciones:
+  - Nueva UI en `app/(tabs)/settings.tsx` para activar/desactivar notificaciones y elegir días de anticipación (0 a 7).
+  - Persistencia en BD: `settings.notifications_enabled` y `settings.days_before`.
+- Recordatorios de Pedidos:
+  - Al crear pedido: se programa notificación a las 9:00 AM del día definido por `days_before` respecto a `fecha_entrega`.
+  - Al editar pedido: se cancela la notificación previa (si existe) y se reprograma con la nueva fecha.
+  - Al eliminar pedido: se cancela la notificación programada.
+  - Web: no se programan notificaciones (compatibilidad mantenida sin errores). En móvil (Expo) sí se programan con `expo-notifications`.
+
+### Correcciones
+- Error al abrir Configuración en web: “obtenerSettings is not a function”.
+  - Solución: ajuste de importación en `settings.tsx` (namespace + guardas) y verificación de exportaciones en `services/db.web.ts`.
+
+### Detalles técnicos
+- SQLite (`frontend/services/db.ts`):
+  - Tabla `settings` con fila única (id=1).
+  - Tabla `notifications` para mapear `pedido_id -> notification_id`.
+  - Funciones: `obtenerSettings`, `guardarSettings`, `getNotificationIdForPedido`, `setNotificationIdForPedido`, `clearNotificationForPedido`.
+- Web LocalStorage (`frontend/services/db.web.ts`):
+  - Claves: `pasteleria_settings` y `pasteleria_notifications` (mapa `pedidoId -> notificationId`).
+  - Funciones equivalentes a SQLite para settings y notificaciones.
+- Servicio de notificaciones:
+  - `frontend/services/notifications.ts` (móvil): `schedulePedidoNotification`, `cancelNotificationById` y handler por defecto de `expo-notifications`.
+  - `frontend/services/notifications.web.ts` (web): implementaciones no-op que devuelven `null`/no lanzan errores.
+- Integración en pantallas:
+  - `app/(tabs)/nuevo-pedido.tsx`: tras crear pedido, programa notificación y guarda `notification_id`.
+  - `app/(tabs)/proximos-pedidos.tsx`: al editar, cancela y reprograma; al eliminar, cancela y limpia el mapeo.
+  - `app/(tabs)/settings.tsx`: UI, permisos (móvil), persistencia de settings.
+
+### Cómo probar hoy
+1) En Configuración, activar notificaciones y elegir “1 día”.
+2) Crear un pedido con `fecha_entrega` mañana y confirmar que se programa el recordatorio.
+3) Editar el pedido y cambiar la fecha; verificar que se reprograma (sin duplicados).
+4) Eliminar el pedido; verificar que se cancela la notificación.
+5) En web, confirmar que no hay errores aunque no se programen notificaciones.
+
+### Pendientes próximos
+- Búsqueda y filtros en Próximos Pedidos (por nombre, fecha, estado).
+- Exportar/backup (CSV/JSON) y restauración.
+- Totales/balance por rango de fechas.
+- Accesibilidad y UX: tamaños táctiles, foco, mensajes consistentes.
+- Rendimiento: memo en listas, `keyExtractor` estable, evitar renders en modales.
+- Build Android: íconos/splash definitivos, EAS build, permisos.
+- Tests básicos: navegación y CRUD (web/SQLite).

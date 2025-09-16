@@ -9,6 +9,19 @@ export const initDB = () => {
       db.execSync(CREATE_PEDIDOS_TABLE);
       db.execSync(CREATE_SABORES_TABLE);
       db.execSync(CREATE_RELLENOS_TABLE);
+      // Tabla para mapear pedidos a notificaciones programadas
+      db.execSync(`CREATE TABLE IF NOT EXISTS notifications (
+        pedido_id INTEGER PRIMARY KEY,
+        notification_id TEXT
+      );`);
+      // Tabla de settings (si no existe)
+      db.execSync(`CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        notifications_enabled INTEGER DEFAULT 0,
+        days_before INTEGER DEFAULT 0
+      );`);
+      // Asegurar fila única
+      db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 0)');
       
       // Insertar sabores por defecto si no existen
       insertarSaboresPorDefecto();
@@ -221,6 +234,12 @@ export interface Relleno {
   activo: boolean;
 }
 
+// Settings interface
+export interface AppSettings {
+  notifications_enabled: boolean;
+  days_before: number; // 0..7
+}
+
 // Funciones para Sabores
 export const obtenerSabores = (tipo?: 'pastel' | 'cupcakes'): Promise<Sabor[]> => {
   return new Promise((resolve, reject) => {
@@ -342,3 +361,69 @@ export const eliminarRelleno = (id: number): Promise<void> => {
 };
 
 export default db; 
+
+// Settings CRUD
+export const obtenerSettings = (): Promise<AppSettings> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const row = db.getFirstSync('SELECT notifications_enabled, days_before FROM settings WHERE id = 1');
+      resolve({
+        notifications_enabled: Boolean(row?.notifications_enabled ?? 0),
+        days_before: Number(row?.days_before ?? 0),
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Notifications mapping helpers
+export const getNotificationIdForPedido = (pedidoId: number): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const row = db.getFirstSync('SELECT notification_id FROM notifications WHERE pedido_id = ?', [pedidoId]);
+      resolve(row?.notification_id ?? null);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const setNotificationIdForPedido = (pedidoId: number, notificationId: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      db.runSync(
+        'INSERT INTO notifications (pedido_id, notification_id) VALUES (?, ?) ON CONFLICT(pedido_id) DO UPDATE SET notification_id = excluded.notification_id',
+        [pedidoId, notificationId]
+      );
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const clearNotificationForPedido = (pedidoId: number): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      db.runSync('DELETE FROM notifications WHERE pedido_id = ?', [pedidoId]);
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const guardarSettings = (settings: AppSettings): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      db.runSync(
+        'UPDATE settings SET notifications_enabled = ?, days_before = ? WHERE id = 1',
+        [settings.notifications_enabled ? 1 : 0, Math.max(0, Math.min(7, settings.days_before))]
+      );
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};

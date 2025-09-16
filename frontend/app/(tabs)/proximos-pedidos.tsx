@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { initDB, obtenerPedidos, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos } from '../../services/db';
+import { initDB, obtenerPedidos, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos, obtenerSettings, getNotificationIdForPedido, setNotificationIdForPedido, clearNotificationForPedido } from '../../services/db';
+import { schedulePedidoNotification, cancelNotificationById } from '../../services/notifications';
 import Colors from '../../constants/Colors';
 
 export default function ProximosPedidosScreen() {
@@ -121,6 +122,31 @@ export default function ProximosPedidosScreen() {
       };
 
       await actualizarPedido(pedidoEditando.id!, pedidoActualizado);
+      // Reprogramar notificación si corresponde
+      try {
+        const settings = await obtenerSettings();
+        const existingNotif = await getNotificationIdForPedido(pedidoEditando.id!);
+        if (existingNotif) {
+          await cancelNotificationById(existingNotif);
+          await clearNotificationForPedido(pedidoEditando.id!);
+        }
+        if (settings.notifications_enabled) {
+          const trigger = new Date(pedidoActualizado.fecha_entrega);
+          trigger.setDate(trigger.getDate() - (settings.days_before || 0));
+          trigger.setHours(9, 0, 0, 0);
+          const notifId = await schedulePedidoNotification(
+            pedidoEditando.id!,
+            'Recordatorio de pedido',
+            `${pedidoActualizado.nombre} para ${pedidoActualizado.fecha_entrega}`,
+            trigger
+          );
+          if (notifId) {
+            await setNotificationIdForPedido(pedidoEditando.id!, notifId);
+          }
+        }
+      } catch (e) {
+        console.log('No se pudo reprogramar notificación:', e);
+      }
       await cargarPedidos();
       setShowEditModal(false);
       setPedidoEditando(null);
@@ -157,6 +183,15 @@ export default function ProximosPedidosScreen() {
 
   const eliminarPedidoConfirmado = async (pedido: Pedido) => {
     try {
+      try {
+        const existingNotif = await getNotificationIdForPedido(pedido.id!);
+        if (existingNotif) {
+          await cancelNotificationById(existingNotif);
+          await clearNotificationForPedido(pedido.id!);
+        }
+      } catch (e) {
+        console.log('No se pudo cancelar notificación:', e);
+      }
       await eliminarPedido(pedido.id!);
       await cargarPedidos();
       

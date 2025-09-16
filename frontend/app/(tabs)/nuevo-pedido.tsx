@@ -15,7 +15,8 @@ import {
 import { useNavigation, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { initDB, crearPedido, Producto, obtenerSabores, obtenerRellenos, Sabor, Relleno } from '../../services/db';
+import { initDB, crearPedido, Producto, obtenerSabores, obtenerRellenos, Sabor, Relleno, obtenerSettings, setNotificationIdForPedido } from '../../services/db';
+import { schedulePedidoNotification } from '../../services/notifications';
 import Colors from '../../constants/Colors';
 
 export default function NuevoPedidoScreen() {
@@ -190,7 +191,28 @@ export default function NuevoPedidoScreen() {
         productos: productos,
       };
 
-      await crearPedido(pedido);
+      const newId = await crearPedido(pedido);
+      // Programar notificación si está activado
+      try {
+        const settings = await obtenerSettings();
+        if (settings.notifications_enabled) {
+          const trigger = new Date(fechaEntrega);
+          trigger.setDate(trigger.getDate() - (settings.days_before || 0));
+          // Notificar a las 9:00 AM
+          trigger.setHours(9, 0, 0, 0);
+          const notifId = await schedulePedidoNotification(
+            newId,
+            'Recordatorio de pedido',
+            `${nombrePedido} para ${fechaEntrega}`,
+            trigger
+          );
+          if (notifId) {
+            await setNotificationIdForPedido(newId, notifId);
+          }
+        }
+      } catch (e) {
+        console.log('No se pudo programar notificación:', e);
+      }
       
       // Mostrar mensaje de éxito y regresar al inicio
       
