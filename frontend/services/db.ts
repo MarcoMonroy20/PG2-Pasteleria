@@ -18,10 +18,24 @@ export const initDB = () => {
       db.execSync(`CREATE TABLE IF NOT EXISTS settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         notifications_enabled INTEGER DEFAULT 0,
-        days_before INTEGER DEFAULT 0
+        days_before INTEGER DEFAULT 0,
+        contact_name TEXT,
+        company_name TEXT,
+        phone TEXT
       );`);
       // Asegurar fila única
       db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 0)');
+
+      // Intentar agregar columnas nuevas en instalaciones existentes
+      try { db.runSync('ALTER TABLE settings ADD COLUMN contact_name TEXT'); } catch (e) {}
+      try { db.runSync('ALTER TABLE settings ADD COLUMN company_name TEXT'); } catch (e) {}
+      try { db.runSync('ALTER TABLE settings ADD COLUMN phone TEXT'); } catch (e) {}
+
+      // Establecer valores por defecto de contacto si están vacíos
+      db.runSync(
+        'UPDATE settings SET contact_name = COALESCE(contact_name, ?), company_name = COALESCE(company_name, ?), phone = COALESCE(phone, ?) WHERE id = 1',
+        ['Raquel Alejandra Rousselin Pellecer', 'Sweet Cakes', '53597287']
+      );
       
       // Insertar sabores por defecto si no existen
       insertarSaboresPorDefecto();
@@ -238,6 +252,9 @@ export interface Relleno {
 export interface AppSettings {
   notifications_enabled: boolean;
   days_before: number; // 0..7
+  contact_name?: string;
+  company_name?: string;
+  phone?: string;
 }
 
 // Funciones para Sabores
@@ -366,10 +383,13 @@ export default db;
 export const obtenerSettings = (): Promise<AppSettings> => {
   return new Promise((resolve, reject) => {
     try {
-      const row = db.getFirstSync('SELECT notifications_enabled, days_before FROM settings WHERE id = 1');
+      const row = db.getFirstSync('SELECT notifications_enabled, days_before, contact_name, company_name, phone FROM settings WHERE id = 1');
       resolve({
         notifications_enabled: Boolean(row?.notifications_enabled ?? 0),
         days_before: Number(row?.days_before ?? 0),
+        contact_name: row?.contact_name ?? 'Raquel Alejandra Rousselin Pellecer',
+        company_name: row?.company_name ?? 'Sweet Cakes',
+        phone: row?.phone ?? '53597287',
       });
     } catch (error) {
       reject(error);
@@ -418,8 +438,14 @@ export const guardarSettings = (settings: AppSettings): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
       db.runSync(
-        'UPDATE settings SET notifications_enabled = ?, days_before = ? WHERE id = 1',
-        [settings.notifications_enabled ? 1 : 0, Math.max(0, Math.min(7, settings.days_before))]
+        'UPDATE settings SET notifications_enabled = ?, days_before = ?, contact_name = ?, company_name = ?, phone = ? WHERE id = 1',
+        [
+          settings.notifications_enabled ? 1 : 0,
+          Math.max(0, Math.min(7, settings.days_before)),
+          settings.contact_name ?? null,
+          settings.company_name ?? null,
+          settings.phone ?? null,
+        ]
       );
       resolve();
     } catch (error) {

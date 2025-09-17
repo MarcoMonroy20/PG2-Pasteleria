@@ -39,6 +39,9 @@ export interface Relleno {
 export interface AppSettings {
   notifications_enabled: boolean;
   days_before: number;
+  contact_name?: string;
+  company_name?: string;
+  phone?: string;
 }
 
 // Simulación de base de datos usando localStorage
@@ -93,7 +96,7 @@ const initDefaultData = () => {
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
-    const defaultSettings: AppSettings = { notifications_enabled: false, days_before: 0 };
+    const defaultSettings: AppSettings = { notifications_enabled: false, days_before: 0, contact_name: 'Raquel Alejandra Rousselin Pellecer', company_name: 'Sweet Cakes', phone: '53597287' };
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
   }
   if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
@@ -172,7 +175,7 @@ export const obtenerPedidosPorFecha = (fechaInicio: string, fechaFin: string): P
 // Settings
 export const obtenerSettings = (): Promise<AppSettings> => {
   return new Promise((resolve) => {
-    const s = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{"notifications_enabled":false,"days_before":0}');
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{"notifications_enabled":false,"days_before":0,"contact_name":"Raquel Alejandra Rousselin Pellecer","company_name":"Sweet Cakes","phone":"53597287"}');
     resolve(s);
   });
 };

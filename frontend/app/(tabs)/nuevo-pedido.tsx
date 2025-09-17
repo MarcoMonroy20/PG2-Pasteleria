@@ -84,9 +84,17 @@ export default function NuevoPedidoScreen() {
     }, [])
   );
 
+  const alertMsg = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
   const handleAgregarProducto = () => {
     if (!nuevoProducto.tipo) {
-      Alert.alert('Error', 'Selecciona el tipo de producto');
+      alertMsg('Error', 'Selecciona el tipo de producto');
       return;
     }
 
@@ -135,7 +143,11 @@ export default function NuevoPedidoScreen() {
     setShowDatePicker(false);
     if (selectedDate) {
       setFechaEntregaDate(selectedDate);
-      setFechaEntrega(selectedDate.toISOString().split('T')[0]);
+      // Guardar fecha como YYYY-MM-DD en hora local para evitar desfases por zona horaria
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      setFechaEntrega(`${y}-${m}-${d}`);
     }
   };
 
@@ -150,7 +162,7 @@ export default function NuevoPedidoScreen() {
 
   const handleGuardarPedido = async () => {
     if (!fechaEntrega || !nombrePedido || !precioFinal || !montoAbonado) {
-      Alert.alert('Error', 'Completa todos los campos obligatorios');
+      alertMsg('Error', 'Completa todos los campos obligatorios');
       return;
     }
 
@@ -159,22 +171,22 @@ export default function NuevoPedidoScreen() {
     const abonado = parseFloat(montoAbonado);
     
     if (isNaN(precio) || precio <= 0) {
-      Alert.alert('Error', 'El precio final debe ser un número válido mayor a 0');
+      alertMsg('Error', 'El precio final debe ser un número válido mayor a 0');
       return;
     }
     
     if (isNaN(abonado) || abonado < 0) {
-      Alert.alert('Error', 'El monto abonado debe ser un número válido mayor o igual a 0');
+      alertMsg('Error', 'El monto abonado debe ser un número válido mayor o igual a 0');
       return;
     }
     
     if (abonado > precio) {
-      Alert.alert('Error', 'El monto abonado no puede ser mayor al precio final');
+      alertMsg('Error', 'El monto abonado no puede ser mayor al precio final');
       return;
     }
 
     if (productos.length === 0) {
-      Alert.alert('Error', 'Agrega al menos un producto');
+      alertMsg('Error', 'Agrega al menos un producto');
       return;
     }
 
@@ -266,7 +278,7 @@ export default function NuevoPedidoScreen() {
         }, 100);
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar el pedido');
+      alertMsg('Error', 'No se pudo guardar el pedido');
       console.error(error);
     } finally {
       setLoading(false);
@@ -320,19 +332,22 @@ export default function NuevoPedidoScreen() {
               min={new Date().toISOString().split('T')[0]}
               style={{
                 width: '100%',
-                padding: '12px',
+                padding: '12px 14px',
                 border: `1px solid ${Colors.light.inputBorder}`,
                 borderRadius: '8px',
                 fontSize: '16px',
                 backgroundColor: Colors.light.background,
                 color: Colors.light.inputText,
                 fontFamily: 'System',
+                height: '48px',
+                lineHeight: '24px',
+                boxSizing: 'border-box',
               }}
             />
           ) : (
             <>
               <TouchableOpacity
-                style={styles.dateButton}
+                style={[styles.dateButton, { minHeight: 48 }]}
                 onPress={() => setShowDatePicker(true)}
               >
                 <Text style={styles.dateButtonText}>
@@ -385,7 +400,7 @@ export default function NuevoPedidoScreen() {
 
         <View style={styles.row}>
           <View style={[styles.inputGroup, styles.halfWidth]}>
-            <Text style={styles.label}>Precio Final *</Text>
+              <Text style={styles.label}>Precio Final (Q) *</Text>
             <TextInput
               style={styles.input}
               value={precioFinal}
@@ -406,7 +421,7 @@ export default function NuevoPedidoScreen() {
             />
           </View>
           <View style={[styles.inputGroup, styles.halfWidth]}>
-            <Text style={styles.label}>Monto Abonado *</Text>
+              <Text style={styles.label}>Monto Abonado (Q) *</Text>
             <TextInput
               style={styles.input}
               value={montoAbonado}
@@ -754,19 +769,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   productosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
   },
   agregarBtn: {
     backgroundColor: Colors.light.buttonSecondary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   agregarBtnText: {
     color: Colors.light.buttonSecondaryText,
     fontWeight: 'bold',
+    fontSize: 18,
   },
   productosList: {
     maxHeight: 200,
@@ -915,7 +935,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.light.inputBorder,
     borderRadius: 8,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     backgroundColor: Colors.light.inputBackground,
   },
   dateButtonText: {

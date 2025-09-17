@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,16 +12,21 @@ import {
   RefreshControl,
   Platform,
   ScrollView,
+  useWindowDimensions,
+  Share,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { initDB, obtenerPedidos, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos, obtenerSettings, getNotificationIdForPedido, setNotificationIdForPedido, clearNotificationForPedido } from '../../services/db';
+import { initDB, obtenerPedidos, obtenerPedidosPorFecha, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos, obtenerSettings, getNotificationIdForPedido, setNotificationIdForPedido, clearNotificationForPedido } from '../../services/db';
 import { schedulePedidoNotification, cancelNotificationById } from '../../services/notifications';
 import Colors from '../../constants/Colors';
 
 export default function ProximosPedidosScreen() {
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 400;
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [allPedidos, setAllPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -51,8 +56,22 @@ export default function ProximosPedidosScreen() {
   const [sabores, setSabores] = useState<any[]>([]);
   const [rellenos, setRellenos] = useState<any[]>([]);
 
+  // Abonos
+  const [showAbonarModal, setShowAbonarModal] = useState(false);
+  const [pedidoAbonando, setPedidoAbonando] = useState<Pedido | null>(null);
+  const [abonoInput, setAbonoInput] = useState<string>('');
+
+  // Filtros
+  const [searchText, setSearchText] = useState('');
+  const [dateStart, setDateStart] = useState<string>('');
+  const [dateEnd, setDateEnd] = useState<string>('');
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [startDateObj, setStartDateObj] = useState<Date | null>(null);
+  const [endDateObj, setEndDateObj] = useState<Date | null>(null);
+
   useEffect(() => {
-    cargarPedidos();
+    cargarPedidosPorRango();
     cargarSaboresYRellenos();
   }, []);
 
@@ -74,11 +93,37 @@ export default function ProximosPedidosScreen() {
     }
   };
 
-  const cargarPedidos = async () => {
+  const aplicarFiltroTexto = (lista: Pedido[], texto: string) => {
+    const t = texto.trim().toLowerCase();
+    if (!t) return lista;
+    return lista.filter((p) => {
+      const enNombre = p.nombre.toLowerCase().includes(t);
+      const enDesc = (p.descripcion || '').toLowerCase().includes(t);
+      const enProductos = (p.productos || []).some((prod) => (
+        (prod.tipo || '').toLowerCase().includes(t) ||
+        (prod.sabor || '').toLowerCase().includes(t) ||
+        (prod.relleno || '').toLowerCase().includes(t) ||
+        (prod.tamaño || '').toLowerCase().includes(t) ||
+        String(prod.cantidad || '').toLowerCase().includes(t) ||
+        (prod.descripcion || '').toLowerCase().includes(t)
+      ));
+      return enNombre || enDesc || enProductos;
+    });
+  };
+
+  const cargarPedidosPorRango = async () => {
     try {
       await initDB();
-      const pedidosData = await obtenerPedidos();
-      setPedidos(pedidosData);
+      let base: Pedido[];
+      if (dateStart && dateEnd) {
+        base = await obtenerPedidosPorFecha(dateStart, dateEnd);
+      } else {
+        base = await obtenerPedidos();
+        if (dateStart) base = base.filter(p => p.fecha_entrega >= dateStart);
+        if (dateEnd) base = base.filter(p => p.fecha_entrega <= dateEnd);
+      }
+      setAllPedidos(base);
+      setPedidos(aplicarFiltroTexto(base, searchText));
     } catch (error) {
       console.error('Error cargando pedidos:', error);
       Alert.alert('Error', 'No se pudieron cargar los pedidos');
@@ -89,8 +134,58 @@ export default function ProximosPedidosScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await cargarPedidos();
+    await cargarPedidosPorRango();
     setRefreshing(false);
+  };
+
+  // Reaplicar filtro de texto cuando cambia el texto o la base
+  useEffect(() => {
+    setPedidos(aplicarFiltroTexto(allPedidos, searchText));
+  }, [searchText, allPedidos]);
+
+  // Totales de la lista filtrada actual
+  const totals = useMemo(() => {
+    const totalPrecio = pedidos.reduce((acc, p) => acc + (Number(p.precio_final) || 0), 0);
+    const totalAbonado = pedidos.reduce((acc, p) => acc + (Number(p.monto_abonado) || 0), 0);
+    const totalPendiente = totalPrecio - totalAbonado;
+    return { totalPrecio, totalAbonado, totalPendiente };
+  }, [pedidos]);
+
+  const resumenTexto = useMemo(() => {
+    const f = (n: number) => `$${n.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
+    const rango = dateStart || dateEnd ? ` (rango: ${dateStart || '∞'} → ${dateEnd || '∞'})` : '';
+    return `Pedidos: ${pedidos.length}${rango}\nTotal: ${f(totals.totalPrecio)}\nAbonado: ${f(totals.totalAbonado)}\nPendiente: ${f(totals.totalPendiente)}`;
+  }, [pedidos.length, totals, dateStart, dateEnd]);
+
+  const handleCopiarResumen = async () => {
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard?.writeText) {
+        await (navigator as any).clipboard.writeText(resumenTexto);
+        alert('Resumen copiado');
+        return;
+      }
+      await Share.share({ message: resumenTexto });
+    } catch (e) {
+      console.log('No se pudo compartir/copiar el resumen:', e);
+      if (Platform.OS === 'web') {
+        alert('No se pudo copiar el resumen');
+      } else {
+        Alert.alert('Error', 'No se pudo compartir/copiar el resumen');
+      }
+    }
+  };
+
+  const [showSummary, setShowSummary] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const handleResetFilters = () => {
+    setSearchText('');
+    setDateStart('');
+    setDateEnd('');
+    setStartDateObj(null);
+    setEndDateObj(null);
+    setLoading(true);
+    cargarPedidosPorRango();
   };
 
   const handleEditarPedido = (pedido: Pedido) => {
@@ -105,6 +200,54 @@ export default function ProximosPedidosScreen() {
     });
     setEditFechaDate(new Date(pedido.fecha_entrega));
     setShowEditModal(true);
+  };
+
+  const procesarAbono = async (pedido: Pedido, montoAbono: number) => {
+    const restante = pedido.precio_final - pedido.monto_abonado;
+    if (montoAbono <= 0) {
+      Platform.OS === 'web' ? alert('El abono debe ser mayor a 0') : Alert.alert('Error', 'El abono debe ser mayor a 0');
+      return;
+    }
+    if (montoAbono > restante) {
+      Platform.OS === 'web' ? alert(`El abono no puede exceder el restante (${restante})`) : Alert.alert('Error', `El abono no puede exceder el restante (${restante})`);
+      return;
+    }
+
+    try {
+      const actualizado: Omit<Pedido, 'id'> = {
+        fecha_entrega: pedido.fecha_entrega,
+        nombre: pedido.nombre,
+        precio_final: pedido.precio_final,
+        monto_abonado: pedido.monto_abonado + montoAbono,
+        descripcion: pedido.descripcion,
+        imagen: pedido.imagen,
+        productos: pedido.productos,
+      };
+      await actualizarPedido(pedido.id!, actualizado);
+      await cargarPedidosPorRango();
+      Platform.OS === 'web' ? alert('Abono registrado') : Alert.alert('Éxito', 'Abono registrado');
+    } catch (e) {
+      console.error(e);
+      Platform.OS === 'web' ? alert('No se pudo registrar el abono') : Alert.alert('Error', 'No se pudo registrar el abono');
+    }
+  };
+
+  const handleAbonar = (pedido: Pedido) => {
+    if (Platform.OS === 'web') {
+      const restante = pedido.precio_final - pedido.monto_abonado;
+      const valor = window.prompt(`Ingrese monto a abonar (restante: ${restante})`, '0');
+      if (valor == null) return;
+      const monto = parseFloat(valor.replace(',', '.'));
+      if (isNaN(monto)) {
+        alert('Monto inválido');
+        return;
+      }
+      procesarAbono(pedido, monto);
+    } else {
+      setPedidoAbonando(pedido);
+      setAbonoInput('');
+      setShowAbonarModal(true);
+    }
   };
 
   const handleGuardarEdicion = async () => {
@@ -147,7 +290,7 @@ export default function ProximosPedidosScreen() {
       } catch (e) {
         console.log('No se pudo reprogramar notificación:', e);
       }
-      await cargarPedidos();
+      await cargarPedidosPorRango();
       setShowEditModal(false);
       setPedidoEditando(null);
       Alert.alert('Éxito', 'Pedido actualizado correctamente');
@@ -193,7 +336,7 @@ export default function ProximosPedidosScreen() {
         console.log('No se pudo cancelar notificación:', e);
       }
       await eliminarPedido(pedido.id!);
-      await cargarPedidos();
+      await cargarPedidosPorRango();
       
       // Mostrar mensaje de éxito
       if (Platform.OS === 'web') {
@@ -303,8 +446,14 @@ export default function ProximosPedidosScreen() {
     setEditingProductIndex(null);
   };
 
+  // Parse local date (YYYY-MM-DD) para evitar desfases por TZ
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map((n) => parseInt(n, 10));
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
   const formatearFecha = (fecha: string) => {
-    const date = new Date(fecha);
+    const date = parseLocalDate(fecha);
     return date.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -314,7 +463,7 @@ export default function ProximosPedidosScreen() {
   };
 
   const formatearPrecio = (precio: number) => {
-    return `$${precio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
+    return `Q${precio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
   };
 
   const renderPedido = ({ item }: { item: Pedido }) => (
@@ -350,7 +499,7 @@ export default function ProximosPedidosScreen() {
           <Text style={styles.precioValor}>{formatearPrecio(item.monto_abonado)}</Text>
         </View>
         <View style={styles.precioInfo}>
-          <Text style={styles.precioLabel}>Pendiente:</Text>
+          <Text style={styles.precioLabel}>Debe:</Text>
           <Text style={[styles.precioValor, styles.pendiente]}>
             {formatearPrecio(item.precio_final - item.monto_abonado)}
           </Text>
@@ -379,6 +528,12 @@ export default function ProximosPedidosScreen() {
       {item.imagen && (
         <Image source={{ uri: item.imagen }} style={styles.imagenPedido} />
       )}
+
+      <View style={styles.abonarContainer}>
+        <TouchableOpacity style={styles.abonarBtn} onPress={() => handleAbonar(item)}>
+          <Text style={styles.abonarBtnText}>Abonar</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -401,6 +556,172 @@ export default function ProximosPedidosScreen() {
         </TouchableOpacity>
       <Text style={styles.title}>Próximos Pedidos</Text>
       </View>
+
+      {/* Filtros retráctiles */}
+      <View style={styles.filtersToggleContainer}>
+        <TouchableOpacity style={styles.filtersToggleBtn} onPress={() => setShowFilters(!showFilters)}>
+          <Text style={styles.filtersToggleText}>{showFilters ? 'Ocultar filtros ▲' : 'Mostrar filtros ▼'}</Text>
+        </TouchableOpacity>
+      </View>
+      {showFilters && (
+        <View style={styles.filtersContainer}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Buscar por nombre o producto"
+            placeholderTextColor={Colors.light.inputText}
+          />
+
+          {Platform.OS === 'web' ? (
+            <View style={[styles.dateRow, isNarrow && { flexDirection: 'column' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Desde</Text>
+                <input
+                  type="date"
+                  value={dateStart}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDateStart(v);
+                    setLoading(true);
+                    cargarPedidosPorRango();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: `1px solid ${Colors.light.inputBorder}`,
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    backgroundColor: Colors.light.background,
+                    color: Colors.light.inputText,
+                    fontFamily: 'System',
+                    marginRight: isNarrow ? 0 : 12,
+                  }}
+                />
+              </View>
+              <View style={isNarrow ? { height: 12 } : { width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Hasta</Text>
+                <input
+                  type="date"
+                  value={dateEnd}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDateEnd(v);
+                    setLoading(true);
+                    cargarPedidosPorRango();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: `1px solid ${Colors.light.inputBorder}`,
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    backgroundColor: Colors.light.background,
+                    color: Colors.light.inputText,
+                    fontFamily: 'System',
+                    marginLeft: isNarrow ? 0 : 12,
+                  }}
+                />
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.dateRow, isNarrow && { flexDirection: 'column' }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Desde</Text>
+                <TouchableOpacity
+                  style={[styles.dateButton, !isNarrow && { marginRight: 6 }]}
+                  onPress={() => setShowStartPicker(true)}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {startDateObj ? startDateObj.toLocaleDateString('es-ES') : 'Seleccione fecha'}
+                  </Text>
+                  <Text style={styles.dateButtonIcon}>📅</Text>
+                </TouchableOpacity>
+                {showStartPicker && (
+                  <DateTimePicker
+                    value={startDateObj || new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      setShowStartPicker(false);
+                      const d = selectedDate || null;
+                      setStartDateObj(d);
+                      setDateStart(d ? d.toISOString().split('T')[0] : '');
+                      setLoading(true);
+                      cargarPedidosPorRango();
+                    }}
+                  />
+                )}
+              </View>
+              <View style={isNarrow ? { height: 12 } : { width: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Hasta</Text>
+                <TouchableOpacity
+                  style={[styles.dateButton, !isNarrow && { marginLeft: 6 }]}
+                  onPress={() => setShowEndPicker(true)}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {endDateObj ? endDateObj.toLocaleDateString('es-ES') : 'Seleccione fecha'}
+                  </Text>
+                  <Text style={styles.dateButtonIcon}>📅</Text>
+                </TouchableOpacity>
+                {showEndPicker && (
+                  <DateTimePicker
+                    value={endDateObj || new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      setShowEndPicker(false);
+                      const d = selectedDate || null;
+                      setEndDateObj(d);
+                      setDateEnd(d ? d.toISOString().split('T')[0] : '');
+                      setLoading(true);
+                      cargarPedidosPorRango();
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilters}>
+            <Text style={styles.resetBtnText}>Limpiar filtros</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Barra de totales retráctil */}
+      <View style={styles.summaryToggleContainer}>
+        <TouchableOpacity style={styles.summaryToggleBtn} onPress={() => setShowSummary(!showSummary)}>
+          <Text style={styles.summaryToggleText}>{showSummary ? 'Ocultar resumen ▲' : 'Mostrar resumen ▼'}</Text>
+        </TouchableOpacity>
+      </View>
+      {showSummary && (
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Pedidos</Text>
+              <Text style={styles.summaryValue}>{pedidos.length}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Total</Text>
+              <Text style={styles.summaryValue}>{formatearPrecio(totals.totalPrecio)}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Abonado</Text>
+              <Text style={styles.summaryValue}>{formatearPrecio(totals.totalAbonado)}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={[styles.summaryLabel, styles.pendienteLabel]}>Debe</Text>
+              <Text style={[styles.summaryValue, styles.pendiente]}>{formatearPrecio(totals.totalPendiente)}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.copyBtn} onPress={handleCopiarResumen}>
+            <Text style={styles.copyBtnText}>Copiar/Compartir resumen</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {pedidos.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -896,6 +1217,62 @@ export default function ProximosPedidosScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal Abonar (móvil) */}
+      <Modal visible={showAbonarModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalScrollContent}>
+              <Text style={styles.modalTitle}>Registrar Abono</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Monto a abonar</Text>
+                <TextInput
+                  style={styles.input}
+                  value={abonoInput}
+                  onChangeText={(t) => {
+                    const numeric = t.replace(/[^0-9.]/g, '');
+                    const parts = numeric.split('.');
+                    setAbonoInput(parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numeric);
+                  }}
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  placeholderTextColor={Colors.light.inputText}
+                />
+                {pedidoAbonando && (
+                  <Text style={{ color: Colors.light.inputText, marginTop: 8 }}>
+                    Restante: {formatearPrecio(pedidoAbonando.precio_final - pedidoAbonando.monto_abonado)}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => {
+                  setShowAbonarModal(false);
+                  setPedidoAbonando(null);
+                  setAbonoInput('');
+                }}
+              >
+                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={() => {
+                  const monto = parseFloat(abonoInput || '0');
+                  if (!pedidoAbonando) return;
+                  setShowAbonarModal(false);
+                  procesarAbono(pedidoAbonando, monto);
+                  setPedidoAbonando(null);
+                  setAbonoInput('');
+                }}
+              >
+                <Text style={styles.confirmBtnText}>Registrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -912,6 +1289,27 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     backgroundColor: Colors.light.cardBackground,
   },
+  filtersContainer: {
+    padding: 16,
+    backgroundColor: Colors.light.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.inputBorder,
+    gap: 12,
+  },
+  searchInput: {
+    borderWidth: 2,
+    borderColor: Colors.light.inputBorder,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: Colors.light.inputBackground,
+    color: Colors.light.inputText,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   backButton: {
     marginRight: 16,
   },
@@ -924,6 +1322,99 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.light.titleColor,
+  },
+  resetBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: Colors.light.buttonSecondary,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  resetBtnText: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+  },
+  summaryContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.light.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.inputBorder,
+    gap: 8,
+  },
+  summaryToggleContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  summaryToggleBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.light.buttonSecondary,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  summaryToggleText: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+  },
+  filtersToggleContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  filtersToggleBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.light.buttonSecondary,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
+  filtersToggleText: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  summaryItem: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: Colors.light.inputText,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  pendienteLabel: {
+    color: Colors.light.buttonPrimary,
+  },
+  summaryValue: {
+    fontSize: 16,
+    color: Colors.light.titleColor,
+    fontWeight: 'bold',
+  },
+  copyBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: Colors.light.buttonSecondary,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  copyBtnText: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
@@ -1168,12 +1659,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.light.inputBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: Colors.light.background,
+    paddingVertical: 10,
+    backgroundColor: Colors.light.inputBackground,
     marginTop: 8,
   },
   dateButtonText: {
@@ -1232,6 +1723,21 @@ const styles = StyleSheet.create({
     color: Colors.light.buttonText,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  abonarContainer: {
+    marginTop: 8,
+    alignItems: 'flex-end',
+  },
+  abonarBtn: {
+    backgroundColor: Colors.light.buttonSecondary,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  abonarBtnText: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   comboContainer: {
     flexDirection: 'row',

@@ -22,9 +22,25 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        safeAreaInsets: { left: 0, right: 0, bottom: 0, top: 0 },
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
+        tabBarStyle: {
+          backgroundColor: Colors[colorScheme ?? 'light'].background,
+          paddingHorizontal: 0,
+          paddingTop: 6,
+          paddingBottom: 6,
+          height: 64,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+        },
+        // Repartir 4 tabs a lo ancho en web y móvil
+        tabBarItemStyle: { flex: 1, flexBasis: 0 },
+        tabBarLabelStyle: { marginBottom: 2 },
+        sceneContainerStyle: { paddingBottom: 64 },
       }}>
       <Tabs.Screen
         name="index"
@@ -40,17 +56,35 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
         }}
       />
+      {/* Próximos visible en barra */}
+      <Tabs.Screen
+        name="proximos-pedidos"
+        options={{
+          title: 'Próximos',
+          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+        }}
+      />
+      {/* Cotizaciones visible en barra */}
+      <Tabs.Screen
+        name="cotizaciones"
+        options={{
+          title: 'Cotizaciones',
+          tabBarIcon: ({ color }) => <TabBarIcon name="file-text" color={color} />,
+        }}
+      />
+      {/* Estadísticas visible en barra */}
+      <Tabs.Screen
+        name="two"
+        options={{
+          title: 'Estadísticas',
+          tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart" color={color} />,
+        }}
+      />
+      {/* Nuevo Pedido oculto en barra */}
       <Tabs.Screen
         name="nuevo-pedido"
         options={{
           title: 'Nuevo Pedido',
-          tabBarButton: () => null, // Oculto en la barra
-        }}
-      />
-      <Tabs.Screen
-        name="proximos-pedidos"
-        options={{
-          title: 'Próximos Pedidos',
           tabBarButton: () => null,
         }}
       />
@@ -68,13 +102,7 @@ export default function TabLayout() {
           tabBarButton: () => null,
         }}
       />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-        }}
-      />
+      {/* Eliminar tab de ejemplo */}
     </Tabs>
   );
 }

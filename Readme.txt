@@ -309,3 +309,77 @@ Trabajaremos el resto en etapas. Todo debe estar optimizado para uso interno, fl
 - Rendimiento: memo en listas, `keyExtractor` estable, evitar renders en modales.
 - Build Android: íconos/splash definitivos, EAS build, permisos.
 - Tests básicos: navegación y CRUD (web/SQLite).
+
+## Bitácora de trabajo — 2025-09-17
+
+### Cambios funcionales
+- Próximos Pedidos:
+  - Barra de totales (Total, Abonado, Debe) con opción de copiar/compartir resumen.
+  - Botón “Abonar” por pedido (web: prompt; móvil: modal) con validaciones y actualización de `monto_abonado`.
+  - Etiquetas actualizadas: “Pendiente” → “Debe”.
+  - Filtros y barra de totales ahora son retráctiles.
+  - Ajustes visuales de inputs de fecha y separaciones.
+- Nuevo Pedido:
+  - Botón “+ Agregar” de productos más grande y de ancho completo.
+  - Selector de fecha centrado y con altura consistente.
+- Navegación:
+  - Tabs inferiores actualizados a 4: Inicio, Calendario, Cotizaciones y Próximos.
+- Cotizaciones:
+  - Nueva pantalla con formulario (cliente y productos con cantidad, precio unitario y descripción).
+  - Generación de PDF formal con logo y tipografía más seria (Times New Roman).
+  - Moneda fija en Quetzales (Q) en toda la app/PDF.
+  - Guardado/descarga en Android usando Storage Access Framework (nombre: `CotizacionSweetCakes-DDMMYY.pdf`).
+  - En web: diálogo de impresión/guardar.
+  - Validez actualizada a 15 días y bloque de contacto al final.
+- Configuración:
+  - Campos editables para Cotizaciones: Nombre de contacto, Empresa y Teléfono.
+  - Botón “Guardar cambios” (ya no se guarda en caliente) y solicitud de permisos si se activan notificaciones.
+- Calendario:
+  - Badges con conteo de pedidos por día.
+  - Colores por carga: 1–2 pedidos (suave), 3+ (intenso).
+  - Modal al tocar un día (ver pedidos; acceso a “+ Nuevo”).
+
+### Ajustes visuales y de moneda
+- Toda la app usa Quetzales (Q) con 2 decimales.
+- Se corrigieron desalineaciones y tamaños en botones y selectores.
+
+### Pendientes próximos
+- Optimización del Calendario (prioridad):
+  - Alinear y escalar la cuadrícula de forma perfecta en web y pantallas horizontales.
+  - Botón “Hoy” y resaltado de la fecha actual (implementado).
+  - Auto-ajuste vertical según semanas visibles para evitar espacio vacío inferior (implementado, requiere pruebas en más resoluciones).
+  - Afinar estilos y tipografías del grid.
+  - Personalización de plantilla (colores, encabezados, notas) y pruebas en iOS.
+- Próximos Pedidos:
+  - Exportar/backup (CSV/JSON) por rango y totales.
+  - Búsquedas y filtros avanzados.
+- Accesibilidad/UX:
+  - Indicadores táctiles, estados de foco y tamaños mínimos.
+- Rendimiento:
+  - Revisión de re-renders en listas y memoización.
+- Build Android:
+  - Íconos/splash finales y permisos definitivos.
+
+## Bitácora de trabajo — 2025-09-18
+
+### Cambios funcionales
+- Calendario:
+  - Recarga automática al enfocar con `useFocusEffect` y pull-to-refresh con `RefreshControl`.
+  - Corrección de desfase de fechas por zona horaria: uso de helpers locales (YYYY-MM-DD) tanto al generar la grilla como al parsear fechas guardadas.
+  - Auto-ajuste de alto de celdas según número real de semanas del mes (sin forzar 6 filas), eliminando espacio vacío en la parte inferior de la grilla.
+- Nuevo Pedido:
+  - Botón Guardar robustecido en web/móvil: función de mensajes unificada (alert/alert) y normalización de fecha a formato local `YYYY-MM-DD`.
+- Próximos Pedidos:
+  - Formateo de fecha usando parser local para evitar corrimientos por zona horaria.
+- Estadísticas:
+  - Nueva pestaña visible en la barra inferior con totales generales (cantidad, total, abonado, debe) y resumen por mes; soporte de pull-to-refresh.
+
+### Navegación/Barra inferior
+- Renombrada pestaña `two` a “Estadísticas” con ícono de gráfico.
+- Ajustes de estilo de la barra para ocupar la base de la pantalla; aún queda pendiente optimizar distribución para eliminar un pequeño espacio a la derecha en ciertos anchos de ventana.
+
+### Pendientes próximos
+- Footer/Tabs: asegurar distribución 100% sin huecos en todos los breakpoints (investigar `tabBarButton` custom y medición de ancho en web; revisar zoom del navegador).
+- Calendario: pruebas en iOS/Android y navegadores; ajustar tipografías y tamaños mínimos.
+- Estadísticas: filtros por rango de fechas y exportación a CSV.
+  

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useFocusEffect } from 'expo-router';
 import { initDB, obtenerPedidos, Pedido } from '../../services/db';
 import Colors from '../../constants/Colors';
 
@@ -19,13 +20,25 @@ interface PedidoPorFecha {
 
 export default function CalendarioScreen() {
   const navigation = useNavigation();
+  // Optimizado a Android y estable en web: grid con FlatList numColumns=7
+  const { width: screenWidth } = useWindowDimensions();
   const [pedidosPorFecha, setPedidosPorFecha] = useState<PedidoPorFecha[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [dayModal, setDayModal] = useState<{ date: string; pedidos: Pedido[] } | null>(null);
+  const [gridHeight, setGridHeight] = useState(0);
 
   useEffect(() => {
     cargarPedidos();
   }, []);
+
+  // Recargar datos cuando la pantalla se enfoque (al volver desde crear/editar)
+  useFocusEffect(
+    React.useCallback(() => {
+      cargarPedidos();
+    }, [])
+  );
 
   const cargarPedidos = async () => {
     try {
@@ -88,11 +101,51 @@ export default function CalendarioScreen() {
   };
 
   const formatearPrecio = (precio: number) => {
-    return `$${precio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
+    return `Q${precio.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
   };
 
+  // Helpers de fecha sin afectar por zona horaria
+  const toLocalISODate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map((n) => parseInt(n, 10));
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+
+  const monthMatrix = useMemo(() => {
+    const y = currentMonth.getFullYear();
+    const m = currentMonth.getMonth();
+    const firstDay = new Date(y, m, 1);
+    const startDow = firstDay.getDay(); // 0=Dom
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const matrix: Array<Array<{ date: string | null; pedidos?: Pedido[] }>> = [];
+    let dayCounter = 1;
+    for (let week = 0; week < 6; week++) {
+      const row: Array<{ date: string | null; pedidos?: Pedido[] }> = [];
+      for (let dow = 0; dow < 7; dow++) {
+        if ((week === 0 && dow < startDow) || dayCounter > daysInMonth) {
+          row.push({ date: null });
+        } else {
+          const iso = toLocalISODate(new Date(y, m, dayCounter));
+          const pedidos = pedidosPorFecha.find(p => p.fecha === iso)?.pedidos || [];
+          row.push({ date: iso, pedidos });
+          dayCounter++;
+        }
+      }
+      matrix.push(row);
+      if (dayCounter > daysInMonth) break;
+    }
+    return matrix;
+  }, [currentMonth, pedidosPorFecha]);
+
+  const monthLabel = useMemo(() => currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }), [currentMonth]);
+
   const getFechaStyle = (fecha: string) => {
-    const date = new Date(fecha);
+    const date = parseLocalDate(fecha);
     const hoy = new Date();
     const mañana = new Date();
     mañana.setDate(hoy.getDate() + 1);
@@ -112,63 +165,7 @@ export default function CalendarioScreen() {
     }
   };
 
-  const renderPedido = ({ item }: { item: Pedido }) => (
-    <TouchableOpacity
-      style={styles.pedidoCard}
-      onPress={() => navigation.navigate('proximos-pedidos' as never)}
-    >
-      <View style={styles.pedidoHeader}>
-        <Text style={styles.pedidoNombre}>{item.nombre}</Text>
-        <Text style={styles.pedidoPrecio}>{formatearPrecio(item.precio_final)}</Text>
-      </View>
-      
-      <View style={styles.pedidoDetalles}>
-        <Text style={styles.pedidoAbonado}>
-          Abonado: {formatearPrecio(item.monto_abonado)}
-        </Text>
-        <Text style={styles.pedidoPendiente}>
-          Pendiente: {formatearPrecio(item.precio_final - item.monto_abonado)}
-        </Text>
-      </View>
-
-      <View style={styles.productosResumen}>
-        <Text style={styles.productosText}>
-          {item.productos.length} producto{item.productos.length !== 1 ? 's' : ''}
-        </Text>
-        {item.productos.slice(0, 2).map((producto, index) => (
-          <Text key={index} style={styles.productoResumen}>
-            • {producto.tipo.toUpperCase()}
-            {producto.sabor && ` - ${producto.sabor}`}
-            {producto.cantidad && ` (${producto.cantidad})`}
-          </Text>
-        ))}
-        {item.productos.length > 2 && (
-          <Text style={styles.masProductos}>
-            +{item.productos.length - 2} más...
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const renderFecha = ({ item }: { item: PedidoPorFecha }) => (
-    <View style={styles.fechaContainer}>
-      <View style={[styles.fechaHeader, getFechaStyle(item.fecha)]}>
-        <Text style={styles.fechaTexto}>{formatearFecha(item.fecha)}</Text>
-        <Text style={styles.fechaCantidad}>
-          {item.pedidos.length} pedido{item.pedidos.length !== 1 ? 's' : ''}
-        </Text>
-      </View>
-      
-      <FlatList
-        data={item.pedidos}
-        renderItem={renderPedido}
-        keyExtractor={(pedido) => pedido.id!.toString()}
-        scrollEnabled={false}
-        contentContainerStyle={styles.pedidosContainer}
-      />
-    </View>
-  );
+  // Vista por fecha (lista) eliminada al migrar a cuadrícula
 
   if (loading) {
     return (
@@ -178,38 +175,105 @@ export default function CalendarioScreen() {
     );
   }
 
+
+  // Cálculo responsivo del tamaño de celda (7 columnas, padding y separación)
+  const columns = 7;
+  const cellSpacing = 8;
+  const gridPadding = 16;
+  const rows = monthMatrix.length;
+  const gridPaddingTop = 8;    // styles.grid paddingTop
+  const gridPaddingBottom = 16; // styles.grid paddingBottom
+  const cellWidth = Math.floor((screenWidth - gridPadding * 2 - cellSpacing * (columns - 1)) / columns);
+  const cellHeight = gridHeight > 0
+    ? Math.floor((gridHeight - gridPaddingTop - gridPaddingBottom - cellSpacing * (rows - 1)) / rows)
+    : cellWidth;
+  const baseSize = Math.min(cellWidth, cellHeight);
+  const dateFontSize = baseSize < 54 ? 12 : 14;
+  const badgeFontSize = baseSize < 54 ? 10 : 12;
+  const cellPadding = baseSize < 54 ? 6 : 8;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Calendario de Pedidos</Text>
-        <TouchableOpacity
-          style={styles.nuevoPedidoBtn}
-          onPress={() => navigation.navigate('nuevo-pedido' as never)}
-        >
-          <Text style={styles.nuevoPedidoBtnText}>+ Nuevo</Text>
+        <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
+          <Text style={styles.navMonth}>{'‹'}</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
+        <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>
+          <Text style={styles.navMonth}>{'›'}</Text>
         </TouchableOpacity>
       </View>
 
-      {pedidosPorFecha.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No hay pedidos programados</Text>
-          <TouchableOpacity
-            style={styles.crearPedidoBtn}
-            onPress={() => navigation.navigate('nuevo-pedido' as never)}
-          >
-            <Text style={styles.crearPedidoBtnText}>Crear Primer Pedido</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
+      <View style={[styles.weekHeader, { paddingHorizontal: gridPadding }]}>
+        {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map((d, idx) => (
+          <Text key={d} style={[styles.weekDay, { width: cellWidth, marginRight: idx < columns - 1 ? cellSpacing : 0 }]}>{d}</Text>
+        ))}
+      </View>
+
+      <View style={styles.gridWrapper} onLayout={(e) => setGridHeight(e.nativeEvent.layout.height)}>
         <FlatList
-          data={pedidosPorFecha}
-          renderItem={renderFecha}
-          keyExtractor={(item) => item.fecha}
-          contentContainerStyle={styles.listContainer}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          data={monthMatrix.flat()}
+          numColumns={columns}
+          keyExtractor={(_, idx) => String(idx)}
+          contentContainerStyle={[styles.grid, { paddingHorizontal: gridPadding }]}
+          columnWrapperStyle={[styles.gridRow, { marginBottom: cellSpacing }]}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          renderItem={({ item, index }) => {
+          const cell: { date: string | null; pedidos?: Pedido[] } = item as any;
+          const count = cell?.pedidos?.length || 0;
+          return (
+            <TouchableOpacity
+              style={[
+                styles.cell,
+                !cell?.date && styles.cellEmpty,
+                cell?.date && count > 0 && (count < 3 ? styles.cellFew : styles.cellBusy),
+                  { width: cellWidth, height: cellHeight, marginRight: ((index + 1) % columns === 0) ? 0 : cellSpacing, padding: cellPadding },
+              ]}
+              disabled={!cell?.date}
+              onPress={() => cell?.date && setDayModal({ date: cell.date, pedidos: cell.pedidos || [] })}
+            >
+              {cell?.date && (
+                <>
+                  <Text style={[styles.cellDate, { fontSize: dateFontSize }]}>{parseLocalDate(cell.date).getDate()}</Text>
+                  {count > 0 && (
+                    <View style={styles.cellBadge}><Text style={[styles.cellBadgeText, { fontSize: badgeFontSize }]}>{count}</Text></View>
+                  )}
+                </>
+              )}
+            </TouchableOpacity>
+          );
+          }}
         />
+      </View>
+
+      {dayModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{parseLocalDate(dayModal.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+            {dayModal.pedidos.length === 0 ? (
+              <Text style={styles.emptyText}>Sin pedidos</Text>
+            ) : (
+              <FlatList
+                data={dayModal.pedidos}
+                keyExtractor={(p) => String(p.id)}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.modalPedido} onPress={() => { setDayModal(null); navigation.navigate('proximos-pedidos' as never); }}>
+                    <Text style={styles.modalPedidoNombre}>{item.nombre}</Text>
+                    <Text style={styles.modalPedidoMonto}>{formatearPrecio(item.precio_final)}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDayModal(null)}>
+                <Text style={styles.cancelBtnText}>Cerrar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={() => { setDayModal(null); navigation.navigate('nuevo-pedido' as never); }}>
+                <Text style={styles.confirmBtnText}>+ Nuevo</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -379,4 +443,48 @@ const styles = StyleSheet.create({
     color: Colors.light.buttonPrimary,
     fontStyle: 'italic',
   },
+  // Grid styles
+  weekHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    paddingBottom: 4,
+  },
+  weekDay: {
+    textAlign: 'center',
+    color: Colors.light.titleColor,
+    fontWeight: 'bold',
+  },
+  grid: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 16 },
+  gridRow: { flexDirection: 'row' },
+  gridWrapper: { flex: 1 },
+  cell: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 8,
+    padding: 6,
+    position: 'relative',
+    justifyContent: 'flex-start',
+  },
+  navMonth: { fontSize: 24, color: Colors.light.titleColor, paddingHorizontal: 12 },
+  cellEmpty: { backgroundColor: 'transparent' },
+  cellFew: { backgroundColor: '#f3d1e2' },
+  cellBusy: { backgroundColor: '#f09abb' },
+  cellDate: { color: Colors.light.titleColor, fontWeight: 'bold' },
+  cellBadge: {
+    position: 'absolute', right: 6, top: 6,
+    backgroundColor: Colors.light.buttonPrimary,
+    borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  cellBadgeText: { color: Colors.light.buttonText, fontSize: 12, fontWeight: 'bold' },
+  // Modal
+  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  modalContent: { backgroundColor: Colors.light.background, borderRadius: 12, width: '100%', maxWidth: 520 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.light.titleColor, textAlign: 'center', marginTop: 16, marginBottom: 8 },
+  modalPedido: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },
+  modalPedidoNombre: { color: Colors.light.titleColor, fontWeight: '600' },
+  modalPedidoMonto: { color: Colors.light.buttonPrimary, fontWeight: 'bold' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: Colors.light.inputBorder },
+  cancelBtn: { flex: 1, padding: 12, borderRadius: 8, borderWidth: 2, borderColor: Colors.light.inputBorder, alignItems: 'center' },
+  cancelBtnText: { color: Colors.light.inputText, fontWeight: 'bold' },
+  confirmBtn: { flex: 1, padding: 12, borderRadius: 8, backgroundColor: Colors.light.buttonPrimary, alignItems: 'center' },
+  confirmBtnText: { color: Colors.light.buttonText, fontWeight: 'bold' },
 }); 
