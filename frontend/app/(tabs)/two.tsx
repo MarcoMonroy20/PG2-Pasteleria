@@ -119,7 +119,7 @@ export default function EstadisticasScreen() {
     backgroundGradientTo: Colors.light.cardBackground,
     backgroundGradientFromOpacity: 0,
     backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => `rgba(228, 84, 128, ${opacity})`,
+    color: (opacity = 1) => `rgba(231, 84, 128, ${opacity})`, // Rosa fuerte #E75480
     labelColor: (opacity = 1) => Colors.light.titleColor,
     strokeWidth: 2,
     barPercentage: 0.6, // Barras más delgadas para mejor proporción
@@ -446,23 +446,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.buttonSecondary,
   },
   statCardSuccess: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: Colors.light.success,
+    borderColor: Colors.light.success,
   },
   statCardWarning: {
-    backgroundColor: '#FF9800',
-    borderColor: '#FF9800',
+    backgroundColor: Colors.light.warning,
+    borderColor: Colors.light.warning,
   },
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: Colors.light.buttonText,
+    color: '#FFFFFF', // Blanco para alto contraste sobre fondos de colores
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.light.buttonText,
+    color: '#FFFFFF', // Blanco para legibilidad sobre fondos de colores
     textAlign: 'center',
   },
 

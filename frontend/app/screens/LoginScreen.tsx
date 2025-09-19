@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
 import Colors from '../../constants/Colors';
+import { useColorScheme } from '../../components/useColorScheme';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -9,6 +10,7 @@ interface LoginScreenProps {
 const PASSWORD = 'pasteleria2024';
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+  const colorScheme = useColorScheme();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
@@ -108,11 +110,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   inputError: {
-    borderColor: '#ff4444',
+    borderColor: Colors.light.error,
     borderWidth: 2,
   },
   errorText: {
-    color: '#ff4444',
+    color: Colors.light.error,
     fontSize: 14,
     marginTop: 8,
     marginBottom: 16,

@@ -27,9 +27,11 @@ import {
   Relleno,
 } from '../../services/db';
 import Colors from '../../constants/Colors';
+import { useColorScheme } from '../../components/useColorScheme';
 
 export default function RellenosMasasScreen() {
   const navigation = useNavigation();
+  const colorScheme = useColorScheme();
   const [sabores, setSabores] = useState<Sabor[]>([]);
   const [rellenos, setRellenos] = useState<Relleno[]>([]);
   const [loading, setLoading] = useState(true);
@@ -509,10 +511,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   activo: {
-    color: '#4CAF50',
+    color: Colors.light.success,
   },
   inactivo: {
-    color: '#F44336',
+    color: Colors.light.error,
   },
   itemActions: {
     flexDirection: 'row',
@@ -551,7 +553,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(94, 51, 111, 0.7)', // Morado oscuro con opacidad
     justifyContent: 'center',
     alignItems: 'center',
   },

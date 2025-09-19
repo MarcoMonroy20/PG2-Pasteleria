@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 18, fontWeight: 'bold', color: Colors.light.buttonPrimary },
   primaryBtn: { backgroundColor: Colors.light.buttonPrimary, padding: 14, borderRadius: 12, alignItems: 'center' },
   primaryBtnText: { color: Colors.light.buttonText, fontWeight: 'bold', fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(94, 51, 111, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   modalContent: { backgroundColor: Colors.light.background, borderRadius: 12, width: '100%', maxWidth: 520 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.light.titleColor, textAlign: 'center', marginTop: 16, marginBottom: 8 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },

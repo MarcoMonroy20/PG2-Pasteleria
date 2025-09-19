@@ -12,6 +12,7 @@ import {
 import { useNavigation, useFocusEffect } from 'expo-router';
 import { initDB, obtenerPedidos, Pedido } from '../../services/db';
 import Colors from '../../constants/Colors';
+import { useColorScheme } from '../../components/useColorScheme';
 
 interface PedidoPorFecha {
   fecha: string;
@@ -20,6 +21,7 @@ interface PedidoPorFecha {
 
 export default function CalendarioScreen() {
   const navigation = useNavigation();
+  const colorScheme = useColorScheme();
   // Optimizado a Android y estable en web: grid con FlatList numColumns=7
   const { width: screenWidth } = useWindowDimensions();
   const [pedidosPorFecha, setPedidosPorFecha] = useState<PedidoPorFecha[]>([]);
@@ -365,7 +367,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.buttonSecondary,
   },
   fechaPasada: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.light.surface,
   },
   fechaTexto: {
     fontSize: 18,
@@ -466,8 +468,8 @@ const styles = StyleSheet.create({
   },
   navMonth: { fontSize: 24, color: Colors.light.titleColor, paddingHorizontal: 12 },
   cellEmpty: { backgroundColor: 'transparent' },
-  cellFew: { backgroundColor: '#f3d1e2' },
-  cellBusy: { backgroundColor: '#f09abb' },
+  cellFew: { backgroundColor: Colors.light.buttonSecondary },
+  cellBusy: { backgroundColor: Colors.light.buttonPrimary },
   cellDate: { color: Colors.light.titleColor, fontWeight: 'bold' },
   cellBadge: {
     position: 'absolute', right: 6, top: 6,
@@ -476,7 +478,7 @@ const styles = StyleSheet.create({
   },
   cellBadgeText: { color: Colors.light.buttonText, fontSize: 12, fontWeight: 'bold' },
   // Modal
-  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(94, 51, 111, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   modalContent: { backgroundColor: Colors.light.background, borderRadius: 12, width: '100%', maxWidth: 520 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.light.titleColor, textAlign: 'center', marginTop: 16, marginBottom: 8 },
   modalPedido: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 },

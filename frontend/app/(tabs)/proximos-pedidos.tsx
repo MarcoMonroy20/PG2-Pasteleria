@@ -20,10 +20,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { initDB, obtenerPedidos, obtenerPedidosPorFecha, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos, obtenerSettings, getNotificationIdForPedido, setNotificationIdForPedido, clearNotificationForPedido } from '../../services/db';
 import { schedulePedidoNotification, cancelNotificationById } from '../../services/notifications';
 import Colors from '../../constants/Colors';
+import { useColorScheme } from '../../components/useColorScheme';
 
 export default function ProximosPedidosScreen() {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
+  const colorScheme = useColorScheme();
   const isNarrow = width < 400;
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [allPedidos, setAllPedidos] = useState<Pedido[]>([]);
@@ -1562,7 +1564,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(94, 51, 111, 0.7)', // Morado oscuro con opacidad
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
@@ -1704,7 +1706,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   eliminarProductoBtn: {
-    backgroundColor: '#ff4444',
+    backgroundColor: Colors.light.error,
     padding: 8,
     borderRadius: 6,
     marginLeft: 8,

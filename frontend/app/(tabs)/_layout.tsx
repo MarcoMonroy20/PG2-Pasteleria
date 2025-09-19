@@ -45,7 +45,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        tabBarInactiveTintColor: '#999',
+        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
         safeAreaInsets: { left: 0, right: 0, bottom: 0, top: 0 },
         headerShown: useClientOnlyValue(false, true),
 
