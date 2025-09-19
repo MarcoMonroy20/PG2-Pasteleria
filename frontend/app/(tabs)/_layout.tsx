@@ -44,14 +44,13 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-        safeAreaInsets: { left: 0, right: 0, bottom: 0, top: 0 },
+        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].buttonPrimary,
+        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].textSecondary,
         headerShown: useClientOnlyValue(false, true),
 
         // Estilos responsive del tab bar
         tabBarStyle: {
-          backgroundColor: Colors[colorScheme ?? 'light'].background,
+          backgroundColor: Colors[colorScheme ?? 'light'].surface,
           height: responsive.tabBarHeight,
           paddingBottom: responsive.paddingBottom,
           paddingTop: responsive.paddingVertical,
@@ -88,9 +87,6 @@ export default function TabLayout() {
             display: 'none',
           }),
         },
-
-        // Espacio para el contenido (ajustado dinámicamente)
-        sceneContainerStyle: { paddingBottom: responsive.tabBarHeight },
       }}
     >
       {/* Tabs visibles en la barra inferior */}

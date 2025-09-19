@@ -151,13 +151,9 @@ export const actualizarPedido = (id: number, pedido: Omit<Pedido, 'id'>): Promis
 
 export const eliminarPedido = (id: number): Promise<void> => {
   return new Promise((resolve) => {
-    console.log('eliminarPedido web - ID recibido:', id);
     const pedidos = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEDIDOS) || '[]');
-    console.log('Pedidos antes de eliminar:', pedidos.length);
     const filteredPedidos = pedidos.filter((p: Pedido) => p.id !== id);
-    console.log('Pedidos después de filtrar:', filteredPedidos.length);
     localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(filteredPedidos));
-    console.log('Pedido eliminado exitosamente');
     resolve();
   });
 };

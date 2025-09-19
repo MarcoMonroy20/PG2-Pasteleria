@@ -67,7 +67,7 @@ const insertarSaboresPorDefecto = () => {
         [sabor.nombre, sabor.tipo]
       );
     } catch (error) {
-      console.log('Error insertando sabor por defecto:', error);
+      // Error silencioso en inserción de sabores por defecto
     }
   });
 };
@@ -91,7 +91,7 @@ const insertarRellenosPorDefecto = () => {
         [relleno]
       );
     } catch (error) {
-      console.log('Error insertando relleno por defecto:', error);
+      // Error silencioso en inserción de rellenos por defecto
     }
   });
 };

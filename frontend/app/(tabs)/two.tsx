@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import Colors from '../../constants/Colors';
 import { initDB, obtenerPedidos, Pedido } from '../../services/db';
@@ -7,6 +7,7 @@ import { initDB, obtenerPedidos, Pedido } from '../../services/db';
 type PeriodoFiltro = '6meses' | '1ano' | 'todo';
 
 export default function EstadisticasScreen() {
+  const { width } = useWindowDimensions();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,7 +139,7 @@ export default function EstadisticasScreen() {
   };
 
   // Dimensiones optimizadas para gráficas
-  const chartWidth = Dimensions.get('window').width - 64; // Más margen lateral
+  const chartWidth = width - 64; // Más margen lateral
   const chartHeight = 200; // Altura más compacta
 
   // Datos para gráfica de cantidad de pedidos
