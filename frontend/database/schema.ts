@@ -28,6 +28,31 @@ CREATE TABLE IF NOT EXISTS rellenos (
 );
 `;
 
+export const CREATE_USERS_TABLE = `
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'dueño', 'repostero')),
+  nombre TEXT NOT NULL,
+  activo INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+export const CREATE_SETTINGS_TABLE = `
+CREATE TABLE IF NOT EXISTS settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  notifications_enabled INTEGER DEFAULT 0,
+  days_before INTEGER DEFAULT 1,
+  contact_name TEXT DEFAULT '',
+  company_name TEXT DEFAULT '',
+  phone TEXT DEFAULT ''
+);
+`;
+
+export const DROP_USERS_TABLE = `DROP TABLE IF EXISTS users;`;
+export const DROP_SETTINGS_TABLE = `DROP TABLE IF EXISTS settings;`;
 export const DROP_PEDIDOS_TABLE = `DROP TABLE IF EXISTS pedidos;`;
 export const DROP_SABORES_TABLE = `DROP TABLE IF EXISTS sabores;`;
 export const DROP_RELLENOS_TABLE = `DROP TABLE IF EXISTS rellenos;`; 

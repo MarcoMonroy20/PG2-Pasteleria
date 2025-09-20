@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, Tabs } from 'expo-router';
-import { Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
 import { useClientOnlyValue } from '../../components/useClientOnlyValue';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Función para calcular tamaños responsive basados en el ancho de pantalla
 const useResponsiveTabBar = () => {
@@ -40,13 +41,39 @@ const useResponsiveTabBar = () => {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const responsive = useResponsiveTabBar();
+  const { user, hasPermission } = useAuth();
+  const [userRole, setUserRole] = useState<string>('');
+  const [isReady, setIsReady] = useState(false);
+
+  // TODOS los hooks deben estar aquí, antes de cualquier return condicional
+  const headerShown = useClientOnlyValue(false, true);
+
+  // Forzar re-render cuando cambie el usuario
+  useEffect(() => {
+    const newUserRole = user?.role || '';
+    setUserRole(newUserRole);
+    // Solo marcar como ready cuando tengamos un userRole válido
+    if (newUserRole && !isReady) {
+      setIsReady(true);
+    }
+  }, [user?.role, isReady]);
+
+  // Mostrar loading mientras no tengamos userRole válido
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors[colorScheme ?? 'light'].background }}>
+        <Text>Cargando...</Text>
+      </View>
+    );
+  }
 
   return (
     <Tabs
+      key={`tabs-${userRole}`}
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].buttonPrimary,
         tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].textSecondary,
-        headerShown: useClientOnlyValue(false, true),
+        headerShown,
 
         // Estilos responsive del tab bar
         tabBarStyle: {
@@ -89,66 +116,106 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* Tabs visibles en la barra inferior */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Inicio',
-          tabBarIcon: ({ color, focused }) => (
-            <FontAwesome
-              name="home"
-              size={focused ? responsive.iconSize : responsive.iconSizeInactive}
-              color={color}
-              style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
-            />
-          ),
-        }}
-      />
+      {/* Renderizar tabs condicionalmente */}
+      {(() => {
+        const tabs = [];
 
-      <Tabs.Screen
-        name="calendario"
-        options={{
-          title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Calendario',
-          tabBarIcon: ({ color, focused }) => (
-            <FontAwesome
-              name="calendar"
-              size={focused ? responsive.iconSize : responsive.iconSizeInactive}
-              color={color}
-              style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
-            />
-          ),
-        }}
-      />
+        // Tabs siempre visibles
+        tabs.push(
+          <Tabs.Screen
+            key="index"
+            name="index"
+            options={{
+              title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Inicio',
+              tabBarIcon: ({ color, focused }) => (
+                <FontAwesome
+                  name="home"
+                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  color={color}
+                  style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
+                />
+              ),
+            }}
+          />
+        );
 
-      <Tabs.Screen
-        name="proximos-pedidos"
-        options={{
-          title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Próximos',
-          tabBarIcon: ({ color, focused }) => (
-            <FontAwesome
-              name="list"
-              size={focused ? responsive.iconSize : responsive.iconSizeInactive}
-              color={color}
-              style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
-            />
-          ),
-        }}
-      />
+        tabs.push(
+          <Tabs.Screen
+            key="calendario"
+            name="calendario"
+            options={{
+              title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Calendario',
+              tabBarIcon: ({ color, focused }) => (
+                <FontAwesome
+                  name="calendar"
+                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  color={color}
+                  style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
+                />
+              ),
+            }}
+          />
+        );
 
-      <Tabs.Screen
-        name="cotizaciones"
-        options={{
-          title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Cotizaciones',
-          tabBarIcon: ({ color, focused }) => (
-            <FontAwesome
-              name="file-text"
-              size={focused ? responsive.iconSize : responsive.iconSizeInactive}
-              color={color}
-              style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
-            />
-          ),
-        }}
-      />
+        tabs.push(
+          <Tabs.Screen
+            key="proximos-pedidos"
+            name="proximos-pedidos"
+            options={{
+              title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Próximos',
+              tabBarIcon: ({ color, focused }) => (
+                <FontAwesome
+                  name="list"
+                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  color={color}
+                  style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
+                />
+              ),
+            }}
+          />
+        );
+
+        // Tabs condicionales - visibles según permisos
+        tabs.push(
+          <Tabs.Screen
+            key="cotizaciones"
+            name="cotizaciones"
+            options={{
+              title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Cotizaciones',
+              tabBarButton: userRole === 'admin' || userRole === 'dueño' ? undefined : () => null,
+              tabBarIcon: ({ color, focused }) => (
+                <FontAwesome
+                  name="file-text"
+                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  color={color}
+                  style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
+                />
+              ),
+            }}
+          />
+        );
+
+        tabs.push(
+          <Tabs.Screen
+            key="two"
+            name="two"
+            options={{
+              title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Estadísticas',
+              tabBarButton: userRole === 'admin' || userRole === 'dueño' ? undefined : () => null,
+              tabBarIcon: ({ color, focused }) => (
+                <FontAwesome
+                  name="bar-chart"
+                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  color={color}
+                  style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
+                />
+              ),
+            }}
+          />
+        );
+
+        return tabs;
+      })()}
 
       {/* Tabs ocultos (accesibles por navegación programática) */}
       <Tabs.Screen
@@ -172,22 +239,6 @@ export default function TabLayout() {
         options={{
           tabBarButton: () => null, // Oculto de la barra
           title: 'Configuración',
-        }}
-      />
-
-      {/* Estadísticas (renombrado de 'two') */}
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Estadísticas',
-          tabBarIcon: ({ color, focused }) => (
-            <FontAwesome
-              name="bar-chart"
-              size={focused ? responsive.iconSize : responsive.iconSizeInactive}
-              color={color}
-              style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
-            />
-          ),
         }}
       />
     </Tabs>

@@ -140,6 +140,7 @@ opción de minicupcakes.
 markdown
 Copiar
 Editar
+*Recordar que el comando && no funciona en estas versiones*
 
 ### ¿Qué necesito que generes ahora?
 Comienza por generar:
@@ -382,4 +383,61 @@ Trabajaremos el resto en etapas. Todo debe estar optimizado para uso interno, fl
 - Footer/Tabs: asegurar distribución 100% sin huecos en todos los breakpoints (investigar `tabBarButton` custom y medición de ancho en web; revisar zoom del navegador).
 - Calendario: pruebas en iOS/Android y navegadores; ajustar tipografías y tamaños mínimos.
 - Estadísticas: filtros por rango de fechas y exportación a CSV.
+
+## Bitácora de trabajo — 2025-09-20
+
+### Sistema de Autenticación Multiusuario
+- **Login multi-rol implementado**: 3 usuarios con permisos diferenciados
+  - 👑 **Admin**: Acceso completo a toda la aplicación
+  - 💼 **Dueño**: Acceso completo (igual que admin)
+  - 👨‍🍳 **Repostero**: Acceso solo lectura (Próximos Pedidos y Calendario)
+
+- **Credenciales por defecto**:
+  - Admin: `admin2024` (Administrador)
+  - Dueño: `dueno2024` (Raquel)
+  - Repostero: `repostero2024` (Repostero)
+
+### Control de Acceso por Roles
+- **Tabs dinámicas**: Las pestañas se ocultan automáticamente según permisos
+  - Repostero: Solo ve "Inicio" y "Calendario" (sin "Cotizaciones" ni "Estadísticas")
+- **Botones condicionales**: Los botones de crear/editar se ocultan para usuarios sin permisos
+- **Protecciones en todas las pantallas**:
+  - Calendario: Botón "+ Nuevo" solo para admin/dueño
+  - Próximos Pedidos: Botones de editar/eliminar solo para admin/dueño
+  - Inicio: Botones según rol del usuario
+
+### Correcciones Técnicas
+- **Error de React Hooks resuelto**: Problema de orden de hooks en TabLayout corregido
+- **Paquetes faltantes instalados**:
+  - `expo-print` para generación de PDFs en cotizaciones
+  - `expo-sharing` para compartir archivos
+- **Mensajes de bienvenida personalizados**:
+  - Admin: "Bienvenido, Administrador"
+  - Dueño: "Bienvenida, Raquel"
+  - Repostero: "Bienvenido, Repostero"
+
+### Arquitectura de Autenticación
+- **Context API**: `AuthContext` para gestión global de usuario y permisos
+- **Base de datos**: Tabla `users` con roles y credenciales
+- **Compatibilidad**: Funciona en web (localStorage) y móvil (SQLite)
+- **Seguridad**: Validación de permisos en todas las operaciones sensibles
+
+### Pendientes para mañana (2025-09-21)
+- **Optimización móvil**: Probar en Android/iOS reales, ajustar UX táctil
+- **Mejoras visuales**: Animaciones suaves, estados de carga
+- **Pruebas exhaustivas**: Flujo completo con todos los roles
+- **Documentación**: README actualizado con guía de usuarios
+
+### Estado actual del proyecto
+✅ **Funcionalidades completas**: Login multiusuario, CRUD pedidos, cotizaciones PDF, estadísticas, calendario, configuración
+✅ **Sistema de roles operativo**: Control de acceso funcionando correctamente
+✅ **Compatibilidad**: Web y móvil (Expo)
+⚠️ **Pendiente**: Optimización para dispositivos móviles reales
+
+### Próximos pasos sugeridos (alta prioridad)
+1. **Testing en dispositivos reales** (Android/iOS)
+2. **Optimización de rendimiento** en listas grandes
+3. **Backup/export avanzado** con filtros de fecha
+4. **Notificaciones push** para entregas próximas
+5. **Migración a backend** (MySQL + API REST)
   

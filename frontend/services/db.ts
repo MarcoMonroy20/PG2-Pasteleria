@@ -1,48 +1,48 @@
 import { openDatabaseSync, SQLiteDatabase } from 'expo-sqlite';
-import { CREATE_PEDIDOS_TABLE, CREATE_SABORES_TABLE, CREATE_RELLENOS_TABLE } from '../database/schema';
+import { CREATE_PEDIDOS_TABLE, CREATE_SABORES_TABLE, CREATE_RELLENOS_TABLE, CREATE_USERS_TABLE, CREATE_SETTINGS_TABLE } from '../database/schema';
 
 const db: SQLiteDatabase = openDatabaseSync('pasteleria.db');
 
 export const initDB = () => {
   return new Promise<void>((resolve, reject) => {
     try {
+      console.log('Inicializando base de datos...');
+
+      // Crear todas las tablas
+      db.execSync(CREATE_USERS_TABLE);
       db.execSync(CREATE_PEDIDOS_TABLE);
       db.execSync(CREATE_SABORES_TABLE);
       db.execSync(CREATE_RELLENOS_TABLE);
+
       // Tabla para mapear pedidos a notificaciones programadas
       db.execSync(`CREATE TABLE IF NOT EXISTS notifications (
         pedido_id INTEGER PRIMARY KEY,
         notification_id TEXT
       );`);
-      // Tabla de settings (si no existe)
-      db.execSync(`CREATE TABLE IF NOT EXISTS settings (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        notifications_enabled INTEGER DEFAULT 0,
-        days_before INTEGER DEFAULT 0,
-        contact_name TEXT,
-        company_name TEXT,
-        phone TEXT
-      );`);
-      // Asegurar fila única
-      db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 0)');
 
-      // Intentar agregar columnas nuevas en instalaciones existentes
-      try { db.runSync('ALTER TABLE settings ADD COLUMN contact_name TEXT'); } catch (e) {}
-      try { db.runSync('ALTER TABLE settings ADD COLUMN company_name TEXT'); } catch (e) {}
-      try { db.runSync('ALTER TABLE settings ADD COLUMN phone TEXT'); } catch (e) {}
+      // Tabla de settings
+      db.execSync(CREATE_SETTINGS_TABLE);
 
-      // Establecer valores por defecto de contacto si están vacíos
+      // Asegurar fila única de settings
+      db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 1)');
+
+      // Establecer valores por defecto de contacto
       db.runSync(
         'UPDATE settings SET contact_name = COALESCE(contact_name, ?), company_name = COALESCE(company_name, ?), phone = COALESCE(phone, ?) WHERE id = 1',
         ['Raquel Alejandra Rousselin Pellecer', 'Sweet Cakes', '53597287']
       );
-      
-      // Insertar sabores por defecto si no existen
+
+      console.log('Tablas creadas, creando datos por defecto...');
+
+      // Insertar usuarios, sabores y rellenos por defecto
+      crearUsuariosPorDefecto();
       insertarSaboresPorDefecto();
       insertarRellenosPorDefecto();
-      
+
+      console.log('Base de datos inicializada correctamente');
       resolve();
     } catch (error) {
+      console.error('Error inicializando BD:', error);
       reject(error);
     }
   });
@@ -162,7 +162,7 @@ export const obtenerPedidos = (): Promise<Pedido[]> => {
 export const obtenerPedidoPorId = (id: number): Promise<Pedido | null> => {
   return new Promise((resolve, reject) => {
     try {
-      const result = db.getFirstSync('SELECT * FROM pedidos WHERE id = ?', [id]);
+      const result = db.getFirstSync('SELECT * FROM pedidos WHERE id = ?', [id]) as any;
       if (result) {
         const pedido = {
           ...result,
@@ -383,7 +383,7 @@ export default db;
 export const obtenerSettings = (): Promise<AppSettings> => {
   return new Promise((resolve, reject) => {
     try {
-      const row = db.getFirstSync('SELECT notifications_enabled, days_before, contact_name, company_name, phone FROM settings WHERE id = 1');
+      const row = db.getFirstSync('SELECT notifications_enabled, days_before, contact_name, company_name, phone FROM settings WHERE id = 1') as any;
       resolve({
         notifications_enabled: Boolean(row?.notifications_enabled ?? 0),
         days_before: Number(row?.days_before ?? 0),
@@ -401,7 +401,7 @@ export const obtenerSettings = (): Promise<AppSettings> => {
 export const getNotificationIdForPedido = (pedidoId: number): Promise<string | null> => {
   return new Promise((resolve, reject) => {
     try {
-      const row = db.getFirstSync('SELECT notification_id FROM notifications WHERE pedido_id = ?', [pedidoId]);
+      const row = db.getFirstSync('SELECT notification_id FROM notifications WHERE pedido_id = ?', [pedidoId]) as any;
       resolve(row?.notification_id ?? null);
     } catch (error) {
       reject(error);
@@ -449,6 +449,184 @@ export const guardarSettings = (settings: AppSettings): Promise<void> => {
       );
       resolve();
     } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Tipos para usuarios
+export interface User {
+  id: number;
+  username: string;
+  password: string;
+  role: 'admin' | 'dueño' | 'repostero';
+  nombre: string;
+  activo: boolean;
+  created_at: string;
+}
+
+// Funciones de usuarios
+export const crearUsuariosPorDefecto = (): void => {
+  try {
+    console.log('Verificando usuarios existentes...');
+    db.runSync('DELETE FROM users');
+
+    console.log('Creando usuarios por defecto...');
+    const usuariosPorDefecto = [
+      { username: 'admin', password: 'admin2024', role: 'admin', nombre: 'Administrador' },
+      { username: 'dueno', password: 'dueno2024', role: 'dueño', nombre: 'Raquel' },
+      { username: 'repostero', password: 'repostero2024', role: 'repostero', nombre: 'Repostero' }
+    ];
+
+    usuariosPorDefecto.forEach(user => {
+      db.runSync(
+        'INSERT INTO users (username, password, role, nombre, activo) VALUES (?, ?, ?, ?, 1)',
+        [user.username, user.password, user.role, user.nombre]
+      );
+    });
+
+    console.log('Usuarios creados exitosamente');
+  } catch (error) {
+    console.error('Error creando usuarios por defecto:', error);
+  }
+};
+
+export const autenticarUsuario = (username: string, password: string): Promise<User | null> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const user = db.getFirstSync(
+        'SELECT id, username, password, role, nombre, activo, created_at FROM users WHERE username = ? AND password = ? AND activo = 1',
+        [username, password]
+      );
+      resolve(user as User | null);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const obtenerUsuarios = (): Promise<User[]> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const users = db.getAllSync('SELECT id, username, password, role, nombre, activo, created_at FROM users ORDER BY role, nombre');
+      resolve(users as User[]);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const crearUsuario = (user: Omit<User, 'id' | 'created_at'>): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const result = db.runSync(
+        'INSERT INTO users (username, password, role, nombre, activo) VALUES (?, ?, ?, ?, ?)',
+        [user.username, user.password, user.role, user.nombre, user.activo ? 1 : 0]
+      );
+      resolve(result.lastInsertRowId);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const actualizarUsuario = (id: number, user: Partial<User>): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const fields = [];
+      const values = [];
+
+      if (user.username !== undefined) {
+        fields.push('username = ?');
+        values.push(user.username);
+      }
+      if (user.password !== undefined) {
+        fields.push('password = ?');
+        values.push(user.password);
+      }
+      if (user.role !== undefined) {
+        fields.push('role = ?');
+        values.push(user.role);
+      }
+      if (user.nombre !== undefined) {
+        fields.push('nombre = ?');
+        values.push(user.nombre);
+      }
+      if (user.activo !== undefined) {
+        fields.push('activo = ?');
+        values.push(user.activo ? 1 : 0);
+      }
+
+      if (fields.length === 0) {
+        resolve();
+        return;
+      }
+
+      values.push(id);
+      db.runSync(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const eliminarUsuario = (id: number): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      db.runSync('DELETE FROM users WHERE id = ?', [id]);
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Función para resetear completamente la base de datos
+export const resetDatabase = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      console.log('Reseteando base de datos completamente...');
+
+      // Eliminar todas las tablas
+      try { db.runSync('DROP TABLE IF EXISTS users'); } catch (e) { console.log('Error dropping users:', e); }
+      try { db.runSync('DROP TABLE IF EXISTS pedidos'); } catch (e) { console.log('Error dropping pedidos:', e); }
+      try { db.runSync('DROP TABLE IF EXISTS sabores'); } catch (e) { console.log('Error dropping sabores:', e); }
+      try { db.runSync('DROP TABLE IF EXISTS rellenos'); } catch (e) { console.log('Error dropping rellenos:', e); }
+      try { db.runSync('DROP TABLE IF EXISTS settings'); } catch (e) { console.log('Error dropping settings:', e); }
+      try { db.runSync('DROP TABLE IF EXISTS notifications'); } catch (e) { console.log('Error dropping notifications:', e); }
+
+      console.log('Tablas eliminadas, recreando...');
+
+      // Recrear todas las tablas
+      db.execSync(CREATE_USERS_TABLE);
+      db.execSync(CREATE_PEDIDOS_TABLE);
+      db.execSync(CREATE_SABORES_TABLE);
+      db.execSync(CREATE_RELLENOS_TABLE);
+      db.execSync(CREATE_SETTINGS_TABLE);
+
+      // Tabla para mapear pedidos a notificaciones
+      db.execSync(`CREATE TABLE IF NOT EXISTS notifications (
+        pedido_id INTEGER PRIMARY KEY,
+        notification_id TEXT
+      );`);
+
+      // Insertar datos por defecto
+      crearUsuariosPorDefecto();
+      insertarSaboresPorDefecto();
+      insertarRellenosPorDefecto();
+
+      // Configurar settings por defecto
+      db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 1)');
+      db.runSync(
+        'UPDATE settings SET contact_name = ?, company_name = ?, phone = ? WHERE id = 1',
+        ['Raquel Alejandra Rousselin Pellecer', 'Sweet Cakes', '53597287']
+      );
+
+      console.log('Base de datos reseteada correctamente');
+      resolve();
+    } catch (error) {
+      console.error('Error reseteando BD:', error);
       reject(error);
     }
   });

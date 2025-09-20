@@ -135,7 +135,7 @@ export const obtenerPedidos = (): Promise<Pedido[]> => {
 export const obtenerPedidoPorId = (id: number): Promise<Pedido | null> => {
   return new Promise((resolve, reject) => {
     try {
-      const result = db.getFirstSync('SELECT * FROM pedidos WHERE id = ?', [id]);
+      const result = db.getFirstSync('SELECT * FROM pedidos WHERE id = ?', [id]) as any;
       if (result) {
         const pedido = {
           ...result,

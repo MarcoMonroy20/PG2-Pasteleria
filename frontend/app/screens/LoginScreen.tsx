@@ -2,32 +2,68 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, Platform } from 'react-native';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface LoginScreenProps {
-  onLogin: () => void;
-}
+type UserRole = 'admin' | 'dueño' | 'repostero';
 
-const PASSWORD = 'pasteleria2024';
-
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+const LoginScreen: React.FC = () => {
   const colorScheme = useColorScheme();
+  const { login } = useAuth();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (password === PASSWORD) {
-      setError(''); // Limpiar error si la contraseña es correcta
-      onLogin();
-    } else {
-      setError('Contraseña incorrecta. Intenta nuevamente.');
-      setPassword(''); // Limpiar el campo de contraseña
-      
-      // Mostrar mensaje de error según la plataforma
-      if (Platform.OS === 'web') {
-        alert('Clave incorrecta. Por favor, intenta nuevamente.');
-      } else {
-        Alert.alert('Clave incorrecta', 'Por favor, intenta nuevamente.');
+  // Mapear contraseñas a roles y usernames
+  const getCredentialsFromPassword = (password: string): { username: string; role: UserRole } | null => {
+    switch (password) {
+      case 'admin2024':
+        return { username: 'admin', role: 'admin' };
+      case 'dueno2024':
+        return { username: 'dueno', role: 'dueño' };
+      case 'repostero2024':
+        return { username: 'repostero', role: 'repostero' };
+      default:
+        return null;
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!password.trim()) {
+      setError('Ingresa tu contraseña');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const credentials = getCredentialsFromPassword(password);
+
+      if (!credentials) {
+        setError('Contraseña incorrecta');
+        setPassword('');
+
+        if (Platform.OS === 'web') {
+          alert('Contraseña incorrecta. Intenta nuevamente.');
+        } else {
+          Alert.alert('Error de acceso', 'Contraseña incorrecta. Intenta nuevamente.');
+        }
+        return;
       }
+
+      const success = await login(credentials.username, password);
+
+      if (!success) {
+        setError('Error de autenticación');
+        setPassword('');
+        Alert.alert('Error', 'Error de autenticación. Intenta nuevamente.');
+      }
+    } catch (error) {
+      console.error('Error en login:', error);
+      setError('Error de conexión');
+      Alert.alert('Error', 'Error de conexión. Intenta nuevamente.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -35,6 +71,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     <View style={styles.container}>
       <Image source={require('../../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>Acceso al sistema</Text>
+      <Text style={styles.subtitle}>Ingresa tu contraseña</Text>
+
+      {/* Campo de contraseña */}
       <TextInput
         style={[styles.input, error && styles.inputError]}
         placeholder="Contraseña"
@@ -45,12 +84,29 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           if (error) setError(''); // Limpiar error al escribir
         }}
         placeholderTextColor={Colors.light.buttonPrimary}
+        editable={!isLoading}
       />
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      {/* Botón de login */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>INGRESAR</Text>
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          <Text style={styles.loginButtonText}>
+            {isLoading ? 'VERIFICANDO...' : 'INGRESAR'}
+          </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Información de contraseñas por defecto */}
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoTitle}>Contraseñas disponibles:</Text>
+        <Text style={styles.infoText}>• Administrador: admin2024</Text>
+        <Text style={styles.infoText}>• Dueño: dueno2024</Text>
+        <Text style={styles.infoText}>• Repostero: repostero2024</Text>
       </View>
     </View>
   );
@@ -73,7 +129,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.light.titleColor,
-    marginBottom: 24,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: Colors.light.inputText,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   input: {
     width: '80%',
@@ -109,6 +172,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
   inputError: {
     borderColor: Colors.light.error,
     borderWidth: 2,
@@ -120,6 +186,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
     fontWeight: '500',
+  },
+
+
+  // Estilos para información de contraseñas
+  infoContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 8,
+    width: '90%',
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.light.titleColor,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  infoText: {
+    fontSize: 12,
+    color: Colors.light.inputText,
+    marginBottom: 4,
+    textAlign: 'center',
   },
 });
 

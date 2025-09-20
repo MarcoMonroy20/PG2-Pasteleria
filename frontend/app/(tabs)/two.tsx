@@ -3,17 +3,34 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, u
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import Colors from '../../constants/Colors';
 import { initDB, obtenerPedidos, Pedido } from '../../services/db';
+import { useAuth } from '../../contexts/AuthContext';
 
 type PeriodoFiltro = '6meses' | '1ano' | 'todo';
 
 export default function EstadisticasScreen() {
   const { width } = useWindowDimensions();
+  const { hasPermission } = useAuth();
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [periodoFiltro, setPeriodoFiltro] = useState<PeriodoFiltro>('6meses');
   const [mesSeleccionado, setMesSeleccionado] = useState<string>('');
   const [verTodosMeses, setVerTodosMeses] = useState(true);
+
+  // Verificar permisos de acceso
+  if (!hasPermission('view_estadisticas')) {
+    return (
+      <View style={styles.accessDeniedContainer}>
+        <Text style={styles.accessDeniedTitle}>Acceso Denegado</Text>
+        <Text style={styles.accessDeniedText}>
+          No tienes permisos para acceder a las estadísticas.
+        </Text>
+        <Text style={styles.accessDeniedSubtext}>
+          Contacta al administrador si necesitas acceso.
+        </Text>
+      </View>
+    );
+  }
 
   useEffect(() => {
     cargar();
@@ -235,6 +252,8 @@ export default function EstadisticasScreen() {
             data={cantidadPedidosData}
             width={chartWidth}
             height={chartHeight}
+            yAxisLabel=""
+            yAxisSuffix=""
             chartConfig={{
               ...chartConfig,
               color: (opacity = 1) => Colors.light.buttonPrimary,
@@ -621,6 +640,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: Colors.light.titleColor,
+  },
+
+  // Pantalla de acceso denegado
+  accessDeniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
+    padding: 20,
+  },
+  accessDeniedTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: Colors.light.error,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  accessDeniedText: {
+    fontSize: 18,
+    color: Colors.light.inputText,
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  accessDeniedSubtext: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 
   // Texto vacío

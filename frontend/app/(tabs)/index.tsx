@@ -3,27 +3,98 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Colors from '../../constants/Colors';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const { user, hasPermission, logout } = useAuth();
+
+  const getWelcomeMessage = (user: any) => {
+    // Para usuarios por defecto, usar el mensaje específico
+    if (user?.role === 'admin') return 'Bienvenido, Administrador';
+    if (user?.role === 'dueño') return 'Bienvenida, Raquel';
+    if (user?.role === 'repostero') return 'Bienvenido, Repostero';
+    // Para usuarios personalizados, usar su nombre
+    return `Bienvenido, ${user?.nombre || 'Usuario'}`;
+  };
+
+  const renderButtonsByRole = () => {
+    if (!user) return null;
+
+    switch (user.role) {
+      case 'admin':
+        return (
+          <>
+            <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('nuevo-pedido' as never)}>
+              <Text style={styles.mainButtonText}>Nuevo Pedido</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('proximos-pedidos' as never)}>
+              <Text style={styles.buttonText}>Ver Próximos Pedidos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('rellenos-masas' as never)}>
+              <Text style={styles.buttonText}>Modificar Rellenos y Masas</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'dueño':
+        return (
+          <>
+            <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('nuevo-pedido' as never)}>
+              <Text style={styles.mainButtonText}>Nuevo Pedido</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('proximos-pedidos' as never)}>
+              <Text style={styles.buttonText}>Ver Próximos Pedidos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('rellenos-masas' as never)}>
+              <Text style={styles.buttonText}>Modificar Rellenos y Masas</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      case 'repostero':
+        return (
+          <>
+            <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('proximos-pedidos' as never)}>
+              <Text style={styles.mainButtonText}>Ver Próximos Pedidos</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('calendario' as never)}>
+              <Text style={styles.buttonText}>Ver Calendario</Text>
+            </TouchableOpacity>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.settingsButton}
-        onPress={() => navigation.navigate('settings' as never)}
-      >
-        <FontAwesome name="cog" size={28} color={Colors.light.buttonSecondary} />
-      </TouchableOpacity>
+      {/* Botón de configuración - Solo Admin */}
+      {hasPermission('manage_settings') && (
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate('settings' as never)}
+        >
+          <FontAwesome name="cog" size={28} color={Colors.light.buttonSecondary} />
+        </TouchableOpacity>
+      )}
+
+      {/* Información del usuario */}
+      <View style={styles.userInfo}>
+        <Text style={styles.welcomeText}>
+          {getWelcomeMessage(user)}
+        </Text>
+      </View>
+
       <Text style={styles.title}>Gestión de Pedidos</Text>
-      <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('nuevo-pedido' as never)}>
-        <Text style={styles.mainButtonText}>Nuevo Pedido</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('proximos-pedidos' as never)}>
-        <Text style={styles.buttonText}>Ver Próximos Pedidos</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('rellenos-masas' as never)}>
-        <Text style={styles.buttonText}>Modificar Rellenos y Masas</Text>
+
+      {renderButtonsByRole()}
+
+      {/* Botón de cerrar sesión */}
+      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
       </TouchableOpacity>
     </View>
   );
@@ -83,5 +154,30 @@ const styles = StyleSheet.create({
     top: 40,
     right: 24,
     zIndex: 10,
+  },
+  userInfo: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  welcomeText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.light.buttonPrimary,
+    textAlign: 'center',
+  },
+  logoutButton: {
+    marginTop: 40,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+  },
+  logoutButtonText: {
+    color: Colors.light.inputText,
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

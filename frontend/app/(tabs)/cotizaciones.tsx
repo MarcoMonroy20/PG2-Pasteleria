@@ -4,6 +4,7 @@ import Colors from '../../constants/Colors';
 import { useNavigation } from 'expo-router';
 import * as DB from '../../services/db';
 import { Asset } from 'expo-asset';
+import { useAuth } from '../../contexts/AuthContext';
 
 type ItemCotizacion = {
   id: number;
@@ -15,10 +16,26 @@ type ItemCotizacion = {
 
 export default function CotizacionesScreen() {
   const navigation = useNavigation();
+  const { hasPermission } = useAuth();
   const [cliente, setCliente] = useState('');
   const [items, setItems] = useState<ItemCotizacion[]>([]);
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
+
+  // Verificar permisos de acceso
+  if (!hasPermission('view_cotizaciones')) {
+    return (
+      <View style={styles.accessDeniedContainer}>
+        <Text style={styles.accessDeniedTitle}>Acceso Denegado</Text>
+        <Text style={styles.accessDeniedText}>
+          No tienes permisos para acceder a las cotizaciones.
+        </Text>
+        <Text style={styles.accessDeniedSubtext}>
+          Contacta al administrador si necesitas acceso.
+        </Text>
+      </View>
+    );
+  }
   const [itemNombre, setItemNombre] = useState('');
   const [itemCantidad, setItemCantidad] = useState('1');
   const [itemPrecioUnit, setItemPrecioUnit] = useState('');
@@ -290,7 +307,7 @@ export default function CotizacionesScreen() {
       if (can) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
       } else {
-        Platform.OS !== 'web' && Alert.alert('PDF generado', uri);
+        Alert.alert('PDF generado', uri);
       }
     } catch (e) {
       console.error(e);
@@ -497,6 +514,35 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: Colors.light.inputText, fontWeight: 'bold' },
   confirmBtn: { flex: 1, padding: 12, borderRadius: 8, backgroundColor: Colors.light.buttonPrimary, alignItems: 'center' },
   confirmBtnText: { color: Colors.light.buttonText, fontWeight: 'bold' },
+
+  // Pantalla de acceso denegado
+  accessDeniedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
+    padding: 20,
+  },
+  accessDeniedTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: Colors.light.error,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  accessDeniedText: {
+    fontSize: 18,
+    color: Colors.light.inputText,
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  accessDeniedSubtext: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
 });
 
 

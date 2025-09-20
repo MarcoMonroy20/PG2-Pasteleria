@@ -207,4 +207,5 @@ const styles = StyleSheet.create({
   dayChipTextActive: { color: Colors.light.buttonText, fontWeight: 'bold' },
   saveBtn: { marginTop: 16, backgroundColor: Colors.light.buttonPrimary, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   saveBtnText: { color: Colors.light.buttonText, fontWeight: 'bold', fontSize: 16 },
+  helper: { fontSize: 12, color: Colors.light.inputText, marginTop: 8, fontStyle: 'italic' },
 }); 

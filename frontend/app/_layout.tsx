@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import LoginScreen from './screens/LoginScreen';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -27,7 +28,6 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -43,21 +43,41 @@ export default function RootLayout() {
   if (!loaded) {
     return null;
   }
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+
+  return <RootLayoutWithAuth />;
+}
+
+function RootLayoutWithAuth() {
+  const colorScheme = useColorScheme();
+
+  return (
+    <AuthProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <RootLayoutContent />
+      </ThemeProvider>
+    </AuthProvider>
+  );
+}
+
+function RootLayoutContent() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return null; // O un loading screen
   }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
   return <RootLayoutNav />;
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+    </Stack>
   );
 }

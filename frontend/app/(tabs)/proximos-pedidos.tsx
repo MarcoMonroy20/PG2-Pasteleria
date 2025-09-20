@@ -21,11 +21,13 @@ import { initDB, obtenerPedidos, obtenerPedidosPorFecha, eliminarPedido, actuali
 import { schedulePedidoNotification, cancelNotificationById } from '../../services/notifications';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ProximosPedidosScreen() {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const colorScheme = useColorScheme();
+  const { hasPermission } = useAuth();
   const isNarrow = width < 400;
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [allPedidos, setAllPedidos] = useState<Pedido[]>([]);
@@ -476,18 +478,22 @@ export default function ProximosPedidosScreen() {
           <Text style={styles.pedidoFecha}>{formatearFecha(item.fecha_entrega)}</Text>
         </View>
         <View style={styles.pedidoAcciones}>
-          <TouchableOpacity
-            style={styles.editarBtn}
-            onPress={() => handleEditarPedido(item)}
-          >
-            <Text style={styles.editarBtnText}>✏️</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.eliminarBtn}
-            onPress={() => handleEliminarPedido(item)}
-          >
-            <Text style={styles.eliminarBtnText}>🗑️</Text>
-          </TouchableOpacity>
+          {hasPermission('edit_pedido') && (
+            <TouchableOpacity
+              style={styles.editarBtn}
+              onPress={() => handleEditarPedido(item)}
+            >
+              <Text style={styles.editarBtnText}>✏️</Text>
+            </TouchableOpacity>
+          )}
+          {hasPermission('delete_pedido') && (
+            <TouchableOpacity
+              style={styles.eliminarBtn}
+              onPress={() => handleEliminarPedido(item)}
+            >
+              <Text style={styles.eliminarBtnText}>🗑️</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -531,11 +537,13 @@ export default function ProximosPedidosScreen() {
         <Image source={{ uri: item.imagen }} style={styles.imagenPedido} />
       )}
 
-      <View style={styles.abonarContainer}>
-        <TouchableOpacity style={styles.abonarBtn} onPress={() => handleAbonar(item)}>
-          <Text style={styles.abonarBtnText}>Abonar</Text>
-        </TouchableOpacity>
-      </View>
+      {hasPermission('edit_pedido') && (
+        <View style={styles.abonarContainer}>
+          <TouchableOpacity style={styles.abonarBtn} onPress={() => handleAbonar(item)}>
+            <Text style={styles.abonarBtnText}>Abonar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
