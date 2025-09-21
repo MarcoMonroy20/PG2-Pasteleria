@@ -12,7 +12,7 @@ import {
   FlatList,
   Platform,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from 'expo-router';
+import { useNavigation, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { initDB, crearPedido, Producto, obtenerSabores, obtenerRellenos, Sabor, Relleno, obtenerSettings, setNotificationIdForPedido } from '../../services/db';
@@ -21,6 +21,7 @@ import Colors from '../../constants/Colors';
 
 export default function NuevoPedidoScreen() {
   const navigation = useNavigation();
+  const { fechaSeleccionada } = useLocalSearchParams();
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [fechaEntregaDate, setFechaEntregaDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -64,11 +65,25 @@ export default function NuevoPedidoScreen() {
         await initDB();
         await cargarSaboresYRellenos();
         
-        // Establecer fecha por defecto (mañana)
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setFechaEntregaDate(tomorrow);
-        setFechaEntrega(tomorrow.toISOString().split('T')[0]);
+        // Establecer fecha por defecto (mañana o fecha seleccionada)
+        let selectedDate: Date;
+        let fechaString: string;
+
+        if (fechaSeleccionada && typeof fechaSeleccionada === 'string') {
+          // Si viene una fecha del calendario, usarla
+          // Convertir sin problemas de zona horaria
+          const [year, month, day] = fechaSeleccionada.split('-').map(n => parseInt(n, 10));
+          selectedDate = new Date(year, month - 1, day);
+          fechaString = fechaSeleccionada;
+        } else {
+          // Fecha por defecto (mañana)
+          selectedDate = new Date();
+          selectedDate.setDate(selectedDate.getDate() + 1);
+          fechaString = selectedDate.toISOString().split('T')[0];
+        }
+
+        setFechaEntregaDate(selectedDate);
+        setFechaEntrega(fechaString);
       } catch (error) {
         console.error('Error inicializando datos:', error);
       }
@@ -76,6 +91,22 @@ export default function NuevoPedidoScreen() {
 
     initializeData();
   }, []);
+
+  // Detectar cambios en los parámetros de fecha (cuando se navega con nueva fecha)
+  useEffect(() => {
+    if (fechaSeleccionada && typeof fechaSeleccionada === 'string') {
+      console.log('Nueva fecha seleccionada:', fechaSeleccionada);
+
+      // Convertir la fecha sin problemas de zona horaria (misma lógica que arriba)
+      const [year, month, day] = fechaSeleccionada.split('-').map(n => parseInt(n, 10));
+      const selectedDate = new Date(year, month - 1, day);
+
+      console.log('Fecha convertida:', selectedDate.toISOString().split('T')[0]);
+
+      setFechaEntregaDate(selectedDate);
+      setFechaEntrega(fechaSeleccionada);
+    }
+  }, [fechaSeleccionada]);
 
   // Recargar datos cuando la pantalla se enfoque
   useFocusEffect(

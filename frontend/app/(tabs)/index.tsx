@@ -71,15 +71,25 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Botón de configuración - Solo Admin */}
-      {hasPermission('manage_settings') && (
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('settings' as never)}
-        >
-          <FontAwesome name="cog" size={28} color={Colors.light.buttonSecondary} />
-        </TouchableOpacity>
-      )}
+      {/* Header con título y botones */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Gestión de Pedidos</Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+            <FontAwesome name="sign-out" size={20} color={Colors.light.buttonSecondary} />
+            <Text style={styles.logoutButtonText}>Salir</Text>
+          </TouchableOpacity>
+          {hasPermission('manage_settings') && (
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => navigation.navigate('settings' as never)}
+            >
+              <FontAwesome name="cog" size={24} color={Colors.light.buttonSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
 
       {/* Información del usuario */}
       <View style={styles.userInfo}>
@@ -88,14 +98,10 @@ export default function HomeScreen() {
         </Text>
       </View>
 
-      <Text style={styles.title}>Gestión de Pedidos</Text>
-
-      {renderButtonsByRole()}
-
-      {/* Botón de cerrar sesión */}
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
+      {/* Contenedor de botones centrados */}
+      <View style={styles.buttonsContainer}>
+        {renderButtonsByRole()}
+      </View>
     </View>
   );
 }
@@ -103,15 +109,27 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: Colors.light.background,
-    padding: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+    backgroundColor: Colors.light.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.inputBorder,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 32,
     color: Colors.light.titleColor,
   },
   mainButton: {
@@ -150,13 +168,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   settingsButton: {
-    position: 'absolute',
-    top: 40,
-    right: 24,
-    zIndex: 10,
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
   },
   userInfo: {
     alignItems: 'center',
+    marginTop: 20,
     marginBottom: 20,
     paddingHorizontal: 20,
   },
@@ -167,9 +185,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   logoutButton: {
-    marginTop: 40,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: Colors.light.surface,
     borderRadius: 8,
     borderWidth: 1,
@@ -177,7 +196,14 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     color: Colors.light.inputText,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
+    marginLeft: 4,
+  },
+  buttonsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
 });

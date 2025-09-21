@@ -522,7 +522,7 @@ export default function ProximosPedidosScreen() {
         <Text style={styles.productosTitulo}>Productos:</Text>
         {item.productos.map((producto, index) => (
           <View key={index} style={styles.productoItem}>
-            <Text style={styles.productoTipo}>{producto.tipo.toUpperCase()}</Text>
+            <Text style={styles.productoTipo}>{producto.tipo.charAt(0).toUpperCase() + producto.tipo.slice(1)}</Text>
             {producto.sabor && <Text style={styles.productoDetalle}>Sabor: {producto.sabor}</Text>}
             {producto.relleno && <Text style={styles.productoDetalle}>Relleno: {producto.relleno}</Text>}
             {producto.tamaño && <Text style={styles.productoDetalle}>Tamaño: {producto.tamaño}</Text>}

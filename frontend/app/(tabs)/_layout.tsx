@@ -175,6 +175,24 @@ export default function TabLayout() {
           />
         );
 
+        tabs.push(
+          <Tabs.Screen
+            key="productos-trabajar"
+            name="productos-trabajar"
+            options={{
+              title: responsive.isLandscape && responsive.isSmallMobile ? '' : 'Esta Semana',
+              tabBarIcon: ({ color, focused }) => (
+                <FontAwesome
+                  name="calendar-check-o"
+                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  color={color}
+                  style={{ marginBottom: responsive.isSmallMobile ? 1 : 2 }}
+                />
+              ),
+            }}
+          />
+        );
+
         // Tabs condicionales - visibles según permisos
         tabs.push(
           <Tabs.Screen

@@ -8,8 +8,9 @@ import {
   Alert,
   RefreshControl,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from 'expo-router';
+import { useNavigation, useFocusEffect, useRouter } from 'expo-router';
 import { initDB, obtenerPedidos, Pedido } from '../../services/db';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
@@ -21,6 +22,7 @@ interface PedidoPorFecha {
 
 export default function CalendarioScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   // Optimizado a Android y estable en web: grid con FlatList numColumns=7
   const { width: screenWidth } = useWindowDimensions();
@@ -30,6 +32,7 @@ export default function CalendarioScreen() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [dayModal, setDayModal] = useState<{ date: string; pedidos: Pedido[] } | null>(null);
   const [gridHeight, setGridHeight] = useState(0);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
 
   useEffect(() => {
     cargarPedidos();
@@ -146,6 +149,34 @@ export default function CalendarioScreen() {
 
   const monthLabel = useMemo(() => currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }), [currentMonth]);
 
+  // Generar opciones de meses disponibles (24 meses hacia atrás y 12 hacia adelante)
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const currentDate = new Date();
+
+    for (let i = -24; i <= 12; i++) {
+      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+      const monthName = monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const isCurrentMonth = monthDate.getMonth() === currentDate.getMonth() &&
+                           monthDate.getFullYear() === currentDate.getFullYear();
+
+      options.push({
+        id: i,
+        date: monthDate,
+        label: monthName,
+        isCurrent: isCurrentMonth,
+      });
+    }
+
+    return options;
+  }, []);
+
+  // Función para seleccionar mes desde el picker
+  const selectMonth = (monthOption: typeof monthOptions[0]) => {
+    setCurrentMonth(monthOption.date);
+    setShowMonthPicker(false);
+  };
+
   const getFechaStyle = (fecha: string) => {
     const date = parseLocalDate(fecha);
     const hoy = new Date();
@@ -197,12 +228,26 @@ export default function CalendarioScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
-          <Text style={styles.navMonth}>{'‹'}</Text>
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+        >
+          <Text style={styles.navButtonText}>‹ Anterior</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
-        <TouchableOpacity onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>
-          <Text style={styles.navMonth}>{'›'}</Text>
+
+        <TouchableOpacity
+          style={styles.monthSelector}
+          onPress={() => setShowMonthPicker(true)}
+        >
+          <Text style={styles.title}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
+          <Text style={styles.dropdownIcon}>▼</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+        >
+          <Text style={styles.navButtonText}>Siguiente ›</Text>
         </TouchableOpacity>
       </View>
 
@@ -270,10 +315,56 @@ export default function CalendarioScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDayModal(null)}>
                 <Text style={styles.cancelBtnText}>Cerrar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={() => { setDayModal(null); navigation.navigate('nuevo-pedido' as never); }}>
+              <TouchableOpacity style={styles.confirmBtn} onPress={() => {
+                console.log('Enviando fecha al nuevo pedido:', dayModal.date);
+                setDayModal(null);
+                router.push({
+                  pathname: '/(tabs)/nuevo-pedido',
+                  params: { fechaSeleccionada: dayModal.date }
+                });
+              }}>
                 <Text style={styles.confirmBtnText}>+ Nuevo</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      )}
+
+      {/* Modal del Selector de Mes */}
+      {showMonthPicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.monthPickerModal}>
+            <Text style={styles.modalTitle}>Seleccionar Mes</Text>
+
+            <ScrollView style={styles.monthOptionsList}>
+              {monthOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.monthOption,
+                    option.isCurrent && styles.currentMonthOption,
+                  ]}
+                  onPress={() => selectMonth(option)}
+                >
+                  <Text style={[
+                    styles.monthOptionText,
+                    option.isCurrent && styles.currentMonthOptionText,
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {option.isCurrent && (
+                    <Text style={styles.currentMonthBadge}>ACTUAL</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowMonthPicker(false)}
+            >
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -290,9 +381,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
     paddingTop: 50,
+    paddingBottom: 16,
     backgroundColor: Colors.light.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.inputBorder,
   },
   title: {
     fontSize: 24,
@@ -489,4 +583,92 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: Colors.light.inputText, fontWeight: 'bold' },
   confirmBtn: { flex: 1, padding: 12, borderRadius: 8, backgroundColor: Colors.light.buttonPrimary, alignItems: 'center' },
   confirmBtnText: { color: Colors.light.buttonText, fontWeight: 'bold' },
+  // Nuevos estilos para navegación mejorada
+  navButton: {
+    backgroundColor: Colors.light.buttonSecondary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  navButtonText: {
+    color: Colors.light.buttonText,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'transparent',
+  },
+  dropdownIcon: {
+    color: Colors.light.titleColor,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  // Modal del selector de mes
+  monthPickerModal: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    width: '90%',
+    maxHeight: '80%',
+    maxWidth: 400,
+  },
+  monthOptionsList: {
+    maxHeight: 300,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  monthOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: Colors.light.surface,
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+  },
+  currentMonthOption: {
+    backgroundColor: Colors.light.buttonPrimary,
+    borderColor: Colors.light.buttonPrimary,
+  },
+  monthOptionText: {
+    fontSize: 16,
+    color: Colors.light.titleColor,
+    flex: 1,
+  },
+  currentMonthOptionText: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+  },
+  currentMonthBadge: {
+    backgroundColor: Colors.light.buttonText,
+    color: Colors.light.buttonPrimary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 10,
+    fontWeight: 'bold',
+    overflow: 'hidden',
+  },
+  closeButton: {
+    backgroundColor: Colors.light.buttonSecondary,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    margin: 20,
+    marginTop: 10,
+  },
+  closeButtonText: {
+    color: Colors.light.buttonText,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 }); 
