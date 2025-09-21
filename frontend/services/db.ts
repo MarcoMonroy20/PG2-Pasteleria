@@ -123,6 +123,7 @@ export const crearPedido = (pedido: Omit<Pedido, 'id'>): Promise<number> => {
   return new Promise((resolve, reject) => {
     try {
       const productosJson = JSON.stringify(pedido.productos);
+      console.log('Guardando fecha_entrega:', pedido.fecha_entrega);
       const result = db.runSync(
         'INSERT INTO pedidos (fecha_entrega, nombre, precio_final, monto_abonado, descripcion, imagen, productos) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
@@ -147,10 +148,14 @@ export const obtenerPedidos = (): Promise<Pedido[]> => {
   return new Promise((resolve, reject) => {
     try {
       const result = db.getAllSync('SELECT * FROM pedidos ORDER BY fecha_entrega ASC');
-      const pedidos = result.map((row: any) => ({
-        ...row,
-        productos: JSON.parse(row.productos)
-      }));
+      const pedidos = result.map((row: any) => {
+        console.log('📊 Leyendo pedido ID:', row.id, 'fecha_entrega:', row.fecha_entrega);
+        return {
+          ...row,
+          productos: JSON.parse(row.productos)
+        };
+      });
+      console.log('📈 Total pedidos leídos:', pedidos.length);
       resolve(pedidos);
     } catch (error) {
       reject(error);

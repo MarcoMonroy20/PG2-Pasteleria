@@ -21,7 +21,38 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FAD1E1"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.pasteleriacocina.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "pasteleriacocina.app"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "config": {
+        "googleServicesFile": "./google-services.json"
+      },
+      "buildProperties": {
+        "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -29,7 +60,17 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#FAD1E1",
+          "defaultChannel": "default",
+          "sounds": ["default.wav", "custom-sound.wav"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

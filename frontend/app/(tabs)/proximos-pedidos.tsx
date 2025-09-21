@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Alert,
   Modal,
@@ -14,20 +13,30 @@ import {
   ScrollView,
   useWindowDimensions,
   Share,
+  FlatList,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Animated from 'react-native-reanimated';
 import { initDB, obtenerPedidos, obtenerPedidosPorFecha, eliminarPedido, actualizarPedido, Pedido, Producto, obtenerSabores, obtenerRellenos, obtenerSettings, getNotificationIdForPedido, setNotificationIdForPedido, clearNotificationForPedido } from '../../services/db';
 import { schedulePedidoNotification, cancelNotificationById } from '../../services/notifications';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
 import { useAuth } from '../../contexts/AuthContext';
+import OptimizedList from '../../components/OptimizedList';
+import OptimizedCard from '../../components/OptimizedCard';
+import OptimizedButton from '../../components/OptimizedButton';
+import AndroidLoader from '../../components/AndroidLoader';
+import { useStaggeredAnimation, PerformanceUtils } from '../../utils/animations';
 
 export default function ProximosPedidosScreen() {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const { hasPermission } = useAuth();
+
+  // Animations
+  const { animateIn, getAnimatedStyle } = useStaggeredAnimation(10, 50);
   const isNarrow = width < 400;
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [allPedidos, setAllPedidos] = useState<Pedido[]>([]);
@@ -133,6 +142,11 @@ export default function ProximosPedidosScreen() {
       Alert.alert('Error', 'No se pudieron cargar los pedidos');
     } finally {
       setLoading(false);
+
+      // Trigger animations when data is loaded
+      setTimeout(() => {
+        animateIn();
+      }, 100);
     }
   };
 
@@ -550,7 +564,11 @@ export default function ProximosPedidosScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Cargando pedidos...</Text>
+        <AndroidLoader
+          size="large"
+          message="Cargando pedidos..."
+          variant="spinner"
+        />
       </View>
     );
   }

@@ -4,6 +4,7 @@ import { useNavigation } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Colors from '../../constants/Colors';
 import { useAuth } from '../../contexts/AuthContext';
+import OfflineIndicator from '../../components/OfflineIndicator';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -71,9 +72,14 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header con título y botones */}
+      {/* Header con título, saludo y botones */}
       <View style={styles.header}>
-        <Text style={styles.title}>Gestión de Pedidos</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>Gestión de Pedidos</Text>
+          <Text style={styles.welcomeText}>
+            {getWelcomeMessage(user)}
+          </Text>
+        </View>
         <View style={styles.headerButtons}>
           <TouchableOpacity style={styles.logoutButton} onPress={logout}>
             <FontAwesome name="sign-out" size={20} color={Colors.light.buttonSecondary} />
@@ -90,13 +96,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-
-      {/* Información del usuario */}
-      <View style={styles.userInfo}>
-        <Text style={styles.welcomeText}>
-          {getWelcomeMessage(user)}
-        </Text>
-      </View>
+      {/* Indicador de estado offline */}
+      <OfflineIndicator />
 
       {/* Contenedor de botones centrados */}
       <View style={styles.buttonsContainer}>
@@ -122,6 +123,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.inputBorder,
   },
+  headerLeft: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -131,6 +136,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.light.titleColor,
+    marginBottom: 4,
   },
   mainButton: {
     backgroundColor: Colors.light.buttonPrimary,
@@ -172,17 +178,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: 'transparent',
   },
-  userInfo: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
   welcomeText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.light.buttonPrimary,
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.titleColor,
+    opacity: 0.8,
   },
   logoutButton: {
     flexDirection: 'row',

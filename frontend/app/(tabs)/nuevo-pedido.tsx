@@ -95,13 +95,14 @@ export default function NuevoPedidoScreen() {
   // Detectar cambios en los parámetros de fecha (cuando se navega con nueva fecha)
   useEffect(() => {
     if (fechaSeleccionada && typeof fechaSeleccionada === 'string') {
-      console.log('Nueva fecha seleccionada:', fechaSeleccionada);
+      console.log('📆 Nueva fecha del calendario:', fechaSeleccionada);
 
       // Convertir la fecha sin problemas de zona horaria (misma lógica que arriba)
       const [year, month, day] = fechaSeleccionada.split('-').map(n => parseInt(n, 10));
       const selectedDate = new Date(year, month - 1, day);
 
-      console.log('Fecha convertida:', selectedDate.toISOString().split('T')[0]);
+      console.log('📆 Fecha convertida:', selectedDate.toISOString().split('T')[0]);
+      console.log('📆 Fecha que se guardará:', fechaSeleccionada);
 
       setFechaEntregaDate(selectedDate);
       setFechaEntrega(fechaSeleccionada);
@@ -234,6 +235,9 @@ export default function NuevoPedidoScreen() {
         productos: productos,
       };
 
+      console.log('💾 Guardando pedido con fecha_entrega:', pedido.fecha_entrega);
+      console.log('💾 Fecha formateada para guardar:', pedido.fecha_entrega);
+
       const newId = await crearPedido(pedido);
       // Programar notificación si está activado
       try {
@@ -356,7 +360,9 @@ export default function NuevoPedidoScreen() {
               type="date"
               value={fechaEntrega}
               onChange={(e) => {
+                console.log('📅 Fecha seleccionada manualmente:', e.target.value);
                 const selectedDate = new Date(e.target.value);
+                console.log('📅 Fecha Date object:', selectedDate.toISOString());
                 setFechaEntregaDate(selectedDate);
                 setFechaEntrega(e.target.value);
               }}

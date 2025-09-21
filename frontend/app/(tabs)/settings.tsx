@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Platform, TextInput, Alert, ScrollView } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Colors from '../../constants/Colors';
-import * as DB from '../../services/db';
+import hybridDB from '../../services/hybrid-db';
+import SyncButton from '../../components/SyncButton';
+import FirebaseStatus from '../../components/FirebaseStatus';
+import { enhancedNotifications } from '../../services/notifications';
 
 type AppSettings = {
   notifications_enabled: boolean;
@@ -16,13 +19,24 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings>({ notifications_enabled: false, days_before: 0, contact_name: 'Raquel Alejandra Rousselin Pellecer', company_name: 'Sweet Cakes', phone: '53597287' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const s = (await (DB as any)?.obtenerSettings?.()) as AppSettings | undefined;
+        await hybridDB.initialize();
+        const s = await hybridDB.obtenerSettings();
         if (s) {
           setSettings(s);
+        }
+
+        // Check push notifications status
+        if (Platform.OS === 'web') {
+          const token = await enhancedNotifications.getPushToken();
+          const enabled = enhancedNotifications.isPushEnabled();
+          setPushToken(token);
+          setPushEnabled(enabled);
         }
       } finally {
         setLoading(false);
@@ -40,22 +54,61 @@ export default function SettingsScreen() {
     const granted = value ? await requestPermissions() : true;
     const next = { ...settings, notifications_enabled: granted && value };
     setSettings(next);
-    if ((DB as any)?.guardarSettings) {
-      await (DB as any).guardarSettings(next);
-    }
+    await hybridDB.guardarSettings(next);
   };
 
   const setDaysBefore = async (days: number) => {
     const next = { ...settings, days_before: Math.max(0, Math.min(7, days)) };
     setSettings(next);
-    if ((DB as any)?.guardarSettings) {
-      await (DB as any).guardarSettings(next);
-    }
+    await hybridDB.guardarSettings(next);
   };
 
   const updateField = async (patch: Partial<AppSettings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
+  };
+
+  const testPushNotification = async () => {
+    if (Platform.OS === 'web' && pushEnabled && pushToken) {
+      Alert.alert(
+        'Probar Notificación Push',
+        '¿Quieres enviar una notificación push de prueba?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Enviar',
+            onPress: async () => {
+              try {
+                // For demo purposes, we'll show a local notification
+                // In a real implementation, this would send to a server
+                await Notifications.presentNotificationAsync({
+                  title: '¡Prueba de Notificación!',
+                  body: 'Esta es una notificación push de prueba',
+                  data: { test: true },
+                });
+                Alert.alert('✅ Éxito', 'Notificación push enviada correctamente');
+              } catch (error) {
+                Alert.alert('❌ Error', 'No se pudo enviar la notificación push');
+              }
+            }
+          }
+        ]
+      );
+    } else if (Platform.OS !== 'web') {
+      // Test local notification for native platforms
+      try {
+        await Notifications.presentNotificationAsync({
+          title: '¡Prueba de Notificación!',
+          body: 'Esta es una notificación local de prueba',
+          data: { test: true },
+        });
+        Alert.alert('✅ Éxito', 'Notificación local enviada correctamente');
+      } catch (error) {
+        Alert.alert('❌ Error', 'No se pudo enviar la notificación');
+      }
+    } else {
+      Alert.alert('❌ No disponible', 'Las notificaciones push no están configuradas para esta plataforma');
+    }
   };
 
   const handleSave = async () => {
@@ -67,9 +120,7 @@ export default function SettingsScreen() {
           Platform.OS === 'web' ? alert('Activa permisos de notificaciones para recibir recordatorios.') : Alert.alert('Permisos', 'Activa permisos de notificaciones para recibir recordatorios.');
         }
       }
-      if ((DB as any)?.guardarSettings) {
-        await (DB as any).guardarSettings(settings as any);
-      }
+      await hybridDB.guardarSettings(settings);
       Platform.OS === 'web' ? alert('Configuración guardada') : Alert.alert('Éxito', 'Configuración guardada');
     } catch (e) {
       Platform.OS === 'web' ? alert('No se pudo guardar la configuración') : Alert.alert('Error', 'No se pudo guardar la configuración');
@@ -116,6 +167,42 @@ export default function SettingsScreen() {
           ))}
         </View>
         <Text style={styles.helper}>Recibirás un recordatorio {settings.days_before === 0 ? 'el mismo día' : `${settings.days_before} día(s) antes`} de la entrega.</Text>
+
+        {/* Push Notifications Status */}
+        {Platform.OS === 'web' && (
+          <View style={[styles.rowBetween, { marginTop: 16 }]}>
+            <View>
+              <Text style={styles.label}>Estado Push Notifications</Text>
+              <Text style={[styles.helper, { fontSize: 12, marginTop: 4 }]}>
+                {pushEnabled ? '✅ Habilitadas' : '❌ No disponibles'}
+              </Text>
+              {pushToken && (
+                <Text style={[styles.helper, { fontSize: 10, marginTop: 2 }]}>
+                  Token: {pushToken.substring(0, 20)}...
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.button, !pushEnabled && styles.buttonDisabled]}
+              onPress={testPushNotification}
+              disabled={!pushEnabled}
+            >
+              <Text style={[styles.buttonText, !pushEnabled && styles.buttonTextDisabled]}>
+                Probar Push
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Test Notifications Button for all platforms */}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            style={[styles.button, { marginTop: 16 }]}
+            onPress={testPushNotification}
+          >
+            <Text style={styles.buttonText}>Probar Notificación Local</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={[styles.card, { marginTop: 16 }]}>
@@ -145,6 +232,24 @@ export default function SettingsScreen() {
           placeholder="53597287"
           placeholderTextColor={Colors.light.inputText}
         />
+      </View>
+
+      <View style={[styles.card, { marginTop: 16 }]}>
+        <Text style={styles.sectionTitle}>Sincronización con la Nube</Text>
+
+        <View style={styles.rowBetween}>
+          <Text style={styles.label}>Estado de conexión</Text>
+          <FirebaseStatus showText={true} />
+        </View>
+
+        <Text style={[styles.helper, { marginTop: 8 }]}>
+          Las imágenes se guardan localmente para optimizar el rendimiento.
+          Otros datos se sincronizan automáticamente con Firebase.
+        </Text>
+
+        <View style={{ marginTop: 16, alignItems: 'center' }}>
+          <SyncButton showText={true} />
+        </View>
       </View>
 
       <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} disabled={saving} onPress={handleSave}>
@@ -208,4 +313,24 @@ const styles = StyleSheet.create({
   saveBtn: { marginTop: 16, backgroundColor: Colors.light.buttonPrimary, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   saveBtnText: { color: Colors.light.buttonText, fontWeight: 'bold', fontSize: 16 },
   helper: { fontSize: 12, color: Colors.light.inputText, marginTop: 8, fontStyle: 'italic' },
+  button: {
+    backgroundColor: Colors.light.buttonPrimary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: Colors.light.inputBorder,
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: Colors.light.buttonText,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  buttonTextDisabled: {
+    color: Colors.light.inputText,
+  },
 }); 

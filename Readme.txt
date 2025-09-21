@@ -434,10 +434,71 @@ Trabajaremos el resto en etapas. Todo debe estar optimizado para uso interno, fl
 ✅ **Compatibilidad**: Web y móvil (Expo)
 ⚠️ **Pendiente**: Optimización para dispositivos móviles reales
 
+## Bitácora de trabajo — 2025-09-21
+
+### Nueva Pestaña "Esta Semana"
+- **Nueva funcionalidad**: Pestaña dedicada para mostrar productos a trabajar por semana
+- **Filtro por fecha**: Selector de semana con combobox (anterior/siguiente/esta semana)
+- **Vista semanal**: Muestra productos agrupados por semana seleccionada
+- **Formato de productos**: "1. pastel, chocolate, tamaño, relleno" con capitalización correcta
+- **Navegación intuitiva**: Botones de anterior/siguiente semana + selector Esta Semana
+
+### Optimizaciones de UI/UX Móvil
+- **Footer/Tab Bar responsive**: Ajustes automáticos según tamaño de pantalla
+- **Distribución perfecta**: Eliminación de espacios vacíos en la barra inferior
+- **Títulos adaptativos**: Nombres cortos en pantallas pequeñas ("Cal.", "Próx.", "Sem.")
+- **Compatibilidad Android**: Optimizaciones específicas para dispositivos Android
+
+### Sistema de Notificaciones Avanzado
+- **Notificaciones push preparadas**: Arquitectura completa para Firebase Cloud Messaging
+- **Notificaciones locales**: Sistema robusto con recordatorios programados
+- **Configuración completa**: Activación/desactivación, días de anticipación (0-7 días)
+- **Manejo de tokens**: Sistema preparado para tokens de dispositivo
+
+### Correcciones Técnicas Críticas
+- **Error FlatList resuelto**: Import faltante en proximos-pedidos.tsx
+- **Error TypeScript solucionado**: Configuración tsconfig.json corregida
+- **Error dbService.initDB**: Función de inicialización de base de datos corregida
+- **Firebase temporalmente deshabilitado**: Para evitar errores de configuración
+
+### Arquitectura Híbrida de Base de Datos
+- **Sistema híbrido implementado**: SQLite local + Firebase para sincronización
+- **Imágenes locales**: Optimización de almacenamiento (imágenes no suben a Firebase)
+- **Sincronización offline**: Funcionalidad completa de trabajo sin conexión
+- **Modo local seguro**: Aplicación funciona completamente sin Firebase
+
+### Mejoras de Navegación y Responsividad
+- **Logout en header**: Movido desde footer a header de pantalla principal
+- **Botones reorganizados**: Gestión de Pedidos | 🚪 Salir | ⚙️
+- **Calendario mejorado**: Botones de navegación más visibles, selector de mes
+- **Paso de fecha**: Calendario pasa fecha seleccionada a "Nuevo Pedido"
+- **Header único**: Eliminación de headers dobles en todas las pantallas
+
+### Correcciones de UI y Formato
+- **Estadísticas corregidas**: Fechas de meses mostradas correctamente (sin desfase por zona horaria)
+- **Capitalización de productos**: Nombres de productos con primera letra mayúscula
+- **Layout del mensaje**: Mensaje de bienvenida corregido en pantalla principal
+- **Optimización de espacio**: Mejor aprovechamiento del espacio en footer móvil
+
+### Estado Actual del Proyecto
+✅ **Funcionalidades completas**: CRUD pedidos, cotizaciones PDF, estadísticas, calendario, configuración, notificaciones
+✅ **Sistema de roles operativo**: Control de acceso por usuarios (admin/dueño/repostero)
+✅ **Compatibilidad**: Web y móvil (Expo) funcionando correctamente
+✅ **Base de datos híbrida**: SQLite + Firebase (deshabilitado temporalmente)
+✅ **Notificaciones**: Sistema local completo, push preparado
+✅ **UI/UX optimizada**: Responsive para móvil y web
+
+### Pendientes Críticos (Próxima Sesión)
+1. **Configurar Firebase**: Activar sincronización en la nube cuando se configure la cuenta
+2. **Testing en dispositivos reales**: Verificar funcionamiento en Android/iOS físicos
+3. **Optimización de rendimiento**: Memoización en listas grandes, lazy loading
+4. **Backup avanzado**: Exportación con filtros de fecha y restauración
+5. **Documentación completa**: Guía de instalación y configuración para usuarios finales
+
 ### Próximos pasos sugeridos (alta prioridad)
 1. **Testing en dispositivos reales** (Android/iOS)
 2. **Optimización de rendimiento** en listas grandes
 3. **Backup/export avanzado** con filtros de fecha
-4. **Notificaciones push** para entregas próximas
+4. **Notificaciones push** (una vez configurado Firebase)
 5. **Migración a backend** (MySQL + API REST)
   

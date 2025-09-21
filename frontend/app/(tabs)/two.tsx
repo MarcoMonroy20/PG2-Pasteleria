@@ -13,7 +13,7 @@ export default function EstadisticasScreen() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [periodoFiltro, setPeriodoFiltro] = useState<PeriodoFiltro>('6meses');
+  const [periodoFiltro, setPeriodoFiltro] = useState<PeriodoFiltro>('1ano');
   const [mesSeleccionado, setMesSeleccionado] = useState<string>('');
   const [verTodosMeses, setVerTodosMeses] = useState(true);
 
@@ -40,9 +40,10 @@ export default function EstadisticasScreen() {
     try {
       await initDB();
       const data = await obtenerPedidos();
+      console.log('📊 Estadísticas: pedidos cargados:', data.length);
       setPedidos(data);
     } catch (e) {
-      // noop
+      console.error('❌ Error cargando estadísticas:', e);
     } finally {
       setLoading(false);
     }
@@ -54,21 +55,51 @@ export default function EstadisticasScreen() {
     setRefreshing(false);
   };
 
+  // Función auxiliar para formatear fechas correctamente
+  const formatearFecha = (fechaStr: string) => {
+    try {
+      // Manejar diferentes formatos de fecha
+      let fecha: Date;
+
+      if (fechaStr.includes('/')) {
+        // Formato DD/MM/YYYY
+        const [dia, mes, anio] = fechaStr.split('/');
+        fecha = new Date(parseInt(anio), parseInt(mes) - 1, parseInt(dia));
+      } else if (fechaStr.includes('-')) {
+        // Formato YYYY-MM-DD
+        fecha = new Date(fechaStr + 'T00:00:00');
+      } else {
+        console.warn('⚠️ Formato de fecha desconocido:', fechaStr);
+        return '2026-01'; // fallback
+      }
+
+      // Crear clave YYYY-MM correcta
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, '0');
+      const key = `${year}-${month}`;
+
+      return key;
+    } catch (error) {
+      console.error('❌ Error formateando fecha:', fechaStr, error);
+      return '2026-01'; // fallback
+    }
+  };
+
   const stats = useMemo(() => {
-    const total = pedidos.length;
-    const totalPrecio = pedidos.reduce((acc, p) => acc + (Number(p.precio_final) || 0), 0);
-    const totalAbonado = pedidos.reduce((acc, p) => acc + (Number(p.monto_abonado) || 0), 0);
-    const totalDebe = totalPrecio - totalAbonado;
 
     // Por mes (YYYY-MM)
     const porMesMap: Record<string, { count: number; total: number; abonado: number; debe: number }> = {};
+
     pedidos.forEach(p => {
-      const key = (p.fecha_entrega || '').slice(0, 7);
+      const fechaEntrega = p.fecha_entrega || '';
+      const key = formatearFecha(fechaEntrega);
+
       if (!porMesMap[key]) porMesMap[key] = { count: 0, total: 0, abonado: 0, debe: 0 };
       porMesMap[key].count += 1;
       porMesMap[key].total += Number(p.precio_final) || 0;
       porMesMap[key].abonado += Number(p.monto_abonado) || 0;
     });
+
 
     // Calcular debe por mes
     Object.keys(porMesMap).forEach(key => {
@@ -85,21 +116,32 @@ export default function EstadisticasScreen() {
         debe: v.debe
       }));
 
+
     // Aplicar filtro de período
     const now = new Date();
+
     if (periodoFiltro === '6meses') {
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+
       porMes = porMes.filter(item => {
         const itemDate = new Date(item.mes + '-01');
         return itemDate >= sixMonthsAgo;
       });
     } else if (periodoFiltro === '1ano') {
+      // Corregido: no sumar 1 al mes actual
       const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1);
+
       porMes = porMes.filter(item => {
         const itemDate = new Date(item.mes + '-01');
         return itemDate >= oneYearAgo;
       });
     }
+
+
+    const total = pedidos.length;
+    const totalPrecio = pedidos.reduce((acc, p) => acc + (Number(p.precio_final) || 0), 0);
+    const totalAbonado = pedidos.reduce((acc, p) => acc + (Number(p.monto_abonado) || 0), 0);
+    const totalDebe = totalPrecio - totalAbonado;
 
     return { total, totalPrecio, totalAbonado, totalDebe, porMes };
   }, [pedidos, periodoFiltro]);
@@ -107,14 +149,19 @@ export default function EstadisticasScreen() {
   const f = (n: number) => `Q${n.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
 
   // Lista de meses disponibles para selección
-  const mesesDisponibles = stats.porMes.map(item => ({
-    key: item.mes,
-    label: new Date(item.mes + '-01').toLocaleDateString('es-ES', {
+  const mesesDisponibles = stats.porMes.map(item => {
+    const [year, month] = item.mes.split('-').map(Number);
+    const fechaObj = new Date(year, month - 1, 1);
+    const label = fechaObj.toLocaleDateString('es-ES', {
       month: 'long',
       year: 'numeric'
-    }),
-    value: item
-  }));
+    });
+    return {
+      key: item.mes,
+      label,
+      value: item
+    };
+  });
 
   // Filtrar meses para mostrar según la selección
   const mesesParaMostrar = useMemo(() => {
@@ -127,7 +174,8 @@ export default function EstadisticasScreen() {
   // Auto-seleccionar el mes más reciente cuando se carga
   useEffect(() => {
     if (stats.porMes.length > 0 && !mesSeleccionado) {
-      setMesSeleccionado(stats.porMes[stats.porMes.length - 1].mes);
+      const ultimoMes = stats.porMes[stats.porMes.length - 1].mes;
+      setMesSeleccionado(ultimoMes);
     }
   }, [stats.porMes]);
 
@@ -159,11 +207,16 @@ export default function EstadisticasScreen() {
   const chartWidth = width - 64; // Más margen lateral
   const chartHeight = 200; // Altura más compacta
 
+  // Función auxiliar para formatear etiquetas de gráficas
+  const formatearEtiquetaGrafica = (mesKey: string) => {
+    const [year, month] = mesKey.split('-').map(Number);
+    const fechaObj = new Date(year, month - 1, 1);
+    return fechaObj.toLocaleDateString('es-ES', { month: 'short' });
+  };
+
   // Datos para gráfica de cantidad de pedidos
   const cantidadPedidosData = {
-    labels: stats.porMes.map(item =>
-      new Date(item.mes + '-01').toLocaleDateString('es-ES', { month: 'short' })
-    ),
+    labels: stats.porMes.map(item => formatearEtiquetaGrafica(item.mes)),
     datasets: [{
       data: stats.porMes.map(item => item.cantidad),
       color: (opacity = 1) => Colors.light.buttonPrimary,
@@ -173,9 +226,7 @@ export default function EstadisticasScreen() {
 
   // Datos para gráfica de ingresos
   const ingresosData = {
-    labels: stats.porMes.map(item =>
-      new Date(item.mes + '-01').toLocaleDateString('es-ES', { month: 'short' })
-    ),
+    labels: stats.porMes.map(item => formatearEtiquetaGrafica(item.mes)),
     datasets: [{
       data: stats.porMes.map(item => item.total),
       color: (opacity = 1) => Colors.light.buttonSecondary,
@@ -327,10 +378,14 @@ export default function EstadisticasScreen() {
                     styles.monthButtonText,
                     mesSeleccionado === mes.key && styles.monthButtonTextActive
                   ]}>
-                    {new Date(mes.key + '-01').toLocaleDateString('es-ES', {
-                      month: 'short',
-                      year: '2-digit'
-                    })}
+                    {(() => {
+                      const [year, month] = mes.key.split('-').map(Number);
+                      const fechaObj = new Date(year, month - 1, 1);
+                      return fechaObj.toLocaleDateString('es-ES', {
+                        month: 'short',
+                        year: '2-digit'
+                      });
+                    })()}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -339,40 +394,48 @@ export default function EstadisticasScreen() {
         )}
 
         {/* Tabla de datos */}
-        {mesesParaMostrar.length > 0 ? (
-          mesesParaMostrar.map((item, index) => (
-            <View key={item.mes} style={styles.tableRow}>
-              <View style={styles.tableCellMonth}>
-                <Text style={styles.tableMonthText}>
-                  {new Date(item.mes + '-01').toLocaleDateString('es-ES', {
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </Text>
-              </View>
-              <View style={styles.tableCellData}>
-                <Text style={styles.tableDataLabel}>Pedidos:</Text>
-                <Text style={styles.tableDataValue}>{item.cantidad}</Text>
-              </View>
-              <View style={styles.tableCellData}>
-                <Text style={styles.tableDataLabel}>Total:</Text>
-                <Text style={styles.tableDataValue}>{f(item.total)}</Text>
-              </View>
-              <View style={styles.tableCellData}>
-                <Text style={styles.tableDataLabel}>Abonado:</Text>
-                <Text style={styles.tableDataValue}>{f(item.abonado)}</Text>
-              </View>
-              <View style={styles.tableCellData}>
-                <Text style={styles.tableDataLabel}>Pendiente:</Text>
-                <Text style={styles.tableDataValue}>{f(item.debe)}</Text>
-              </View>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.emptyText}>
-            {verTodosMeses ? 'No hay datos para el período seleccionado' : 'Selecciona un mes para ver los detalles'}
-          </Text>
-        )}
+        {(() => {
+          return mesesParaMostrar.length > 0 ? (
+            mesesParaMostrar.map((item, index) => {
+              // Crear fecha correctamente sin zona horaria
+              const [year, month] = item.mes.split('-').map(Number);
+              const fechaObj = new Date(year, month - 1, 1); // month - 1 porque Date usa 0-indexed
+              const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+                month: 'long',
+                year: 'numeric'
+              });
+              return (
+                <View key={item.mes} style={styles.tableRow}>
+                  <View style={styles.tableCellMonth}>
+                    <Text style={styles.tableMonthText}>
+                      {fechaFormateada}
+                    </Text>
+                  </View>
+                  <View style={styles.tableCellData}>
+                    <Text style={styles.tableDataLabel}>Pedidos:</Text>
+                    <Text style={styles.tableDataValue}>{item.cantidad}</Text>
+                  </View>
+                  <View style={styles.tableCellData}>
+                    <Text style={styles.tableDataLabel}>Total:</Text>
+                    <Text style={styles.tableDataValue}>{f(item.total)}</Text>
+                  </View>
+                  <View style={styles.tableCellData}>
+                    <Text style={styles.tableDataLabel}>Abonado:</Text>
+                    <Text style={styles.tableDataValue}>{f(item.abonado)}</Text>
+                  </View>
+                  <View style={styles.tableCellData}>
+                    <Text style={styles.tableDataLabel}>Pendiente:</Text>
+                    <Text style={styles.tableDataValue}>{f(item.debe)}</Text>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <Text style={styles.emptyText}>
+              {verTodosMeses ? 'No hay datos para el período seleccionado' : 'Selecciona un mes para ver los detalles'}
+            </Text>
+          );
+        })()}
       </View>
     </ScrollView>
   );
