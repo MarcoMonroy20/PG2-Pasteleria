@@ -9,7 +9,31 @@
     "backend": "cd backend && npm start",
     "backend:install": "cd backend && npm install",
     "install:all": "npm run frontend:install && npm run backend:install",
-    "dev": "concurrently \"npm run frontend\" \"npm run backend\""
+    "dev": "concurrently \"npm run frontend\" \"npm run backend\"",
+
+    "android": "cd frontend && npm run android",
+    "android:build": "cd frontend && npm run build:android",
+    "android:build:preview": "cd frontend && npx eas build --platform android --profile preview",
+    "android:build:production": "cd frontend && npx eas build --platform android --profile production",
+    "android:submit": "cd frontend && npx eas submit --platform android",
+
+    "ios": "cd frontend && npm run ios",
+    "ios:build": "cd frontend && npm run build:ios",
+    "ios:build:preview": "cd frontend && npx eas build --platform ios --profile preview",
+    "ios:build:production": "cd frontend && npx eas build --platform ios --profile production",
+
+    "clean": "cd frontend && npx expo install --fix && npm run clean-cache",
+    "clean-cache": "cd frontend && rm -rf .expo node_modules/.cache .metro-cache",
+    "doctor": "cd frontend && npx expo install --fix && npx expo doctor",
+
+    "android:prep": "node android-build-prep.js",
+    "android:build:full": "npm run android:prep && npm run android:build:production",
+
+    "lint": "cd frontend && npx eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "cd frontend && npx eslint . --ext .js,.jsx,.ts,.tsx --fix",
+
+    "test": "cd frontend && npm test",
+    "test:watch": "cd frontend && npm run test:watch"
   },
   "workspaces": [
     "frontend",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,15 @@ import {
   RefreshControl,
   useWindowDimensions,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useNavigation, useFocusEffect, useRouter } from 'expo-router';
 import { initDB, obtenerPedidos, Pedido } from '../../services/db';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
+import { AndroidDeviceInfo } from '../../utils/android-optimizations';
+import { useAccessibility, useScreenReader } from '../../hooks/useAccessibility';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PedidoPorFecha {
   fecha: string;
@@ -24,8 +28,12 @@ export default function CalendarioScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const colorScheme = useColorScheme();
+  const { screenReaderEnabled } = useAccessibility();
+  const { announce } = useScreenReader();
+  const { hasPermission } = useAuth();
+
   // Optimizado a Android y estable en web: grid con FlatList numColumns=7
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [pedidosPorFecha, setPedidosPorFecha] = useState<PedidoPorFecha[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,6 +41,11 @@ export default function CalendarioScreen() {
   const [dayModal, setDayModal] = useState<{ date: string; pedidos: Pedido[] } | null>(null);
   const [gridHeight, setGridHeight] = useState(0);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+
+  // Estado para optimizaciones responsive
+  const deviceInfo = AndroidDeviceInfo.getDeviceInfo();
+  const isLandscape = screenWidth > screenHeight;
+  const isSmallScreen = deviceInfo.isSmallScreen;
 
   useEffect(() => {
     cargarPedidos();
@@ -64,6 +77,19 @@ export default function CalendarioScreen() {
     await cargarPedidos();
     setRefreshing(false);
   };
+
+  // Función para ir al día actual
+  const goToToday = useCallback(() => {
+    const today = new Date();
+    setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+  }, []);
+
+  // Función para verificar si una fecha es hoy
+  const isToday = useCallback((dateStr: string) => {
+    const date = parseLocalDate(dateStr);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  }, []);
 
   const agruparPedidosPorFecha = (pedidos: Pedido[]): PedidoPorFecha[] => {
     const agrupados = pedidos.reduce((acc, pedido) => {
@@ -127,17 +153,24 @@ export default function CalendarioScreen() {
     const firstDay = new Date(y, m, 1);
     const startDow = firstDay.getDay(); // 0=Dom
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const matrix: Array<Array<{ date: string | null; pedidos?: Pedido[] }>> = [];
+
+    // Calcular el número exacto de filas necesarias
+    const totalCells = startDow + daysInMonth; // Espacios vacíos iniciales + días del mes
+    const rows = Math.ceil(totalCells / 7);
+
+    const matrix: Array<Array<{ date: string | null; pedidos?: Pedido[]; isToday?: boolean }>> = [];
     let dayCounter = 1;
-    for (let week = 0; week < 6; week++) {
-      const row: Array<{ date: string | null; pedidos?: Pedido[] }> = [];
+
+    for (let week = 0; week < rows; week++) {
+      const row: Array<{ date: string | null; pedidos?: Pedido[]; isToday?: boolean }> = [];
       for (let dow = 0; dow < 7; dow++) {
         if ((week === 0 && dow < startDow) || dayCounter > daysInMonth) {
           row.push({ date: null });
         } else {
           const iso = toLocalISODate(new Date(y, m, dayCounter));
           const pedidos = pedidosPorFecha.find(p => p.fecha === iso)?.pedidos || [];
-          row.push({ date: iso, pedidos });
+          const today = isToday(iso);
+          row.push({ date: iso, pedidos, isToday: today });
           dayCounter++;
         }
       }
@@ -145,7 +178,7 @@ export default function CalendarioScreen() {
       if (dayCounter > daysInMonth) break;
     }
     return matrix;
-  }, [currentMonth, pedidosPorFecha]);
+  }, [currentMonth, pedidosPorFecha, isToday]);
 
   const monthLabel = useMemo(() => currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }), [currentMonth]);
 
@@ -209,46 +242,67 @@ export default function CalendarioScreen() {
   }
 
 
-  // Cálculo responsivo del tamaño de celda (7 columnas, padding y separación)
+  // Cálculo responsivo del tamaño de celda optimizado para diferentes pantallas
   const columns = 7;
-  const cellSpacing = 8;
-  const gridPadding = 16;
+  const cellSpacing = isSmallScreen ? 4 : isLandscape ? 6 : 8;
+  const gridPadding = isSmallScreen ? 12 : isLandscape ? 20 : 16;
   const rows = monthMatrix.length;
-  const gridPaddingTop = 8;    // styles.grid paddingTop
-  const gridPaddingBottom = 16; // styles.grid paddingBottom
-  const cellWidth = Math.floor((screenWidth - gridPadding * 2 - cellSpacing * (columns - 1)) / columns);
+  const gridPaddingTop = 8;
+  const gridPaddingBottom = 16;
+
+  // Cálculo más preciso del ancho de celda considerando diferentes orientaciones
+  const availableWidth = screenWidth - (gridPadding * 2) - (cellSpacing * (columns - 1));
+  const cellWidth = Math.max(40, Math.floor(availableWidth / columns)); // Mínimo 40px
+
+  // Altura de celda más inteligente
   const cellHeight = gridHeight > 0
     ? Math.floor((gridHeight - gridPaddingTop - gridPaddingBottom - cellSpacing * (rows - 1)) / rows)
-    : cellWidth;
+    : Math.max(cellWidth * 0.8, 50); // Relación de aspecto más natural
+
   const baseSize = Math.min(cellWidth, cellHeight);
-  const dateFontSize = baseSize < 54 ? 12 : 14;
-  const badgeFontSize = baseSize < 54 ? 10 : 12;
-  const cellPadding = baseSize < 54 ? 6 : 8;
+  const dateFontSize = AndroidDeviceInfo.getOptimalFontSize(baseSize < 54 ? 12 : 14);
+  const badgeFontSize = AndroidDeviceInfo.getOptimalFontSize(baseSize < 54 ? 10 : 12);
+  const cellPadding = AndroidDeviceInfo.getOptimalSpacing(baseSize < 54 ? 6 : 8);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-        >
-          <Text style={styles.navButtonText}>‹ Anterior</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={[styles.navButton, isSmallScreen && styles.navButtonSmall]}
+            onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+          >
+            <Text style={[styles.navButtonText, isSmallScreen && styles.navButtonTextSmall]}>‹ Ant</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={styles.monthSelector}
-          onPress={() => setShowMonthPicker(true)}
-        >
-          <Text style={styles.title}>{monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}</Text>
-          <Text style={styles.dropdownIcon}>▼</Text>
-        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <TouchableOpacity
+            style={styles.monthSelector}
+            onPress={() => setShowMonthPicker(true)}
+          >
+            <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>
+              {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
+            </Text>
+            <Text style={styles.dropdownIcon}>▼</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-        >
-          <Text style={styles.navButtonText}>Siguiente ›</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.todayButton, isSmallScreen && styles.todayButtonSmall]}
+            onPress={goToToday}
+          >
+            <Text style={[styles.todayButtonText, isSmallScreen && styles.todayButtonTextSmall]}>HOY</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[styles.navButton, isSmallScreen && styles.navButtonSmall]}
+            onPress={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+          >
+            <Text style={[styles.navButtonText, isSmallScreen && styles.navButtonTextSmall]}>Sig ›</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={[styles.weekHeader, { paddingHorizontal: gridPadding }]}>
@@ -266,24 +320,59 @@ export default function CalendarioScreen() {
           columnWrapperStyle={[styles.gridRow, { marginBottom: cellSpacing }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item, index }) => {
-          const cell: { date: string | null; pedidos?: Pedido[] } = item as any;
+          const cell: { date: string | null; pedidos?: Pedido[]; isToday?: boolean } = item as any;
           const count = cell?.pedidos?.length || 0;
+          const isCurrentDay = cell?.isToday;
+
           return (
             <TouchableOpacity
               style={[
                 styles.cell,
                 !cell?.date && styles.cellEmpty,
                 cell?.date && count > 0 && (count < 3 ? styles.cellFew : styles.cellBusy),
-                  { width: cellWidth, height: cellHeight, marginRight: ((index + 1) % columns === 0) ? 0 : cellSpacing, padding: cellPadding },
+                isCurrentDay && styles.cellToday,
+                {
+                  width: cellWidth,
+                  height: cellHeight,
+                  marginRight: ((index + 1) % columns === 0) ? 0 : cellSpacing,
+                  padding: cellPadding
+                },
               ]}
               disabled={!cell?.date}
-              onPress={() => cell?.date && setDayModal({ date: cell.date, pedidos: cell.pedidos || [] })}
+              onPress={() => {
+                if (cell?.date) {
+                  const dayName = parseLocalDate(cell.date).toLocaleDateString('es-ES', { weekday: 'long' });
+                  const message = `Día ${parseLocalDate(cell.date).getDate()} de ${currentMonth.toLocaleDateString('es-ES', { month: 'long' })}: ${count} pedido${count !== 1 ? 's' : ''}`;
+                  announce(message);
+                  setDayModal({ date: cell.date, pedidos: cell.pedidos || [] });
+                }
+              }}
+              accessibilityLabel={
+                cell?.date
+                  ? `${isCurrentDay ? 'Hoy, ' : ''}Día ${parseLocalDate(cell.date).getDate()} de ${currentMonth.toLocaleDateString('es-ES', { month: 'long' })}, ${count} pedido${count !== 1 ? 's' : ''}${isCurrentDay ? ', fecha actual' : ''}`
+                  : 'Día vacío'
+              }
+              accessibilityHint={cell?.date ? 'Toca para ver los pedidos de este día' : undefined}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !cell?.date }}
+              importantForAccessibility="yes"
             >
               {cell?.date && (
                 <>
-                  <Text style={[styles.cellDate, { fontSize: dateFontSize }]}>{parseLocalDate(cell.date).getDate()}</Text>
+                  <Text style={[
+                    styles.cellDate,
+                    { fontSize: dateFontSize },
+                    isCurrentDay && styles.cellDateToday
+                  ]}>
+                    {parseLocalDate(cell.date).getDate()}
+                  </Text>
                   {count > 0 && (
-                    <View style={styles.cellBadge}><Text style={[styles.cellBadgeText, { fontSize: badgeFontSize }]}>{count}</Text></View>
+                    <View style={[styles.cellBadge, isCurrentDay && styles.cellBadgeToday]}>
+                      <Text style={[styles.cellBadgeText, { fontSize: badgeFontSize }]}>{count}</Text>
+                    </View>
+                  )}
+                  {isCurrentDay && (
+                    <View style={styles.todayIndicator} />
                   )}
                 </>
               )}
@@ -315,16 +404,18 @@ export default function CalendarioScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDayModal(null)}>
                 <Text style={styles.cancelBtnText}>Cerrar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={() => {
-                console.log('Enviando fecha al nuevo pedido:', dayModal.date);
-                setDayModal(null);
-                router.push({
-                  pathname: '/(tabs)/nuevo-pedido',
-                  params: { fechaSeleccionada: dayModal.date }
-                });
-              }}>
-                <Text style={styles.confirmBtnText}>+ Nuevo</Text>
-              </TouchableOpacity>
+              {hasPermission('create_pedido') && (
+                <TouchableOpacity style={styles.confirmBtn} onPress={() => {
+                  console.log('Enviando fecha al nuevo pedido:', dayModal.date);
+                  setDayModal(null);
+                  router.push({
+                    pathname: '/(tabs)/nuevo-pedido',
+                    params: { fechaSeleccionada: dayModal.date }
+                  });
+                }}>
+                  <Text style={styles.confirmBtnText}>+ Nuevo</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -388,10 +479,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.inputBorder,
   },
+  headerLeft: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  headerCenter: {
+    flex: 2,
+    alignItems: 'center',
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: Colors.light.titleColor,
+  },
+  titleSmall: {
+    fontSize: 18,
   },
   nuevoPedidoBtn: {
     backgroundColor: Colors.light.buttonPrimary,
@@ -543,34 +649,97 @@ const styles = StyleSheet.create({
   weekHeader: {
     flexDirection: 'row',
     paddingHorizontal: 8,
-    paddingBottom: 4,
+    paddingBottom: 8,
+    paddingTop: 4,
+    backgroundColor: Colors.light.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.inputBorder,
   },
   weekDay: {
     textAlign: 'center',
     color: Colors.light.titleColor,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontSize: 14,
   },
   grid: { paddingHorizontal: 8, paddingTop: 8, paddingBottom: 16 },
   gridRow: { flexDirection: 'row' },
   gridWrapper: { flex: 1 },
   cell: {
     backgroundColor: Colors.light.cardBackground,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 6,
     position: 'relative',
     justifyContent: 'flex-start',
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+    shadowColor: Colors.light.buttonSecondary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   navMonth: { fontSize: 24, color: Colors.light.titleColor, paddingHorizontal: 12 },
   cellEmpty: { backgroundColor: 'transparent' },
   cellFew: { backgroundColor: Colors.light.buttonSecondary },
   cellBusy: { backgroundColor: Colors.light.buttonPrimary },
   cellDate: { color: Colors.light.titleColor, fontWeight: 'bold' },
-  cellBadge: {
-    position: 'absolute', right: 6, top: 6,
-    backgroundColor: Colors.light.buttonPrimary,
-    borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2,
+  cellDateToday: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
   },
-  cellBadgeText: { color: Colors.light.buttonText, fontSize: 12, fontWeight: 'bold' },
+  cellToday: {
+    backgroundColor: Colors.light.buttonPrimary,
+    borderWidth: 2,
+    borderColor: Colors.light.buttonPrimary,
+    shadowColor: Colors.light.buttonPrimary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  todayIndicator: {
+    position: 'absolute',
+    bottom: 6,
+    left: '50%',
+    transform: [{ translateX: -10 }],
+    width: 20,
+    height: 4,
+    backgroundColor: Colors.light.buttonText,
+    borderRadius: 2,
+    shadowColor: Colors.light.buttonPrimary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cellBadge: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    backgroundColor: Colors.light.buttonPrimary,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  cellBadgeToday: {
+    backgroundColor: Colors.light.buttonText,
+    shadowColor: Colors.light.buttonPrimary,
+  },
+  cellBadgeText: {
+    color: Colors.light.buttonText,
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center'
+  },
   // Modal
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(94, 51, 111, 0.7)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   modalContent: { backgroundColor: Colors.light.background, borderRadius: 12, width: '100%', maxWidth: 520 },
@@ -592,10 +761,40 @@ const styles = StyleSheet.create({
     minWidth: 100,
     alignItems: 'center',
   },
+  navButtonSmall: {
+    minWidth: 80,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   navButtonText: {
     color: Colors.light.buttonText,
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  navButtonTextSmall: {
+    fontSize: 12,
+  },
+  todayButton: {
+    backgroundColor: Colors.light.buttonPrimary,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginTop: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  todayButtonSmall: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    minWidth: 50,
+  },
+  todayButtonText: {
+    color: Colors.light.buttonText,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  todayButtonTextSmall: {
+    fontSize: 10,
   },
   monthSelector: {
     flexDirection: 'row',

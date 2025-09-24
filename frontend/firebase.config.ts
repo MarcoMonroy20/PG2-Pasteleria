@@ -1,23 +1,24 @@
 // Firebase configuration file
-// Add your Firebase project configuration here
+// Configured for production use with environment variables
 
 // Flag to enable/disable Firebase functionality
-export const FIREBASE_ENABLED = false; // Set to true when Firebase is properly configured
+export const FIREBASE_ENABLED = !!(
+  process.env.EXPO_PUBLIC_FIREBASE_API_KEY &&
+  process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID
+);
 
 export const firebaseConfig = {
-  // Replace these with your actual Firebase project config
-  // You can find these values in your Firebase Console > Project Settings > General > Your apps
-  apiKey: FIREBASE_ENABLED ? "your-actual-api-key" : "disabled",
-  authDomain: FIREBASE_ENABLED ? "your-project.firebaseapp.com" : "disabled.firebaseapp.com",
-  projectId: FIREBASE_ENABLED ? "your-project-id" : "disabled-project",
-  storageBucket: FIREBASE_ENABLED ? "your-project.appspot.com" : "disabled-project.appspot.com",
-  messagingSenderId: FIREBASE_ENABLED ? "123456789" : "123456789",
-  appId: FIREBASE_ENABLED ? "your-app-id" : "disabled-app-id"
+  // Firebase project configuration using environment variables
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "demo-key",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "demo.firebaseapp.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "demo-project",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "demo-project.appspot.com",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:123456789:web:demo"
 };
 
-// VAPID Key for push notifications (generate in Firebase Console)
-// Go to: Firebase Console > Project Settings > Cloud Messaging > Web Configuration
-export const vapidKey = "your-vapid-key-here";
+// VAPID Key for push notifications (from environment)
+export const vapidKey = process.env.EXPO_PUBLIC_FIREBASE_VAPID_KEY || "demo-vapid-key";
 
 // Instructions for push notifications setup:
 // 1. Enable Firebase Cloud Messaging in Firebase Console

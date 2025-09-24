@@ -1,0 +1,1042 @@
+@startuml Diagramas de la Aplicación de Gestión de Pastelería
+
+' ==================================================
+' DIAGRAMA DE CASOS DE USO (Sin Login)
+' ==================================================
+@startuml CasosDeUso
+!theme plain
+skinparam backgroundColor #FDC8E3
+skinparam actorBackgroundColor #E75480
+skinparam usecaseBackgroundColor #F28DB2
+skinparam packageBackgroundColor #D6A8E9
+
+title Diagrama de Casos de Uso - Aplicación de Gestión de Pastelería
+
+actor "👑 Administrador" as Admin
+actor "💼 Dueño" as Dueno
+actor "👨‍🍳 Repostero" as Repostero
+
+package "Gestión de Pedidos" {
+    usecase "Crear Nuevo Pedido" as UC1
+    usecase "Ver Próximos Pedidos" as UC2
+    usecase "Editar Pedido" as UC3
+    usecase "Eliminar Pedido" as UC4
+    usecase "Registrar Abono" as UC5
+    usecase "Buscar Pedidos" as UC6
+    usecase "Filtrar por Fecha" as UC7
+}
+
+package "Gestión de Productos" {
+    usecase "Ver Calendario de Pedidos" as UC8
+    usecase "Ver Productos Esta Semana" as UC9
+    usecase "Agregar Producto a Pedido" as UC10
+    usecase "Editar Producto" as UC11
+    usecase "Eliminar Producto" as UC12
+}
+
+package "Configuración" {
+    usecase "Gestionar Sabores" as UC13
+    usecase "Gestionar Rellenos" as UC14
+    usecase "Configurar Notificaciones" as UC15
+    usecase "Configurar Contacto" as UC16
+}
+
+package "Cotizaciones" {
+    usecase "Crear Cotización" as UC17
+    usecase "Generar PDF" as UC18
+    usecase "Agregar Productos" as UC19
+    usecase "Calcular Total" as UC20
+}
+
+package "Estadísticas" {
+    usecase "Ver Estadísticas Generales" as UC21
+    usecase "Ver Resumen por Mes" as UC22
+    usecase "Exportar Datos" as UC23
+}
+
+' Relaciones del Administrador
+Admin --> UC1 : Puede crear
+Admin --> UC2 : Puede ver
+Admin --> UC3 : Puede editar
+Admin --> UC4 : Puede eliminar
+Admin --> UC5 : Puede registrar
+Admin --> UC6 : Puede buscar
+Admin --> UC7 : Puede filtrar
+Admin --> UC8 : Puede ver
+Admin --> UC9 : Puede ver
+Admin --> UC10 : Puede agregar
+Admin --> UC11 : Puede editar
+Admin --> UC12 : Puede eliminar
+Admin --> UC13 : Puede gestionar
+Admin --> UC14 : Puede gestionar
+Admin --> UC15 : Puede configurar
+Admin --> UC16 : Puede configurar
+Admin --> UC17 : Puede crear
+Admin --> UC18 : Puede generar
+Admin --> UC19 : Puede agregar
+Admin --> UC20 : Puede calcular
+Admin --> UC21 : Puede ver
+Admin --> UC22 : Puede ver
+Admin --> UC23 : Puede exportar
+
+' Relaciones del Dueño (igual que Admin)
+Dueno --> UC1 : Puede crear
+Dueno --> UC2 : Puede ver
+Dueno --> UC3 : Puede editar
+Dueno --> UC4 : Puede eliminar
+Dueno --> UC5 : Puede registrar
+Dueno --> UC6 : Puede buscar
+Dueno --> UC7 : Puede filtrar
+Dueno --> UC8 : Puede ver
+Dueno --> UC9 : Puede ver
+Dueno --> UC10 : Puede agregar
+Dueno --> UC11 : Puede editar
+Dueno --> UC12 : Puede eliminar
+Dueno --> UC13 : Puede gestionar
+Dueno --> UC14 : Puede gestionar
+Dueno --> UC15 : Puede configurar
+Dueno --> UC16 : Puede configurar
+Dueno --> UC17 : Puede crear
+Dueno --> UC18 : Puede generar
+Dueno --> UC19 : Puede agregar
+Dueno --> UC20 : Puede calcular
+Dueno --> UC21 : Puede ver
+Dueno --> UC22 : Puede ver
+Dueno --> UC23 : Puede exportar
+
+' Relaciones del Repostero (solo lectura)
+Repostero --> UC2 : Solo lectura
+Repostero --> UC8 : Solo lectura
+Repostero --> UC9 : Solo lectura
+
+@enduml
+
+' ==================================================
+' DIAGRAMA DE CONTEXTO
+' ==================================================
+@startuml Contexto
+!theme plain
+skinparam backgroundColor #FDC8E3
+skinparam componentBackgroundColor #F28DB2
+skinparam actorBackgroundColor #E75480
+
+title Diagrama de Contexto - Aplicación de Gestión de Pastelería
+
+actor "👑 Administrador" as Admin
+actor "💼 Dueño" as Dueno
+actor "👨‍🍳 Repostero" as Repostero
+
+rectangle "Aplicación de Gestión de Pastelería" {
+    component "Sistema de Gestión de Pedidos" as Sistema
+    note right of Sistema
+        - React Native (Expo)
+        - SQLite Local
+        - Firebase (Opcional)
+        - Notificaciones Locales
+        - Generación de PDFs
+    end note
+}
+
+rectangle "Sistemas Externos" {
+    component "Base de Datos SQLite" as SQLite
+    component "Firebase (Nube)" as Firebase
+    component "Sistema de Notificaciones" as Notificaciones
+    component "Generador de PDF" as PDF
+    component "Almacenamiento de Imágenes" as Imagenes
+}
+
+rectangle "Dispositivos" {
+    component "Dispositivo Móvil" as Movil
+    component "Navegador Web" as Web
+}
+
+' Interacciones principales
+Admin --> Sistema : Gestiona pedidos y configuración
+Dueno --> Sistema : Gestiona pedidos y configuración
+Repostero --> Sistema : Consulta pedidos y calendario
+
+Sistema --> SQLite : Almacena datos localmente
+Sistema --> Firebase : Sincronización opcional
+Sistema --> Notificaciones : Envía recordatorios
+Sistema --> PDF : Genera cotizaciones
+Sistema --> Imagenes : Almacena referencias
+
+Movil --> Sistema : Acceso nativo
+Web --> Sistema : Acceso web
+
+@enduml
+
+' ==================================================
+' DIAGRAMA DE SECUENCIAS
+' ==================================================
+@startuml Secuencias
+!theme plain
+skinparam backgroundColor #FDC8E3
+skinparam participantBackgroundColor #F28DB2
+skinparam actorBackgroundColor #E75480
+
+title Diagrama de Secuencias - Crear Nuevo Pedido
+
+actor "👨‍🍳 Usuario" as Usuario
+participant "Pantalla Nuevo Pedido" as Pantalla
+participant "Base de Datos" as BD
+participant "Sistema de Notificaciones" as Notif
+participant "Configuración" as Config
+
+Usuario -> Pantalla : Navega a "Nuevo Pedido"
+activate Pantalla
+
+Pantalla -> BD : Obtener sabores y rellenos
+activate BD
+BD --> Pantalla : Lista de sabores y rellenos
+deactivate BD
+
+Usuario -> Pantalla : Completa formulario del pedido
+note right
+    - Fecha de entrega
+    - Nombre del pedido
+    - Precio y monto abonado
+    - Productos (pastel/cupcakes/otros)
+    - Imagen de referencia
+    - Descripción
+end note
+
+Usuario -> Pantalla : Agrega productos
+loop Para cada producto
+    Pantalla -> BD : Valida sabores disponibles
+    Pantalla -> BD : Valida rellenos disponibles
+end
+
+Usuario -> Pantalla : Guarda pedido
+Pantalla -> Pantalla : Valida datos del formulario
+
+alt Datos válidos
+    Pantalla -> BD : Guardar pedido
+    activate BD
+    BD --> Pantalla : ID del pedido creado
+    deactivate BD
+    
+    Pantalla -> Config : Obtener configuración de notificaciones
+    activate Config
+    Config --> Pantalla : Configuración
+    deactivate Config
+    
+    alt Notificaciones activadas
+        Pantalla -> Notif : Programar notificación
+        activate Notif
+        Notif --> Pantalla : ID de notificación
+        deactivate Notif
+        
+        Pantalla -> BD : Guardar ID de notificación
+    end
+    
+    Pantalla --> Usuario : Pedido guardado exitosamente
+    Pantalla -> Pantalla : Limpiar formulario
+    Pantalla -> Pantalla : Regresar al inicio
+    
+else Datos inválidos
+    Pantalla --> Usuario : Mostrar errores de validación
+end
+
+deactivate Pantalla
+
+@enduml
+
+' ==================================================
+' DIAGRAMA DE ACTIVIDADES
+' ==================================================
+@startuml Actividades
+!theme plain
+skinparam backgroundColor #FDC8E3
+skinparam activityBackgroundColor #F28DB2
+skinparam activityBorderColor #E75480
+
+title Diagrama de Actividades - Flujo de Gestión de Pedidos
+
+start
+
+:Usuario accede a la aplicación;
+note right: Sistema de autenticación multiusuario
+
+:Verificar rol del usuario;
+if (¿Rol del usuario?) then (Administrador/Dueño)
+    :Mostrar todas las funciones;
+    note right
+        - Crear pedidos
+        - Editar pedidos
+        - Eliminar pedidos
+        - Configuración
+        - Cotizaciones
+        - Estadísticas
+    end note
+else (Repostero)
+    :Mostrar solo funciones de lectura;
+    note right
+        - Ver pedidos
+        - Ver calendario
+        - Ver productos esta semana
+    end note
+endif
+
+:Usuario selecciona acción;
+
+switch (¿Acción seleccionada?)
+case (Crear Nuevo Pedido)
+    :Completar formulario de pedido;
+    note right
+        - Fecha de entrega
+        - Nombre del pedido
+        - Precio y monto abonado
+        - Productos
+        - Imagen (opcional)
+        - Descripción (opcional)
+    end note
+    
+    :Validar datos ingresados;
+    if (¿Datos válidos?) then (Sí)
+        :Guardar pedido en base de datos;
+        :Programar notificación si está activada;
+        :Mostrar confirmación;
+        :Limpiar formulario;
+        :Regresar al inicio;
+    else (No)
+        :Mostrar errores de validación;
+        :Permitir corrección de datos;
+    endif
+
+case (Ver Próximos Pedidos)
+    :Cargar lista de pedidos;
+    :Aplicar filtros si están configurados;
+    :Mostrar pedidos ordenados por fecha;
+    
+    if (¿Usuario tiene permisos de edición?) then (Sí)
+        :Permitir editar/eliminar pedidos;
+        :Permitir registrar abonos;
+    else (No)
+        :Mostrar solo información de lectura;
+    endif
+
+case (Ver Calendario)
+    :Generar vista de calendario;
+    :Mostrar pedidos agrupados por fecha;
+    :Permitir navegación entre meses;
+    :Mostrar badges con cantidad de pedidos;
+
+case (Gestionar Sabores/Rellenos)
+    if (¿Usuario tiene permisos?) then (Sí)
+        :Mostrar lista de sabores/rellenos;
+        :Permitir agregar nuevos;
+        :Permitir editar existentes;
+        :Permitir eliminar;
+        :Actualizar base de datos;
+    else (No)
+        :Mostrar mensaje de acceso denegado;
+    endif
+
+case (Crear Cotización)
+    if (¿Usuario tiene permisos?) then (Sí)
+        :Completar datos del cliente;
+        :Agregar productos a cotizar;
+        :Calcular totales;
+        :Generar PDF;
+        :Descargar/compartir cotización;
+    else (No)
+        :Mostrar mensaje de acceso denegado;
+    endif
+
+case (Ver Estadísticas)
+    if (¿Usuario tiene permisos?) then (Sí)
+        :Calcular totales generales;
+        :Mostrar resumen por mes;
+        :Permitir exportar datos;
+    else (No)
+        :Mostrar mensaje de acceso denegado;
+    endif
+
+case (Configuración)
+    if (¿Usuario tiene permisos?) then (Sí)
+        :Configurar notificaciones;
+        :Configurar datos de contacto;
+        :Configurar sincronización;
+        :Guardar cambios;
+    else (No)
+        :Mostrar mensaje de acceso denegado;
+    endif
+
+endswitch
+
+:Usuario continúa con otra acción;
+
+stop
+
+@enduml
+
+' ==================================================
+' DIAGRAMA DE COMPONENTES (BONUS)
+' ==================================================
+@startuml Componentes
+!theme plain
+skinparam backgroundColor #FDC8E3
+skinparam componentBackgroundColor #F28DB2
+skinparam packageBackgroundColor #D6A8E9
+
+title Diagrama de Componentes - Arquitectura de la Aplicación
+
+package "Frontend (React Native)" {
+    component "Pantalla de Inicio" as Home
+    component "Gestión de Pedidos" as Pedidos
+    component "Calendario" as Calendario
+    component "Cotizaciones" as Cotizaciones
+    component "Configuración" as Config
+    component "Autenticación" as Auth
+}
+
+package "Servicios" {
+    component "Servicio de Base de Datos" as DBService
+    component "Servicio de Notificaciones" as NotifService
+    component "Servicio de PDF" as PDFService
+    component "Servicio de Sincronización" as SyncService
+}
+
+package "Base de Datos" {
+    database "SQLite Local" as SQLite
+    database "Firebase (Opcional)" as Firebase
+}
+
+package "Sistemas Externos" {
+    component "Sistema de Archivos" as FileSystem
+    component "API de Notificaciones" as NotifAPI
+}
+
+' Conexiones principales
+Home --> DBService
+Pedidos --> DBService
+Calendario --> DBService
+Cotizaciones --> PDFService
+Config --> DBService
+Auth --> DBService
+
+DBService --> SQLite
+DBService --> Firebase
+NotifService --> NotifAPI
+PDFService --> FileSystem
+SyncService --> Firebase
+
+@enduml
+
+' ==================================================
+' SCRIPT MYSQL - BASE DE DATOS COMPLETA
+' ==================================================
+/*
+-- ==================================================
+-- SCRIPT MYSQL PARA APLICACIÓN DE GESTIÓN DE PASTELERÍA
+-- ==================================================
+-- Descripción: Script completo para crear la base de datos MySQL
+-- Versión: 1.0
+-- Compatible con: MySQL 5.7+ / MySQL 8.0+
+-- ==================================================
+
+-- Crear base de datos
+DROP DATABASE IF EXISTS pasteleria_db;
+CREATE DATABASE pasteleria_db 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+USE pasteleria_db;
+
+-- ==================================================
+-- TABLA: users (Usuarios del sistema)
+-- ==================================================
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'dueño', 'repostero') NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_username (username),
+    INDEX idx_role (role),
+    INDEX idx_activo (activo)
+);
+
+-- ==================================================
+-- TABLA: sabores (Sabores de productos)
+-- ==================================================
+CREATE TABLE sabores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    tipo ENUM('pastel', 'cupcakes') NOT NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_nombre (nombre),
+    INDEX idx_tipo (tipo),
+    INDEX idx_activo (activo)
+);
+
+-- ==================================================
+-- TABLA: rellenos (Rellenos de productos)
+-- ==================================================
+CREATE TABLE rellenos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_nombre (nombre),
+    INDEX idx_activo (activo)
+);
+
+-- ==================================================
+-- TABLA: pedidos (Pedidos principales)
+-- ==================================================
+CREATE TABLE pedidos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha_entrega DATE NOT NULL,
+    nombre VARCHAR(200) NOT NULL,
+    precio_final DECIMAL(10,2) NOT NULL,
+    monto_abonado DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    descripcion TEXT,
+    imagen VARCHAR(500),
+    productos JSON NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_fecha_entrega (fecha_entrega),
+    INDEX idx_nombre (nombre),
+    INDEX idx_precio (precio_final),
+    INDEX idx_created_at (created_at),
+    
+    CONSTRAINT chk_precio_positivo CHECK (precio_final > 0),
+    CONSTRAINT chk_abonado_positivo CHECK (monto_abonado >= 0),
+    CONSTRAINT chk_abonado_no_mayor CHECK (monto_abonado <= precio_final)
+);
+
+-- ==================================================
+-- TABLA: settings (Configuración del sistema)
+-- ==================================================
+CREATE TABLE settings (
+    id INT PRIMARY KEY DEFAULT 1,
+    notifications_enabled BOOLEAN DEFAULT FALSE,
+    days_before INT DEFAULT 1,
+    contact_name VARCHAR(100) DEFAULT '',
+    company_name VARCHAR(100) DEFAULT '',
+    phone VARCHAR(20) DEFAULT '',
+    email VARCHAR(100) DEFAULT '',
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    CONSTRAINT chk_days_before CHECK (days_before >= 0 AND days_before <= 7),
+    CONSTRAINT chk_single_settings CHECK (id = 1)
+);
+
+-- ==================================================
+-- TABLA: notifications (Notificaciones programadas)
+-- ==================================================
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id INT NOT NULL,
+    notification_id VARCHAR(100),
+    scheduled_date DATETIME NOT NULL,
+    status ENUM('pending', 'sent', 'cancelled') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
+    INDEX idx_pedido_id (pedido_id),
+    INDEX idx_scheduled_date (scheduled_date),
+    INDEX idx_status (status)
+);
+
+-- ==================================================
+-- TABLA: cotizaciones (Historial de cotizaciones)
+-- ==================================================
+CREATE TABLE cotizaciones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cliente VARCHAR(200) NOT NULL,
+    total DECIMAL(10,2) NOT NULL,
+    pdf_path VARCHAR(500),
+    productos JSON NOT NULL,
+    validez_dias INT DEFAULT 15,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_cliente (cliente),
+    INDEX idx_total (total),
+    INDEX idx_created_at (created_at)
+);
+
+-- ==================================================
+-- DATOS INICIALES
+-- ==================================================
+
+-- Insertar usuarios por defecto
+INSERT INTO users (username, password, role, nombre) VALUES
+('admin2024', '$2b$10$rQ8K8J7vE2nF1sL9mP5kOuY3xW6cT8vA2bE4nR7jK9sL1mP3qR5t', 'admin', 'Administrador'),
+('dueno2024', '$2b$10$rQ8K8J7vE2nF1sL9mP5kOuY3xW6cT8vA2bE4nR7jK9sL1mP3qR5t', 'dueño', 'Raquel Alejandra Rousselin Pellecer'),
+('repostero2024', '$2b$10$rQ8K8J7vE2nF1sL9mP5kOuY3xW6cT8vA2bE4nR7jK9sL1mP3qR5t', 'repostero', 'Repostero');
+
+-- Insertar sabores por defecto
+INSERT INTO sabores (nombre, tipo) VALUES
+-- Sabores para pasteles
+('Chocolate', 'pastel'),
+('Vainilla', 'pastel'),
+('Fresa', 'pastel'),
+('Limón', 'pastel'),
+('Red Velvet', 'pastel'),
+('Carrot Cake', 'pastel'),
+('Cheesecake', 'pastel'),
+
+-- Sabores para cupcakes
+('Chocolate', 'cupcakes'),
+('Vainilla', 'cupcakes'),
+('Fresa', 'cupcakes'),
+('Limón', 'cupcakes'),
+('Red Velvet', 'cupcakes'),
+('Carrot Cake', 'cupcakes'),
+('Oreo', 'cupcakes'),
+('Nutella', 'cupcakes');
+
+-- Insertar rellenos por defecto
+INSERT INTO rellenos (nombre) VALUES
+('Chocolate'),
+('Vainilla'),
+('Fresa'),
+('Limón'),
+('Dulce de Leche'),
+('Cajeta'),
+('Mermelada de Fresa'),
+('Mermelada de Durazno'),
+('Crema de Mantequilla'),
+('Ganache de Chocolate'),
+('Cream Cheese'),
+('Frutas Frescas');
+
+-- Insertar configuración inicial
+INSERT INTO settings (
+    id, 
+    notifications_enabled, 
+    days_before, 
+    contact_name, 
+    company_name, 
+    phone
+) VALUES (
+    1, 
+    FALSE, 
+    1, 
+    'Raquel Alejandra Rousselin Pellecer', 
+    'Sweet Cakes', 
+    '53597287'
+);
+
+-- ==================================================
+-- VISTAS ÚTILES
+-- ==================================================
+
+-- Vista: Pedidos con información resumida
+CREATE VIEW v_pedidos_resumen AS
+SELECT 
+    p.id,
+    p.fecha_entrega,
+    p.nombre,
+    p.precio_final,
+    p.monto_abonado,
+    (p.precio_final - p.monto_abonado) AS monto_pendiente,
+    JSON_LENGTH(p.productos) AS cantidad_productos,
+    p.created_at
+FROM pedidos p
+ORDER BY p.fecha_entrega ASC;
+
+-- Vista: Estadísticas por mes
+CREATE VIEW v_estadisticas_mensuales AS
+SELECT 
+    YEAR(fecha_entrega) AS año,
+    MONTH(fecha_entrega) AS mes,
+    COUNT(*) AS total_pedidos,
+    SUM(precio_final) AS total_ventas,
+    SUM(monto_abonado) AS total_abonado,
+    SUM(precio_final - monto_abonado) AS total_pendiente,
+    AVG(precio_final) AS promedio_por_pedido
+FROM pedidos 
+GROUP BY YEAR(fecha_entrega), MONTH(fecha_entrega)
+ORDER BY año DESC, mes DESC;
+
+-- Vista: Productos más populares
+CREATE VIEW v_productos_populares AS
+SELECT 
+    JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.tipo')) AS tipo_producto,
+    JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.sabor')) AS sabor,
+    JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.relleno')) AS relleno,
+    COUNT(*) AS veces_solicitado,
+    SUM(JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.cantidad'))) AS cantidad_total
+FROM pedidos p,
+JSON_TABLE(p.productos, '$[*]' COLUMNS (
+    value JSON PATH '$'
+)) AS producto
+GROUP BY 
+    JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.tipo')),
+    JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.sabor')),
+    JSON_UNQUOTE(JSON_EXTRACT(producto.value, '$.relleno'))
+ORDER BY veces_solicitado DESC;
+
+-- ==================================================
+-- PROCEDIMIENTOS ALMACENADOS
+-- ==================================================
+
+DELIMITER //
+
+-- Procedimiento: Obtener pedidos por rango de fechas
+CREATE PROCEDURE sp_get_pedidos_por_fecha(
+    IN fecha_inicio DATE,
+    IN fecha_fin DATE
+)
+BEGIN
+    SELECT 
+        p.*,
+        (p.precio_final - p.monto_abonado) AS monto_pendiente
+    FROM pedidos p
+    WHERE p.fecha_entrega BETWEEN fecha_inicio AND fecha_fin
+    ORDER BY p.fecha_entrega ASC, p.nombre ASC;
+END //
+
+-- Procedimiento: Registrar abono en pedido
+CREATE PROCEDURE sp_registrar_abono(
+    IN pedido_id INT,
+    IN monto_abono DECIMAL(10,2)
+)
+BEGIN
+    DECLARE precio_total DECIMAL(10,2);
+    DECLARE abonado_actual DECIMAL(10,2);
+    DECLARE nuevo_abonado DECIMAL(10,2);
+    
+    -- Obtener valores actuales
+    SELECT precio_final, monto_abonado 
+    INTO precio_total, abonado_actual
+    FROM pedidos 
+    WHERE id = pedido_id;
+    
+    -- Calcular nuevo monto abonado
+    SET nuevo_abonado = abonado_actual + monto_abono;
+    
+    -- Validar que no exceda el precio total
+    IF nuevo_abonado > precio_total THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'El abono excede el precio total del pedido';
+    END IF;
+    
+    -- Actualizar el pedido
+    UPDATE pedidos 
+    SET monto_abonado = nuevo_abonado,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = pedido_id;
+    
+    SELECT 'Abono registrado exitosamente' AS mensaje;
+END //
+
+-- Procedimiento: Obtener resumen de estadísticas
+CREATE PROCEDURE sp_get_estadisticas_generales()
+BEGIN
+    SELECT 
+        COUNT(*) AS total_pedidos,
+        SUM(precio_final) AS total_ventas,
+        SUM(monto_abonado) AS total_abonado,
+        SUM(precio_final - monto_abonado) AS total_pendiente,
+        AVG(precio_final) AS promedio_por_pedido,
+        MIN(fecha_entrega) AS primer_pedido,
+        MAX(fecha_entrega) AS ultimo_pedido
+    FROM pedidos;
+END //
+
+DELIMITER ;
+
+-- ==================================================
+-- TRIGGERS
+-- ==================================================
+
+-- Trigger: Actualizar timestamp al modificar pedido
+DELIMITER //
+CREATE TRIGGER tr_pedidos_updated
+    BEFORE UPDATE ON pedidos
+    FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = CURRENT_TIMESTAMP;
+END //
+DELIMITER ;
+
+-- Trigger: Validar datos antes de insertar pedido
+DELIMITER //
+CREATE TRIGGER tr_pedidos_before_insert
+    BEFORE INSERT ON pedidos
+    FOR EACH ROW
+BEGIN
+    -- Validar que la fecha de entrega no sea en el pasado
+    IF NEW.fecha_entrega < CURDATE() THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'La fecha de entrega no puede ser en el pasado';
+    END IF;
+    
+    -- Validar que el monto abonado no sea negativo
+    IF NEW.monto_abonado < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'El monto abonado no puede ser negativo';
+    END IF;
+END //
+DELIMITER ;
+
+-- ==================================================
+-- ÍNDICES ADICIONALES PARA OPTIMIZACIÓN
+-- ==================================================
+
+-- Índice compuesto para consultas de pedidos por fecha y estado
+CREATE INDEX idx_pedidos_fecha_estado ON pedidos(fecha_entrega, monto_abonado);
+
+-- Índice para búsquedas por nombre de pedido
+CREATE FULLTEXT INDEX idx_pedidos_busqueda ON pedidos(nombre, descripcion);
+
+-- ==================================================
+-- COMENTARIOS FINALES
+-- ==================================================
+
+/*
+Este script crea una base de datos completa para la aplicación de gestión de pastelería
+con las siguientes características:
+
+1. TABLAS PRINCIPALES:
+   - users: Gestión de usuarios con roles
+   - pedidos: Pedidos con productos en formato JSON
+   - sabores: Catálogo de sabores por tipo
+   - rellenos: Catálogo de rellenos
+   - settings: Configuración del sistema
+   - notifications: Notificaciones programadas
+   - cotizaciones: Historial de cotizaciones
+
+2. FUNCIONALIDADES:
+   - Validaciones de datos con CHECK constraints
+   - Triggers para auditoría y validación
+   - Procedimientos almacenados para operaciones comunes
+   - Vistas para consultas complejas
+   - Índices optimizados para rendimiento
+
+3. DATOS INICIALES:
+   - Usuarios por defecto con roles
+   - Sabores y rellenos básicos
+   - Configuración inicial
+
+4. OPTIMIZACIONES:
+   - Índices en campos frecuentemente consultados
+   - Índices compuestos para consultas complejas
+   - Full-text search para búsquedas
+
+Para usar este script:
+1. Ejecutar en MySQL 5.7+ o 8.0+
+2. Ajustar credenciales de usuarios según necesidades
+3. Personalizar sabores y rellenos según el negocio
+4. Configurar parámetros de conexión en la aplicación
+*/
+
+*/
+
+' ==================================================
+' DIAGRAMA ENTIDAD-RELACIÓN (ER)
+' ==================================================
+@startuml EntidadRelacion
+!theme plain
+skinparam backgroundColor #FDC8E3
+skinparam entityBackgroundColor #F28DB2
+skinparam entityBorderColor #E75480
+
+title Diagrama Entidad-Relación - Base de Datos Pastelería
+
+' ==================================================
+' ENTIDADES PRINCIPALES
+' ==================================================
+
+entity "users" {
+    * id : INT <<PK>>
+    --
+    * username : VARCHAR(50) <<UK>>
+    * password : VARCHAR(255)
+    * role : ENUM(admin, dueño, repostero)
+    * nombre : VARCHAR(100)
+    activo : BOOLEAN
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "sabores" {
+    * id : INT <<PK>>
+    --
+    * nombre : VARCHAR(100) <<UK>>
+    * tipo : ENUM(pastel, cupcakes)
+    activo : BOOLEAN
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "rellenos" {
+    * id : INT <<PK>>
+    --
+    * nombre : VARCHAR(100) <<UK>>
+    activo : BOOLEAN
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "pedidos" {
+    * id : INT <<PK>>
+    --
+    * fecha_entrega : DATE
+    * nombre : VARCHAR(200)
+    * precio_final : DECIMAL(10,2)
+    * monto_abonado : DECIMAL(10,2)
+    descripcion : TEXT
+    imagen : VARCHAR(500)
+    * productos : JSON
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "settings" {
+    * id : INT <<PK>>
+    --
+    notifications_enabled : BOOLEAN
+    days_before : INT
+    contact_name : VARCHAR(100)
+    company_name : VARCHAR(100)
+    phone : VARCHAR(20)
+    email : VARCHAR(100)
+    address : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "notifications" {
+    * id : INT <<PK>>
+    --
+    * pedido_id : INT <<FK>>
+    notification_id : VARCHAR(100)
+    * scheduled_date : DATETIME
+    status : ENUM(pending, sent, cancelled)
+    created_at : TIMESTAMP
+}
+
+entity "cotizaciones" {
+    * id : INT <<PK>>
+    --
+    * cliente : VARCHAR(200)
+    * total : DECIMAL(10,2)
+    pdf_path : VARCHAR(500)
+    * productos : JSON
+    validez_dias : INT
+    created_at : TIMESTAMP
+}
+
+' ==================================================
+' RELACIONES
+' ==================================================
+
+pedidos ||--o{ notifications : "tiene"
+note right : Un pedido puede tener\nmúltiples notificaciones
+
+' ==================================================
+' NOTAS Y COMENTARIOS
+' ==================================================
+
+note top of users
+    **Gestión de Usuarios**
+    - Sistema de roles diferenciados
+    - Autenticación segura
+    - Control de acceso granular
+end note
+
+note top of pedidos
+    **Pedidos Principales**
+    - Productos almacenados en JSON
+    - Control de pagos y abonos
+    - Fechas de entrega programadas
+    - Imágenes de referencia opcionales
+end note
+
+note top of sabores
+    **Catálogo de Sabores**
+    - Separado por tipo (pastel/cupcakes)
+    - Control de disponibilidad
+    - Reutilizable en múltiples productos
+end note
+
+note top of rellenos
+    **Catálogo de Rellenos**
+    - Independiente del tipo de producto
+    - Control de disponibilidad
+    - Reutilizable en múltiples productos
+end note
+
+note top of settings
+    **Configuración Global**
+    - Una sola fila (id = 1)
+    - Configuración de notificaciones
+    - Datos de contacto de la empresa
+end note
+
+note top of notifications
+    **Sistema de Notificaciones**
+    - Vinculado a pedidos específicos
+    - Programación de recordatorios
+    - Seguimiento de estado
+end note
+
+note top of cotizaciones
+    **Historial de Cotizaciones**
+    - Clientes y totales
+    - Productos en formato JSON
+    - Referencias a archivos PDF
+end note
+
+' ==================================================
+' VISTAS Y PROCEDIMIENTOS (Representados como entidades conceptuales)
+' ==================================================
+
+entity "v_pedidos_resumen" <<view>> {
+    * id : INT
+    --
+    fecha_entrega : DATE
+    nombre : VARCHAR(200)
+    precio_final : DECIMAL(10,2)
+    monto_abonado : DECIMAL(10,2)
+    monto_pendiente : DECIMAL(10,2)
+    cantidad_productos : INT
+    created_at : TIMESTAMP
+}
+
+entity "v_estadisticas_mensuales" <<view>> {
+    * año : INT
+    * mes : INT
+    --
+    total_pedidos : INT
+    total_ventas : DECIMAL(10,2)
+    total_abonado : DECIMAL(10,2)
+    total_pendiente : DECIMAL(10,2)
+    promedio_por_pedido : DECIMAL(10,2)
+}
+
+entity "v_productos_populares" <<view>> {
+    * tipo_producto : VARCHAR(50)
+    * sabor : VARCHAR(100)
+    * relleno : VARCHAR(100)
+    --
+    veces_solicitado : INT
+    cantidad_total : INT
+}
+
+' Relaciones de las vistas
+pedidos ||--|| v_pedidos_resumen : "genera"
+pedidos ||--|| v_estadisticas_mensuales : "agrupa"
+pedidos ||--|| v_productos_populares : "analiza"
+
+@enduml
+
+@enduml

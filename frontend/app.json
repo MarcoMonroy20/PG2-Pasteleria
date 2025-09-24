@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pasteleria-cocina-app",
+    "name": "Pastelería Cocina",
     "slug": "pasteleria-cocina-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,29 +8,50 @@
     "scheme": "pasteleriacocinaapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "primaryColor": "#E75480",
+    "backgroundColor": "#FDC8E3",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FAD1E1"
+      "backgroundColor": "#FDC8E3",
+      "dark": {
+        "backgroundColor": "#5E336F"
+      }
+    },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#E75480",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Pastelería Cocina"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "buildNumber": "1.0.0",
+      "bundleIdentifier": "com.pasteleriacocina.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#FAD1E1"
+        "backgroundColor": "#FDC8E3",
+        "monochromeImage": "./assets/images/adaptive-icon.png"
       },
-      "edgeToEdgeEnabled": true,
+      "icon": "./assets/images/icon.png",
       "package": "com.pasteleriacocina.app",
       "versionCode": 1,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
         "android.permission.VIBRATE",
         "android.permission.CAMERA",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
       ],
       "intentFilters": [
         {
@@ -51,8 +72,14 @@
         "googleServicesFile": "./google-services.json"
       },
       "buildProperties": {
-        "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m"
-      }
+        "org.gradle.jvmargs": "-Xmx4096m -XX:MaxMetaspaceSize=1024m",
+        "android.enableJetifier": true,
+        "android.useAndroidX": true,
+        "kotlinVersion": "1.8.0"
+      },
+      "softwareKeyboardLayoutMode": "pan",
+      "allowBackup": true,
+      "theme": "@style/AppTheme"
     },
     "web": {
       "bundler": "metro",

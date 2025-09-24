@@ -12,7 +12,6 @@ import {
   Platform,
   ScrollView,
   useWindowDimensions,
-  Share,
   FlatList,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from 'expo-router';
@@ -74,7 +73,7 @@ export default function ProximosPedidosScreen() {
   const [pedidoAbonando, setPedidoAbonando] = useState<Pedido | null>(null);
   const [abonoInput, setAbonoInput] = useState<string>('');
 
-  // Filtros
+  // Filtros avanzados
   const [searchText, setSearchText] = useState('');
   const [dateStart, setDateStart] = useState<string>('');
   const [dateEnd, setDateEnd] = useState<string>('');
@@ -82,6 +81,12 @@ export default function ProximosPedidosScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [startDateObj, setStartDateObj] = useState<Date | null>(null);
   const [endDateObj, setEndDateObj] = useState<Date | null>(null);
+
+  // Nuevos filtros avanzados
+  const [paymentStatus, setPaymentStatus] = useState<'todos' | 'pendiente' | 'parcial' | 'completo'>('todos');
+  const [productType, setProductType] = useState<'todos' | 'pastel' | 'cupcakes' | 'otros'>('todos');
+  const [priceRange, setPriceRange] = useState<'todos' | 'bajo' | 'medio' | 'alto'>('todos');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   useEffect(() => {
     cargarPedidosPorRango();
@@ -124,6 +129,52 @@ export default function ProximosPedidosScreen() {
     });
   };
 
+  // Función para determinar el estado de pago
+  const getPaymentStatus = (pedido: Pedido): 'pendiente' | 'parcial' | 'completo' => {
+    const total = pedido.precio_final;
+    const abonado = pedido.monto_abonado || 0;
+
+    if (abonado === 0) return 'pendiente';
+    if (abonado >= total) return 'completo';
+    return 'parcial';
+  };
+
+  // Función para determinar el rango de precio
+  const getPriceRange = (precio: number): 'bajo' | 'medio' | 'alto' => {
+    if (precio < 100) return 'bajo';
+    if (precio < 500) return 'medio';
+    return 'alto';
+  };
+
+  // Función para verificar si el pedido tiene un tipo de producto específico
+  const hasProductType = (pedido: Pedido, tipo: string): boolean => {
+    return (pedido.productos || []).some(prod => prod.tipo === tipo);
+  };
+
+  // Aplicar todos los filtros avanzados
+  const aplicarFiltrosAvanzados = (lista: Pedido[]): Pedido[] => {
+    return lista.filter(pedido => {
+      // Filtro por estado de pago
+      if (paymentStatus !== 'todos') {
+        const status = getPaymentStatus(pedido);
+        if (status !== paymentStatus) return false;
+      }
+
+      // Filtro por tipo de producto
+      if (productType !== 'todos') {
+        if (!hasProductType(pedido, productType)) return false;
+      }
+
+      // Filtro por rango de precio
+      if (priceRange !== 'todos') {
+        const range = getPriceRange(pedido.precio_final);
+        if (range !== priceRange) return false;
+      }
+
+      return true;
+    });
+  };
+
   const cargarPedidosPorRango = async () => {
     try {
       await initDB();
@@ -136,7 +187,9 @@ export default function ProximosPedidosScreen() {
         if (dateEnd) base = base.filter(p => p.fecha_entrega <= dateEnd);
       }
       setAllPedidos(base);
-      setPedidos(aplicarFiltroTexto(base, searchText));
+      // Aplicar filtros en secuencia: texto -> avanzados
+      const filtradosPorTexto = aplicarFiltroTexto(base, searchText);
+      setPedidos(aplicarFiltrosAvanzados(filtradosPorTexto));
     } catch (error) {
       console.error('Error cargando pedidos:', error);
       Alert.alert('Error', 'No se pudieron cargar los pedidos');
@@ -158,8 +211,15 @@ export default function ProximosPedidosScreen() {
 
   // Reaplicar filtro de texto cuando cambia el texto o la base
   useEffect(() => {
-    setPedidos(aplicarFiltroTexto(allPedidos, searchText));
-  }, [searchText, allPedidos]);
+    // Aplicar filtros en secuencia: texto -> avanzados
+    const filtradosPorTexto = aplicarFiltroTexto(allPedidos, searchText);
+    setPedidos(aplicarFiltrosAvanzados(filtradosPorTexto));
+  }, [searchText, allPedidos, paymentStatus, productType, priceRange]);
+
+  // Calcular si hay filtros avanzados activos
+  const hasActiveAdvancedFilters = useMemo(() => {
+    return paymentStatus !== 'todos' || productType !== 'todos' || priceRange !== 'todos';
+  }, [paymentStatus, productType, priceRange]);
 
   // Totales de la lista filtrada actual
   const totals = useMemo(() => {
@@ -169,29 +229,7 @@ export default function ProximosPedidosScreen() {
     return { totalPrecio, totalAbonado, totalPendiente };
   }, [pedidos]);
 
-  const resumenTexto = useMemo(() => {
-    const f = (n: number) => `$${n.toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
-    const rango = dateStart || dateEnd ? ` (rango: ${dateStart || '∞'} → ${dateEnd || '∞'})` : '';
-    return `Pedidos: ${pedidos.length}${rango}\nTotal: ${f(totals.totalPrecio)}\nAbonado: ${f(totals.totalAbonado)}\nPendiente: ${f(totals.totalPendiente)}`;
-  }, [pedidos.length, totals, dateStart, dateEnd]);
 
-  const handleCopiarResumen = async () => {
-    try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).clipboard?.writeText) {
-        await (navigator as any).clipboard.writeText(resumenTexto);
-        alert('Resumen copiado');
-        return;
-      }
-      await Share.share({ message: resumenTexto });
-    } catch (e) {
-      console.log('No se pudo compartir/copiar el resumen:', e);
-      if (Platform.OS === 'web') {
-        alert('No se pudo copiar el resumen');
-      } else {
-        Alert.alert('Error', 'No se pudo compartir/copiar el resumen');
-      }
-    }
-  };
 
   const [showSummary, setShowSummary] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -202,6 +240,11 @@ export default function ProximosPedidosScreen() {
     setDateEnd('');
     setStartDateObj(null);
     setEndDateObj(null);
+    // Resetear filtros avanzados
+    setPaymentStatus('todos');
+    setProductType('todos');
+    setPriceRange('todos');
+    setShowAdvancedFilters(false);
     setLoading(true);
     cargarPedidosPorRango();
   };
@@ -602,7 +645,7 @@ export default function ProximosPedidosScreen() {
           />
 
           {Platform.OS === 'web' ? (
-            <View style={[styles.dateRow, isNarrow && { flexDirection: 'column' }]}>
+            <View style={[styles.dateRow, isNarrow && styles.dateRowNarrow]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Desde</Text>
                 <input
@@ -654,7 +697,7 @@ export default function ProximosPedidosScreen() {
               </View>
             </View>
           ) : (
-            <View style={[styles.dateRow, isNarrow && { flexDirection: 'column' }]}>
+            <View style={[styles.dateRow, isNarrow && styles.dateRowNarrow]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Desde</Text>
                 <TouchableOpacity
@@ -667,19 +710,21 @@ export default function ProximosPedidosScreen() {
                   <Text style={styles.dateButtonIcon}>📅</Text>
                 </TouchableOpacity>
                 {showStartPicker && (
-                  <DateTimePicker
-                    value={startDateObj || new Date()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
-                    onChange={(event, selectedDate) => {
-                      setShowStartPicker(false);
-                      const d = selectedDate || null;
-                      setStartDateObj(d);
-                      setDateStart(d ? d.toISOString().split('T')[0] : '');
-                      setLoading(true);
-                      cargarPedidosPorRango();
-                    }}
-                  />
+                  <View style={styles.datePickerContainer}>
+                    <DateTimePicker
+                      value={startDateObj || new Date()}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        setShowStartPicker(false);
+                        const d = selectedDate || null;
+                        setStartDateObj(d);
+                        setDateStart(d ? d.toISOString().split('T')[0] : '');
+                        setLoading(true);
+                        cargarPedidosPorRango();
+                      }}
+                    />
+                  </View>
                 )}
               </View>
               <View style={isNarrow ? { height: 12 } : { width: 12 }} />
@@ -695,27 +740,142 @@ export default function ProximosPedidosScreen() {
                   <Text style={styles.dateButtonIcon}>📅</Text>
                 </TouchableOpacity>
                 {showEndPicker && (
-                  <DateTimePicker
-                    value={endDateObj || new Date()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
-                    onChange={(event, selectedDate) => {
-                      setShowEndPicker(false);
-                      const d = selectedDate || null;
-                      setEndDateObj(d);
-                      setDateEnd(d ? d.toISOString().split('T')[0] : '');
-                      setLoading(true);
-                      cargarPedidosPorRango();
-                    }}
-                  />
+                  <View style={styles.datePickerContainer}>
+                    <DateTimePicker
+                      value={endDateObj || new Date()}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : Platform.OS === 'android' ? 'calendar' : 'default'}
+                      onChange={(event, selectedDate) => {
+                        setShowEndPicker(false);
+                        const d = selectedDate || null;
+                        setEndDateObj(d);
+                        setDateEnd(d ? d.toISOString().split('T')[0] : '');
+                        setLoading(true);
+                        cargarPedidosPorRango();
+                      }}
+                    />
+                  </View>
                 )}
               </View>
             </View>
           )}
 
-          <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilters}>
-            <Text style={styles.resetBtnText}>Limpiar filtros</Text>
-          </TouchableOpacity>
+          {/* Contenedor de filtros avanzados y reset */}
+          <View>
+            {/* Filtros Avanzados */}
+            <View style={styles.advancedFiltersToggle}>
+              <TouchableOpacity
+                style={[styles.advancedFiltersBtn, hasActiveAdvancedFilters && styles.advancedFiltersBtnActive]}
+                onPress={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              >
+                <Text style={[styles.advancedFiltersText, hasActiveAdvancedFilters && styles.advancedFiltersTextActive]}>
+                  {showAdvancedFilters ? 'Ocultar filtros avanzados ▲' : 'Mostrar filtros avanzados ▼'}
+                  {hasActiveAdvancedFilters && !showAdvancedFilters && ' (activos)'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {showAdvancedFilters && (
+              <View style={[styles.advancedFiltersContainer, isNarrow && styles.advancedFiltersContainerNarrow]}>
+                  {/* Estado de Pago */}
+                  <View style={[styles.filterGroup, isNarrow && styles.filterGroupNarrow]}>
+                    <Text style={[styles.filterGroupTitle, isNarrow && styles.filterGroupTitleNarrow]}>Estado de Pago</Text>
+                    <View style={[styles.filterOptions, isNarrow && styles.filterOptionsNarrow]}>
+                      {[
+                        { key: 'todos', label: 'Todos' },
+                        { key: 'pendiente', label: 'Pendiente' },
+                        { key: 'parcial', label: 'Parcial' },
+                        { key: 'completo', label: 'Completo' },
+                      ].map(option => (
+                        <TouchableOpacity
+                          key={option.key}
+                          style={[
+                            styles.filterOption,
+                            isNarrow && styles.filterOptionNarrow,
+                            paymentStatus === option.key && styles.filterOptionSelected
+                          ]}
+                          onPress={() => setPaymentStatus(option.key as any)}
+                        >
+                          <Text style={[
+                            styles.filterOptionText,
+                            isNarrow && styles.filterOptionTextNarrow,
+                            paymentStatus === option.key && styles.filterOptionTextSelected
+                          ]} numberOfLines={1}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Tipo de Producto */}
+                  <View style={[styles.filterGroup, isNarrow && styles.filterGroupNarrow]}>
+                    <Text style={[styles.filterGroupTitle, isNarrow && styles.filterGroupTitleNarrow]}>Tipo de Producto</Text>
+                    <View style={[styles.filterOptions, isNarrow && styles.filterOptionsNarrow]}>
+                      {[
+                        { key: 'todos', label: 'Todos' },
+                        { key: 'pastel', label: 'Pasteles' },
+                        { key: 'cupcakes', label: 'Cupcakes' },
+                        { key: 'otros', label: 'Otros' },
+                      ].map(option => (
+                        <TouchableOpacity
+                          key={option.key}
+                          style={[
+                            styles.filterOption,
+                            isNarrow && styles.filterOptionNarrow,
+                            productType === option.key && styles.filterOptionSelected
+                          ]}
+                          onPress={() => setProductType(option.key as any)}
+                        >
+                          <Text style={[
+                            styles.filterOptionText,
+                            isNarrow && styles.filterOptionTextNarrow,
+                            productType === option.key && styles.filterOptionTextSelected
+                          ]} numberOfLines={1}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Rango de Precio */}
+                  <View style={[styles.filterGroup, isNarrow && styles.filterGroupNarrow]}>
+                    <Text style={[styles.filterGroupTitle, isNarrow && styles.filterGroupTitleNarrow]}>Rango de Precio</Text>
+                    <View style={[styles.filterOptions, isNarrow && styles.filterOptionsNarrow]}>
+                      {[
+                        { key: 'todos', label: 'Todos' },
+                        { key: 'bajo', label: '< Q100' },
+                        { key: 'medio', label: 'Q100-Q500' },
+                        { key: 'alto', label: '> Q500' },
+                      ].map(option => (
+                        <TouchableOpacity
+                          key={option.key}
+                          style={[
+                            styles.filterOption,
+                            isNarrow && styles.filterOptionNarrow,
+                            priceRange === option.key && styles.filterOptionSelected
+                          ]}
+                          onPress={() => setPriceRange(option.key as any)}
+                        >
+                          <Text style={[
+                            styles.filterOptionText,
+                            isNarrow && styles.filterOptionTextNarrow,
+                            priceRange === option.key && styles.filterOptionTextSelected
+                          ]} numberOfLines={1}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              )}
+
+            <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilters}>
+              <Text style={styles.resetBtnText}>Limpiar filtros</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -745,9 +905,6 @@ export default function ProximosPedidosScreen() {
               <Text style={[styles.summaryValue, styles.pendiente]}>{formatearPrecio(totals.totalPendiente)}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.copyBtn} onPress={handleCopiarResumen}>
-            <Text style={styles.copyBtnText}>Copiar/Compartir resumen</Text>
-          </TouchableOpacity>
         </View>
       )}
 
@@ -1319,9 +1476,6 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     padding: 16,
-    backgroundColor: Colors.light.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.inputBorder,
     gap: 12,
   },
   searchInput: {
@@ -1335,8 +1489,24 @@ const styles = StyleSheet.create({
   },
   dateRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
+  },
+  dateRowNarrow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  datePickerContainer: {
+    marginTop: 8,
+    backgroundColor: Colors.light.background,
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   backButton: {
     marginRight: 16,
@@ -1694,6 +1864,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: Colors.light.inputBackground,
     marginTop: 8,
+    flex: 1, // Hace que el botón ocupe el espacio disponible
+    minWidth: 120, // Ancho mínimo razonable
   },
   dateButtonText: {
     color: Colors.light.inputText,
@@ -1809,4 +1981,111 @@ const styles = StyleSheet.create({
     color: Colors.light.buttonText,
     fontSize: 16,
   },
+
+  // Estilos para filtros avanzados
+  advancedFiltersToggle: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  advancedFiltersBtn: {
+    backgroundColor: Colors.light.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+    alignItems: 'center',
+  },
+  advancedFiltersBtnActive: {
+    borderColor: Colors.light.buttonPrimary,
+    backgroundColor: Colors.light.buttonPrimary + '10', // Color de fondo sutil
+  },
+  advancedFiltersText: {
+    color: Colors.light.titleColor,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  advancedFiltersTextActive: {
+    color: Colors.light.buttonPrimary,
+    fontWeight: '700',
+  },
+  advancedFiltersContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+    maxHeight: 280, // Altura máxima más conservadora
+  },
+  advancedFiltersContainerNarrow: {
+    padding: 8, // Padding aún más reducido para pantallas pequeñas
+    maxHeight: 250, // Altura máxima más pequeña en narrow
+  },
+  filterGroup: {
+    marginBottom: 12,
+  },
+  filterGroupNarrow: {
+    marginBottom: 8, // Espacio aún más reducido
+  },
+  filterGroupTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.light.titleColor,
+    marginBottom: 8,
+  },
+  filterGroupTitleNarrow: {
+    fontSize: 14, // Fuente más pequeña
+    marginBottom: 6,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterOptionsNarrow: {
+    gap: 6, // Gap más pequeño
+    justifyContent: 'flex-start', // Alinear a la izquierda
+    flexWrap: 'wrap', // Asegurar que se envuelva
+  },
+  filterOption: {
+    backgroundColor: Colors.light.background,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+    minWidth: 70,
+    maxWidth: 100, // Ancho máximo más pequeño para mejor ajuste
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32, // Altura mínima más pequeña
+    flexShrink: 1, // Permitir encogimiento
+    marginHorizontal: 2, // Margen horizontal pequeño
+  },
+  filterOptionNarrow: {
+    minWidth: 60, // Ancho mínimo aún más pequeño
+    maxWidth: 85, // Ancho máximo aún más pequeño
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    marginHorizontal: 1,
+  },
+  filterOptionSelected: {
+    backgroundColor: Colors.light.buttonPrimary,
+    borderColor: Colors.light.buttonPrimary,
+  },
+  filterOptionText: {
+    color: Colors.light.inputText,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterOptionTextNarrow: {
+    fontSize: 12, // Fuente más pequeña
+    fontWeight: '500',
+  },
+  filterOptionTextSelected: {
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+  },
+
 }); 
