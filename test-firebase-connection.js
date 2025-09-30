@@ -7,7 +7,7 @@ const { getAuth, signInAnonymously } = require('firebase/auth');
 
 // Configuración de Firebase (usando las credenciales del .env.local)
 const firebaseConfig = {
-  apiKey: "AIzaSyCnRuMLopAdNhyaXlIR75d1aj2nWBmizvI",
+  apiKey: "TU_API_KEY_AQUI",
   authDomain: "pasteleria-cocina-app.firebaseapp.com",
   projectId: "pasteleria-cocina-app",
   storageBucket: "pasteleria-cocina-app.firebasestorage.app",
