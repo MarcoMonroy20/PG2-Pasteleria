@@ -3,9 +3,15 @@ import { Platform } from 'react-native';
 
 // Importar módulo correcto basado en la plataforma
 let authModule;
-if (Platform.OS === 'web') {
-  authModule = require('../services/auth.web');
-} else {
+try {
+  if (Platform.OS === 'web') {
+    authModule = require('../services/auth.web');
+  } else {
+    authModule = require('../services/auth');
+  }
+} catch (error) {
+  console.error('Error cargando módulo de autenticación:', error);
+  // Fallback a módulo nativo
   authModule = require('../services/auth');
 }
 
@@ -45,27 +51,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const initializeAuth = async () => {
     try {
-      console.log('Inicializando autenticación...');
+      console.log('🔐 Inicializando autenticación...');
+      console.log('🔍 resetAuthDB disponible:', typeof resetAuthDB);
+      
       // Resetear la BD de autenticación para asegurar usuarios correctos
-      await resetAuthDB();
-      console.log('Autenticación inicializada correctamente');
+      if (resetAuthDB && typeof resetAuthDB === 'function') {
+        await resetAuthDB();
+        console.log('✅ Autenticación inicializada correctamente');
+      } else {
+        console.log('⚠️ resetAuthDB no está disponible, saltando inicialización');
+      }
       setIsLoading(false);
     } catch (error) {
-      console.error('Error inicializando autenticación:', error);
+      console.error('❌ Error inicializando autenticación:', error);
       setIsLoading(false);
     }
   };
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
+      console.log('🔐 Intentando login para usuario:', username);
+      console.log('🔍 authenticateUser disponible:', typeof authenticateUser);
+      
+      if (!authenticateUser || typeof authenticateUser !== 'function') {
+        console.error('❌ authenticateUser no está disponible');
+        return false;
+      }
+      
       const authenticatedUser = await authenticateUser(username, password) as User | null;
+      console.log('👤 Usuario autenticado:', authenticatedUser);
+      
       if (authenticatedUser) {
         setUser(authenticatedUser);
+        console.log('✅ Login exitoso');
         return true;
       }
+      console.log('❌ Login fallido - credenciales incorrectas');
       return false;
     } catch (error) {
-      console.error('Error en login:', error);
+      console.error('❌ Error en login:', error);
       return false;
     }
   };
