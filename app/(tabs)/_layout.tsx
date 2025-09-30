@@ -178,10 +178,10 @@ export default function TabLayout() {
         // Estilos responsive del tab bar optimizados para evitar sobreposición
         tabBarStyle: {
           backgroundColor: Colors[colorScheme ?? 'light'].surface,
-          height: responsive.tabBarHeight + insets.bottom,
-          paddingBottom: responsive.paddingBottom + insets.bottom,
-          paddingTop: responsive.paddingVertical,
-          paddingHorizontal: 0, // Sin padding horizontal para aprovechar todo el espacio
+          height: 60 + insets.bottom, // Altura fija y razonable
+          paddingBottom: insets.bottom,
+          paddingTop: 8,
+          paddingHorizontal: 0,
           paddingLeft: 0,
           paddingRight: 0,
           marginHorizontal: 0,
@@ -191,79 +191,32 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 2,
-          width: '100%', // Asegurar que use todo el ancho
-          flex: 1,
-          // Ajustes para landscape en móviles
+          width: '100%',
+          // Remover flex: 1 que estaba causando el problema
           ...(responsive.isLandscape ? {
-            height: (responsive.tabBarHeight * 0.8) + insets.bottom,
-            paddingTop: responsive.paddingVertical * 0.6,
-            paddingBottom: (responsive.paddingBottom * 0.6) + insets.bottom,
+            height: 50 + insets.bottom,
+            paddingTop: 4,
+            paddingBottom: insets.bottom,
           } : {}),
         },
 
-        // Distribución perfecta de tabs sin sobreposición
+        // Distribución simple y funcional de tabs
         tabBarItemStyle: {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          minWidth: dynamicTabWidth,
-          maxWidth: dynamicTabWidth,
-          width: dynamicTabWidth,
-          paddingHorizontal: 0,
+          paddingHorizontal: 4,
           marginHorizontal: 0,
-          // Asegurar distribución uniforme
-          ...(Platform.OS === 'android' ? {
-            flex: 1,
-            minWidth: dynamicTabWidth,
-            maxWidth: dynamicTabWidth,
-            width: dynamicTabWidth,
-          } : {}),
-          // Estilos específicos para web
-          ...(responsive.isWeb ? {
-            flex: 1,
-            flexBasis: `${100/visibleTabsCount}%`,
-            flexGrow: 1,
-            flexShrink: 1,
-            minWidth: `${100/visibleTabsCount}%`,
-            maxWidth: `${100/visibleTabsCount}%`,
-            width: `${100/visibleTabsCount}%`,
-            display: 'flex',
-            boxSizing: 'border-box',
-            className: `tab-bar-item tab-bar-item-${visibleTabsCount}`,
-          } : {}),
         },
 
 
-        // Estilos del texto apropiados para cada plataforma
+        // Estilos del texto simples y funcionales
         tabBarLabelStyle: {
-          fontSize: Math.max(responsive.fontSize, 8), // Tamaño mínimo de 8
-          fontWeight: '600', // Menos negrita para mejor legibilidad
-          marginTop: 0,
+          fontSize: 10,
+          fontWeight: '500',
+          marginTop: 2,
           textAlign: 'center',
-          lineHeight: Math.max(responsive.fontSize * 1.1, 10), // Mejor espaciado
-          maxWidth: '100%', // Evita desbordamiento
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          // Ajustes específicos para web
-          ...(responsive.isWeb ? {
-            fontWeight: '500', // Web: menos negrita
-            lineHeight: Math.max(responsive.fontSize * 1.2, 12),
-          } : {}),
-          // Ajustes específicos para evitar sobreposición en móvil
-          ...(responsive.isSmallMobile && !responsive.isWeb ? {
-            fontSize: Math.max(responsive.fontSize - 1, 4), // Mínimo 4px
-            lineHeight: responsive.fontSize * 0.7,
-          } : {}),
-          // En landscape con pantallas pequeñas, mostrar solo iconos
-          ...(responsive.isLandscape && responsive.isSmallMobile ? {
-            display: 'none',
-          } : {}),
-          // Configuración extrema para pantallas muy pequeñas de móvil
-          ...(responsive.isExtraSmall && !responsive.isWeb ? {
-            fontSize: 4,
-            fontWeight: '900',
-            lineHeight: 4 * 0.7,
-          } : {}),
+          lineHeight: 12,
         },
       }}
     >
@@ -277,17 +230,12 @@ export default function TabLayout() {
             key="index"
             name="index"
             options={{
-              title: responsive.isExtraSmall ? 'Inicio' :
-                     responsive.isLandscape && responsive.isSmallMobile ? '' : 'Inicio',
+              title: 'Inicio',
               tabBarIcon: ({ color, focused }) => (
                 <FontAwesome
                   name="home"
-                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  size={focused ? 20 : 18}
                   color={color}
-                  style={{
-                    marginBottom: responsive.isExtraSmall ? 0 :
-                                 responsive.isSmallMobile ? 1 : 2
-                  }}
                 />
               ),
             }}
@@ -299,19 +247,12 @@ export default function TabLayout() {
             key="calendario"
             name="calendario"
             options={{
-              title: (responsive.isWeb && responsive.isSmallMobile) ? 'Calendario' :
-                     (responsive.isSmallMobile && !responsive.isWeb) ? 'Cal.' :
-                     responsive.isExtraSmall ? '' :
-                     responsive.isLandscape && responsive.isSmallMobile ? '' : 'Calendario',
+              title: 'Calendario',
               tabBarIcon: ({ color, focused }) => (
                 <FontAwesome
                   name="calendar"
-                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  size={focused ? 20 : 18}
                   color={color}
-                  style={{
-                    marginBottom: responsive.isExtraSmall ? 0 :
-                                 responsive.isSmallMobile ? 1 : 2
-                  }}
                 />
               ),
             }}
@@ -323,19 +264,12 @@ export default function TabLayout() {
             key="proximos-pedidos"
             name="proximos-pedidos"
             options={{
-              title: (responsive.isWeb && responsive.isSmallMobile) ? 'Próximos' :
-                     (responsive.isSmallMobile && !responsive.isWeb) ? '2' :
-                     responsive.isExtraSmall ? '' :
-                     responsive.isLandscape && responsive.isSmallMobile ? '' : 'Próximos',
+              title: 'Próximos',
               tabBarIcon: ({ color, focused }) => (
                 <FontAwesome
                   name="list"
-                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  size={focused ? 20 : 18}
                   color={color}
-                  style={{
-                    marginBottom: responsive.isExtraSmall ? 0 :
-                                 responsive.isSmallMobile ? 1 : 2
-                  }}
                 />
               ),
             }}
@@ -347,19 +281,12 @@ export default function TabLayout() {
             key="productos-trabajar"
             name="productos-trabajar"
             options={{
-              title: (responsive.isWeb && responsive.isSmallMobile) ? 'Esta Semana' :
-                     (responsive.isSmallMobile && !responsive.isWeb) ? '3' :
-                     responsive.isExtraSmall ? '' :
-                     responsive.isLandscape && responsive.isSmallMobile ? '' : 'Esta Semana',
+              title: 'Esta Semana',
               tabBarIcon: ({ color, focused }) => (
                 <FontAwesome
                   name="calendar-check-o"
-                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  size={focused ? 20 : 18}
                   color={color}
-                  style={{
-                    marginBottom: responsive.isExtraSmall ? 0 :
-                                 responsive.isSmallMobile ? 1 : 2
-                  }}
                 />
               ),
             }}
@@ -372,20 +299,13 @@ export default function TabLayout() {
             key="cotizaciones"
             name="cotizaciones"
             options={{
-              title: (responsive.isWeb && responsive.isSmallMobile) ? 'Cotizaciones' :
-                     (responsive.isSmallMobile && !responsive.isWeb) ? '4' :
-                     responsive.isExtraSmall ? '' :
-                     responsive.isLandscape && responsive.isSmallMobile ? '' : 'Cotizaciones',
+              title: 'Cotizaciones',
               tabBarButton: userRole === 'admin' || userRole === 'dueño' ? undefined : () => null,
               tabBarIcon: ({ color, focused }) => (
                 <FontAwesome
                   name="file-text"
-                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  size={focused ? 20 : 18}
                   color={color}
-                  style={{
-                    marginBottom: responsive.isExtraSmall ? 0 :
-                                 responsive.isSmallMobile ? 1 : 2
-                  }}
                 />
               ),
             }}
@@ -397,20 +317,13 @@ export default function TabLayout() {
             key="two"
             name="two"
             options={{
-              title: (responsive.isWeb && responsive.isSmallMobile) ? 'Estadísticas' :
-                     (responsive.isSmallMobile && !responsive.isWeb) ? '5' :
-                     responsive.isExtraSmall ? '' :
-                     responsive.isLandscape && responsive.isSmallMobile ? '' : 'Estadísticas',
+              title: 'Estadísticas',
               tabBarButton: userRole === 'admin' || userRole === 'dueño' ? undefined : () => null,
               tabBarIcon: ({ color, focused }) => (
                 <FontAwesome
                   name="bar-chart"
-                  size={focused ? responsive.iconSize : responsive.iconSizeInactive}
+                  size={focused ? 20 : 18}
                   color={color}
-                  style={{
-                    marginBottom: responsive.isExtraSmall ? 0 :
-                                 responsive.isSmallMobile ? 1 : 2
-                  }}
                 />
               ),
             }}
