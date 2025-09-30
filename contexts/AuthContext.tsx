@@ -56,15 +56,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Resetear la BD de autenticación para asegurar usuarios correctos
       if (resetAuthDB && typeof resetAuthDB === 'function') {
+        console.log('🔄 Ejecutando resetAuthDB...');
         await resetAuthDB();
         console.log('✅ Autenticación inicializada correctamente');
       } else {
         console.log('⚠️ resetAuthDB no está disponible, saltando inicialización');
       }
-      setIsLoading(false);
+      
+      // Forzar setIsLoading después de un pequeño delay para asegurar que se ejecute
+      setTimeout(() => {
+        console.log('🔄 Estableciendo isLoading = false');
+        setIsLoading(false);
+      }, 100);
+      
     } catch (error) {
       console.error('❌ Error inicializando autenticación:', error);
-      setIsLoading(false);
+      console.error('❌ Error details:', error);
+      // Asegurar que setIsLoading se ejecute incluso si hay error
+      setTimeout(() => {
+        console.log('🔄 Estableciendo isLoading = false después de error');
+        setIsLoading(false);
+      }, 100);
     }
   };
 
