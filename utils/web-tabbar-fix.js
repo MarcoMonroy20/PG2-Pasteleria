@@ -1,8 +1,16 @@
 // Script para corregir la distribución de tabs en web
 // Se ejecuta después de que se monta el componente
 
+let fixApplied = false; // Flag para evitar aplicar el fix múltiples veces
+
 export const applyWebTabBarFix = () => {
   if (typeof window === 'undefined') return;
+  
+  // Si ya se aplicó el fix, no hacerlo de nuevo
+  if (fixApplied) {
+    console.log('TabBar fix already applied, skipping...');
+    return;
+  }
   
   // Esperar a que el DOM esté listo
   const applyFix = () => {
@@ -64,6 +72,8 @@ export const applyWebTabBarFix = () => {
       console.log(`Tab ${index + 1}: ${tabWidth} width`);
     });
     
+    // Marcar que el fix se aplicó
+    fixApplied = true;
     console.log('TabBar fix applied successfully!');
   };
   
@@ -80,19 +90,11 @@ export const applyWebTabBarFix = () => {
   setTimeout(applyFix, 2000);
 };
 
-// Función para observar cambios en el DOM
+// Función para observar cambios en el DOM (DESHABILITADA para evitar bucle infinito)
 export const observeTabBarChanges = () => {
   if (typeof window === 'undefined') return;
   
-  const observer = new MutationObserver(() => {
-    applyWebTabBarFix();
-  });
-  
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-  });
-  
-  return observer;
+  // NO crear observer para evitar bucle infinito
+  console.log('TabBar observer disabled to prevent infinite loop');
+  return null;
 };
