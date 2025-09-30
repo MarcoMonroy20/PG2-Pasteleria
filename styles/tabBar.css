@@ -1,0 +1,54 @@
+/* Estilos específicos para la barra de navegación en web */
+
+/* Forzar distribución uniforme de tabs en web */
+.tab-bar-container {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-evenly !important;
+  align-items: center !important;
+  width: 100% !important;
+  flex: 1 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.tab-bar-item {
+  flex: 1 !important;
+  flex-basis: auto !important;
+  flex-grow: 1 !important;
+  flex-shrink: 1 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Para 4 tabs (usuario normal) */
+.tab-bar-item-4 {
+  flex-basis: 25% !important;
+  min-width: 25% !important;
+  max-width: 25% !important;
+  width: 25% !important;
+}
+
+/* Para 6 tabs (admin/dueño) */
+.tab-bar-item-6 {
+  flex-basis: 16.666% !important;
+  min-width: 16.666% !important;
+  max-width: 16.666% !important;
+  width: 16.666% !important;
+}
+
+/* Asegurar que el contenedor use todo el ancho */
+.tab-bar-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 100% !important;
+  display: flex !important;
+  flex: 1 !important;
+}
