@@ -1,5 +1,7 @@
 // Simplified authentication service for Android
-// Uses localStorage for better compatibility
+// Uses AsyncStorage for React Native compatibility
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const USERS_KEY = 'pasteleria_users';
 const AUTH_KEY = 'pasteleria_auth';
@@ -66,11 +68,11 @@ export const initAuthDB = async (): Promise<void> => {
     
     // Always recreate users to ensure they have all required fields
     console.log('👥 Creando/actualizando usuarios por defecto...');
-    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
     console.log('✅ Usuarios creados/actualizados:', DEFAULT_USERS.map(u => `${u.username}(${u.password})`).join(', '));
     
     // Clear any existing auth session to force re-login
-    localStorage.removeItem(AUTH_KEY);
+    await AsyncStorage.removeItem(AUTH_KEY);
     console.log('🔄 Sesión anterior limpiada');
   } catch (error) {
     console.error('❌ Error inicializando auth DB Android:', error);
@@ -86,9 +88,9 @@ export const authenticateUser = async (username: string, password: string): Prom
     // Ensure users exist
     await initAuthDB();
     
-    const usersData = localStorage.getItem(USERS_KEY);
+    const usersData = await AsyncStorage.getItem(USERS_KEY);
     if (!usersData) {
-      console.error('❌ No se encontraron usuarios en localStorage');
+      console.error('❌ No se encontraron usuarios en AsyncStorage');
       return { success: false, error: 'Base de datos no inicializada' };
     }
 
@@ -101,7 +103,7 @@ export const authenticateUser = async (username: string, password: string): Prom
       console.log('✅ Usuario autenticado:', user.username, 'rol:', user.role);
       
       // Store auth session
-      localStorage.setItem(AUTH_KEY, JSON.stringify({
+      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify({
         userId: user.id,
         username: user.username,
         role: user.role,
@@ -121,10 +123,10 @@ export const authenticateUser = async (username: string, password: string): Prom
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    const authData = localStorage.getItem(AUTH_KEY);
+    const authData = await AsyncStorage.getItem(AUTH_KEY);
     if (authData) {
       const auth = JSON.parse(authData);
-      const usersData = localStorage.getItem(USERS_KEY);
+      const usersData = await AsyncStorage.getItem(USERS_KEY);
       if (usersData) {
         const users: User[] = JSON.parse(usersData);
         return users.find(u => u.id === auth.userId) || null;
@@ -140,8 +142,8 @@ export const getCurrentUser = async (): Promise<User | null> => {
 export const resetAuthDB = async (): Promise<void> => {
   try {
     console.log('🔄 Reseteando base de datos de autenticación Android...');
-    localStorage.removeItem(USERS_KEY);
-    localStorage.removeItem(AUTH_KEY);
+    await AsyncStorage.removeItem(USERS_KEY);
+    await AsyncStorage.removeItem(AUTH_KEY);
     await initAuthDB();
     console.log('✅ Base de datos de autenticación reseteada');
   } catch (error) {
@@ -152,7 +154,7 @@ export const resetAuthDB = async (): Promise<void> => {
 
 export const logout = async (): Promise<void> => {
   try {
-    localStorage.removeItem(AUTH_KEY);
+    await AsyncStorage.removeItem(AUTH_KEY);
     console.log('✅ Usuario deslogueado');
   } catch (error) {
     console.error('❌ Error en logout:', error);

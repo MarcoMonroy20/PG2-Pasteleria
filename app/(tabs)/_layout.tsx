@@ -54,11 +54,14 @@ export default function TabLayout() {
             backgroundColor: Colors[colorScheme ?? 'light'].background,
           },
           tabBarLabelStyle: {
-            fontSize: 12,
+            fontSize: 10, // Reducido de 12 a 10 para que quepan más caracteres
             fontWeight: '500',
+            textAlign: 'center',
           },
           tabBarItemStyle: {
-            paddingVertical: 4,
+            paddingVertical: 2, // Reducido de 4 a 2
+            paddingHorizontal: 2, // Agregado padding horizontal
+            minWidth: 50, // Ancho mínimo para cada elemento
           },
         }}
       >
@@ -79,28 +82,28 @@ export default function TabLayout() {
         <Tabs.Screen
           name="proximos-pedidos"
           options={{
-            title: 'Próximos Pedidos',
+            title: 'Pedidos',
             tabBarIcon: ({ color }) => <FontAwesome size={20} name="clock-o" color={color} />,
           }}
         />
         <Tabs.Screen
           name="productos-trabajar"
           options={{
-            title: 'Próximos Productos',
+            title: 'Productos',
             tabBarIcon: ({ color }) => <FontAwesome size={20} name="list" color={color} />,
           }}
         />
         <Tabs.Screen
           name="cotizaciones"
           options={{
-            title: 'Cotizaciones',
+            title: 'Cotiz.',
             tabBarIcon: ({ color }) => <FontAwesome size={20} name="dollar" color={color} />,
           }}
         />
         <Tabs.Screen
           name="two"
           options={{
-            title: 'Estadísticas',
+            title: 'Estad.',
             tabBarIcon: ({ color }) => <FontAwesome size={20} name="bar-chart" color={color} />,
           }}
         />
