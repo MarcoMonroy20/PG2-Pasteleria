@@ -10,7 +10,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const { user, hasPermission, logout } = useAuth();
 
-  // Debug: Log user info
+  // Debug logs
   console.log('🏠 HomeScreen - Usuario actual:', user);
   console.log('🏠 HomeScreen - Rol del usuario:', user?.role);
   console.log('🏠 HomeScreen - Tiene permiso manage_settings:', hasPermission('manage_settings'));

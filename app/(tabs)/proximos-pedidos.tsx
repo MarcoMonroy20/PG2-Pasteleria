@@ -270,8 +270,9 @@ export default function ProximosPedidosScreen() {
   };
 
   const handleAbonar = (pedido: Pedido) => {
+    const restante = pedido.precio_final - pedido.monto_abonado;
+    
     if (Platform.OS === 'web') {
-      const restante = pedido.precio_final - pedido.monto_abonado;
       const valor = window.prompt(`Ingrese monto a abonar (restante: ${restante})`, '0');
       if (valor == null) return;
       const monto = parseFloat(valor.replace(',', '.'));
@@ -281,9 +282,21 @@ export default function ProximosPedidosScreen() {
       }
       procesarAbono(pedido, monto);
     } else {
-      setPedidoAbonando(pedido);
-      setAbonoInput('');
-      setShowAbonarModal(true);
+      // Para móvil, usar un modal simple o Alert con input
+      Alert.alert(
+        'Abonar',
+        `Ingrese monto a abonar (restante: ${restante})`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Confirmar', 
+            onPress: () => {
+              // Por ahora, usar un valor por defecto o implementar un modal personalizado
+              procesarAbono(pedido, restante);
+            }
+          }
+        ]
+      );
     }
   };
 
@@ -342,9 +355,20 @@ export default function ProximosPedidosScreen() {
   const handleEliminarPedido = (pedido: Pedido) => {
     // Usar confirm nativo del navegador para web
     if (Platform.OS === 'web') {
-      const confirmado = window.confirm(`¿Estás seguro de que quieres eliminar el pedido "${pedido.nombre}"?`);
-      if (confirmado) {
-        eliminarPedidoConfirmado(pedido);
+      if (Platform.OS === 'web') {
+        const confirmado = window.confirm(`¿Estás seguro de que quieres eliminar el pedido "${pedido.nombre}"?`);
+        if (confirmado) {
+          eliminarPedidoConfirmado(pedido);
+        }
+      } else {
+        Alert.alert(
+          'Confirmar eliminación',
+          `¿Estás seguro de que quieres eliminar el pedido "${pedido.nombre}"?`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Eliminar', style: 'destructive', onPress: () => eliminarPedidoConfirmado(pedido) }
+          ]
+        );
       }
     } else {
       // Usar Alert para móvil

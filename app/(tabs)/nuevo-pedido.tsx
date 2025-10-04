@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from 'expo-router';
 import { useDataRefresh } from '../../contexts/DataContext';
 import hybridDB from '../../services/hybrid-db';
@@ -33,6 +34,7 @@ export default function NuevoPedidoScreen() {
   // Estados principales
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [fechaEntregaDate, setFechaEntregaDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [nombrePedido, setNombrePedido] = useState('');
   const [precioFinal, setPrecioFinal] = useState('');
   const [montoAbonado, setMontoAbonado] = useState('');
@@ -199,6 +201,35 @@ export default function NuevoPedidoScreen() {
 
   const cerrarModalProducto = () => {
     setModalVisible(false);
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setFechaEntregaDate(selectedDate);
+      setFechaEntrega(selectedDate.toISOString().split('T')[0]);
+    }
+  };
+
+  const openDatePicker = () => {
+    if (Platform.OS === 'web') {
+      // Para web, usar el input HTML
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.min = new Date().toISOString().split('T')[0];
+      input.value = fechaEntregaDate.toISOString().split('T')[0];
+      
+      input.onchange = (e: any) => {
+        const newDate = new Date(e.target.value);
+        setFechaEntregaDate(newDate);
+        setFechaEntrega(e.target.value);
+      };
+      
+      input.click();
+    } else {
+      // Para móvil, usar DateTimePicker
+      setShowDatePicker(true);
+    }
   };
 
   const agregarProductoAlPedido = () => {
@@ -419,27 +450,14 @@ export default function NuevoPedidoScreen() {
                 }}
               />
             ) : (
-              <TextInput
+              <TouchableOpacity
                 style={styles.input}
-                placeholder="Seleccionar fecha de entrega"
-                value={fechaEntrega}
-                editable={false}
-                onPressIn={() => {
-                  // Para móvil, también usamos un input HTML temporal
-                  const input = document.createElement('input');
-                  input.type = 'date';
-                  input.min = new Date().toISOString().split('T')[0];
-                  input.value = fechaEntregaDate.toISOString().split('T')[0];
-                  
-                  input.onchange = (e: any) => {
-                    const newDate = new Date(e.target.value);
-                    setFechaEntregaDate(newDate);
-                    setFechaEntrega(formatearFecha(newDate));
-                  };
-                  
-                  input.click();
-                }}
-              />
+                onPress={openDatePicker}
+              >
+                <Text style={styles.datePickerText}>
+                  {fechaEntrega || 'Seleccionar fecha de entrega'}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 
@@ -699,6 +717,17 @@ export default function NuevoPedidoScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* DateTimePicker para móvil */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={fechaEntregaDate}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={handleDateChange}
+        />
+      )}
     </View>
   );
 }
@@ -975,5 +1004,10 @@ const styles = StyleSheet.create({
   },
   minicupcakesButtonTextActive: {
     color: 'white',
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: Colors.light.text,
+    textAlign: 'left',
   },
 });

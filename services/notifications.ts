@@ -50,7 +50,7 @@ class SafeNotificationService {
       // For mobile devices (Android/iOS)
       try {
         const token = await Notifications.getExpoPushTokenAsync({
-          projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '8f7a5ecb-4b62-4b51-a708-e919d86abbd7'
+          projectId: process.env.EXPO_PUBLIC_PROJECT_ID || 'pasteleria-cocina-app-marcomonroyumg'
         });
         
         if (token) {

@@ -113,48 +113,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (!user) return false;
+    if (!user) {
+      console.log('❌ hasPermission: No hay usuario');
+      return false;
+    }
 
-    // Definir permisos por rol
-    const permissions: Record<string, string[]> = {
-      admin: [
-        'view_dashboard',
-        'create_pedido',
-        'edit_pedido',
-        'delete_pedido',
-        'view_proximos',
-        'view_calendario',
-        'view_cotizaciones',
-        'view_estadisticas',
-        'manage_sabores',
-        'manage_rellenos',
-        'manage_settings',
-        'manage_users',
-        'export_data'
-      ],
-      dueño: [
-        'view_dashboard',
-        'create_pedido',
-        'edit_pedido',
-        'delete_pedido',
-        'view_proximos',
-        'view_calendario',
-        'view_cotizaciones',
-        'view_estadisticas',
-        'manage_sabores',
-        'manage_rellenos',
-        'manage_settings',
-        'export_data'
-      ],
-      repostero: [
-        'view_dashboard',
-        'view_proximos',
-        'view_calendario'
-      ]
-    };
+    console.log('🔐 hasPermission:', {
+      permission,
+      userRole: user.role,
+      username: user.username
+    });
 
-    const userPermissions = permissions[user.role as string] || [];
-    return userPermissions.includes(permission);
+    // Lógica simplificada: Solo repostero tiene restricciones
+    if (user.role === 'repostero') {
+      console.log('⚠️ Usuario repostero - permisos limitados');
+      return false; // Repostero no tiene permisos especiales
+    }
+
+    // Admin y dueño tienen todos los permisos
+    if (user.role === 'admin' || user.role === 'dueño') {
+      console.log('✅ Usuario admin/dueño - acceso completo');
+      return true;
+    }
+
+    // Por defecto, dar acceso (fallback)
+    console.log('⚠️ Rol desconocido, dando acceso por defecto');
+    return true;
   };
 
   return (

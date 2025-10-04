@@ -23,6 +23,11 @@ type AppSettings = {
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { user, hasPermission } = useAuth();
+
+  // Debug logs
+  console.log('⚙️ SettingsScreen - Usuario actual:', user);
+  console.log('⚙️ SettingsScreen - Rol del usuario:', user?.role);
+  console.log('⚙️ SettingsScreen - Tiene permiso manage_settings:', hasPermission('manage_settings'));
   const [settings, setSettings] = useState<AppSettings>({ 
     notifications_enabled: false, 
     days_before: 0, 

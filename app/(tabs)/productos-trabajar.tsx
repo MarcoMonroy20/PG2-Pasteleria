@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // Using localStorage for web compatibility - AsyncStorage would be used in React Native
 import { useNavigation, useFocusEffect } from 'expo-router';
 import hybridDB from '../../services/hybrid-db';
@@ -78,7 +79,7 @@ export default function ProductosTrabajarScreen() {
       
       let data: string | null = null;
       // Using localStorage for both web and React Native compatibility
-      data = localStorage.getItem(storageKey);
+      data = await AsyncStorage.getItem(storageKey);
       
       if (data) {
         const productos: ProductoTrabajado[] = JSON.parse(data);
@@ -114,7 +115,7 @@ export default function ProductosTrabajarScreen() {
       const data = JSON.stringify(productos);
       
       // Using localStorage for both web and React Native compatibility
-      localStorage.setItem(storageKey, data);
+      await AsyncStorage.setItem(storageKey, data);
     } catch (error) {
       console.error('Error guardando productos trabajados:', error);
     }

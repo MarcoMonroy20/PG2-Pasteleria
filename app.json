@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Pasteleria Cocina: Agenda",
-    "slug": "pasteleria-cocina-app",
+    "slug": "pasteleria-cocina-app-marcomonroyumg",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -23,7 +23,7 @@
     "ios": {
       "supportsTablet": true,
       "buildNumber": "1.0.0",
-      "bundleIdentifier": "com.pasteleriacocina.app"
+      "bundleIdentifier": "com.pasteleriacocina.marcomonroyumg.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,13 +32,8 @@
         "monochromeImage": "./assets/images/logo.png"
       },
       "icon": "./assets/images/logo.png",
-      "package": "com.pasteleriacocina.app",
+      "package": "com.pasteleriacocina.marcomonroyumg.app",
       "versionCode": 1,
-      "statusBar": {
-        "style": "dark",
-        "backgroundColor": "#FDC8E3",
-        "translucent": false
-      },
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
@@ -70,11 +65,6 @@
         }
       ],
       "allowBackup": true,
-      "navigationBar": {
-        "visible": true,
-        "backgroundColor": "#FDC8E3"
-      },
-      "windowSoftInputMode": "adjustResize",
       "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
@@ -100,10 +90,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "8f7a5ecb-4b62-4b51-a708-e919d86abbd7"
-      }
+      "router": {}
     }
   }
 }
