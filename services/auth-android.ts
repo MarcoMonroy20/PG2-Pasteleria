@@ -9,6 +9,9 @@ export interface User {
   username: string;
   password: string;
   role: 'admin' | 'dueño' | 'repostero';
+  nombre: string;
+  activo: boolean;
+  created_at: string;
 }
 
 export interface AuthResult {
@@ -17,26 +20,58 @@ export interface AuthResult {
   error?: string;
 }
 
-// Default users with password 2110
+// Default users with different passwords
 const DEFAULT_USERS: User[] = [
-  { id: 1, username: 'admin', password: '2110', role: 'admin' },
-  { id: 2, username: 'dueño', password: '2110', role: 'dueño' },
-  { id: 3, username: 'repostero', password: '2110', role: 'repostero' }
+  { 
+    id: 1, 
+    username: 'admin', 
+    password: '2110', 
+    role: 'admin',
+    nombre: 'Administrador',
+    activo: true,
+    created_at: new Date().toISOString()
+  },
+  { 
+    id: 2, 
+    username: 'dueño', 
+    password: '2110', 
+    role: 'dueño',
+    nombre: 'Raquel Alejandra',
+    activo: true,
+    created_at: new Date().toISOString()
+  },
+  { 
+    id: 3, 
+    username: 'dueno2024', 
+    password: 'dueno2024', 
+    role: 'dueño',
+    nombre: 'Raquel Alejandra',
+    activo: true,
+    created_at: new Date().toISOString()
+  },
+  { 
+    id: 4, 
+    username: 'repostero', 
+    password: '2110', 
+    role: 'repostero',
+    nombre: 'Repostero',
+    activo: true,
+    created_at: new Date().toISOString()
+  }
 ];
 
 export const initAuthDB = async (): Promise<void> => {
   try {
     console.log('🔐 Inicializando base de datos de autenticación Android...');
     
-    // Check if users already exist
-    const existingUsers = localStorage.getItem(USERS_KEY);
-    if (!existingUsers) {
-      console.log('👥 Creando usuarios por defecto...');
-      localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
-      console.log('✅ Usuarios creados:', DEFAULT_USERS.map(u => u.username).join(', '));
-    } else {
-      console.log('✅ Usuarios ya existen en localStorage');
-    }
+    // Always recreate users to ensure they have all required fields
+    console.log('👥 Creando/actualizando usuarios por defecto...');
+    localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
+    console.log('✅ Usuarios creados/actualizados:', DEFAULT_USERS.map(u => `${u.username}(${u.password})`).join(', '));
+    
+    // Clear any existing auth session to force re-login
+    localStorage.removeItem(AUTH_KEY);
+    console.log('🔄 Sesión anterior limpiada');
   } catch (error) {
     console.error('❌ Error inicializando auth DB Android:', error);
     throw error;
@@ -102,24 +137,24 @@ export const getCurrentUser = async (): Promise<User | null> => {
   }
 };
 
+export const resetAuthDB = async (): Promise<void> => {
+  try {
+    console.log('🔄 Reseteando base de datos de autenticación Android...');
+    localStorage.removeItem(USERS_KEY);
+    localStorage.removeItem(AUTH_KEY);
+    await initAuthDB();
+    console.log('✅ Base de datos de autenticación reseteada');
+  } catch (error) {
+    console.error('❌ Error reseteando auth DB Android:', error);
+    throw error;
+  }
+};
+
 export const logout = async (): Promise<void> => {
   try {
     localStorage.removeItem(AUTH_KEY);
     console.log('✅ Usuario deslogueado');
   } catch (error) {
     console.error('❌ Error en logout:', error);
-  }
-};
-
-export const resetAuthDB = async (): Promise<void> => {
-  try {
-    console.log('🔄 Reiniciando base de datos de autenticación Android...');
-    localStorage.removeItem(USERS_KEY);
-    localStorage.removeItem(AUTH_KEY);
-    await initAuthDB();
-    console.log('✅ Base de datos de autenticación reiniciada');
-  } catch (error) {
-    console.error('❌ Error reiniciando auth DB Android:', error);
-    // Don't throw, just log the error to prevent app crashes
   }
 };

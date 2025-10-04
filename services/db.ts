@@ -32,6 +32,15 @@ export const initDB = () => {
         console.log('📝 direccion_entrega ya existe');
       }
 
+      // Migración: agregar notification_days si no existe
+      try {
+        db.runSync('ALTER TABLE settings ADD COLUMN notification_days TEXT');
+        console.log('✅ Migración: notification_days agregada');
+      } catch (error) {
+        // La columna ya existe, ignorar error
+        console.log('📝 notification_days ya existe');
+      }
+
       // Asegurar fila única de settings
       db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 1)');
 
@@ -406,10 +415,22 @@ export default db;
 export const obtenerSettings = (): Promise<AppSettings> => {
   return new Promise((resolve, reject) => {
     try {
-      const row = db.getFirstSync('SELECT notifications_enabled, days_before, contact_name, company_name, phone FROM settings WHERE id = 1') as any;
+      const row = db.getFirstSync('SELECT notifications_enabled, days_before, notification_days, contact_name, company_name, phone FROM settings WHERE id = 1') as any;
+      
+      // Parsear notification_days desde JSON o usar valor por defecto
+      let notification_days = [0]; // Por defecto solo el mismo día
+      try {
+        if (row?.notification_days) {
+          notification_days = JSON.parse(row.notification_days);
+        }
+      } catch (error) {
+        console.log('⚠️ Error parseando notification_days, usando valor por defecto');
+      }
+      
       resolve({
         notifications_enabled: Boolean(row?.notifications_enabled ?? 0),
         days_before: Number(row?.days_before ?? 0),
+        notification_days: notification_days,
         contact_name: row?.contact_name ?? 'Raquel Alejandra Rousselin Pellecer',
         company_name: row?.company_name ?? 'Sweet Cakes',
         phone: row?.phone ?? '53597287',
@@ -461,10 +482,11 @@ export const guardarSettings = (settings: AppSettings): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
       db.runSync(
-        'UPDATE settings SET notifications_enabled = ?, days_before = ?, contact_name = ?, company_name = ?, phone = ? WHERE id = 1',
+        'UPDATE settings SET notifications_enabled = ?, days_before = ?, notification_days = ?, contact_name = ?, company_name = ?, phone = ? WHERE id = 1',
         [
           settings.notifications_enabled ? 1 : 0,
           Math.max(0, Math.min(7, settings.days_before)),
+          JSON.stringify(settings.notification_days || [0]),
           settings.contact_name ?? null,
           settings.company_name ?? null,
           settings.phone ?? null,

@@ -4,18 +4,18 @@
     "slug": "pasteleria-cocina-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "pasteleriacocinaapp",
     "userInterfaceStyle": "automatic",
     "primaryColor": "#E75480",
     "backgroundColor": "#FDC8E3",
     "splash": {
-      "image": "./assets/images/icon.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#FDC8E3"
     },
     "notification": {
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/logo.png",
       "color": "#E75480",
       "androidMode": "default",
       "androidCollapsedTitle": "Pastelería Cocina"
@@ -27,13 +27,18 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#FDC8E3",
-        "monochromeImage": "./assets/images/icon.png"
+        "monochromeImage": "./assets/images/logo.png"
       },
-      "icon": "./assets/images/icon.png",
+      "icon": "./assets/images/logo.png",
       "package": "com.pasteleriacocina.app",
       "versionCode": 1,
+      "statusBar": {
+        "style": "dark",
+        "backgroundColor": "#FDC8E3",
+        "translucent": false
+      },
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
@@ -64,8 +69,13 @@
           ]
         }
       ],
-      "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": true
+      "allowBackup": true,
+      "navigationBar": {
+        "visible": true,
+        "backgroundColor": "#FDC8E3"
+      },
+      "windowSoftInputMode": "adjustResize",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",

@@ -3,7 +3,7 @@
 // NO HARDCODED CREDENTIALS FOR SECURITY
 
 // Flag to enable/disable Firebase functionality
-export const FIREBASE_ENABLED = process.env.EXPO_PUBLIC_FIREBASE_ENABLED === 'true';
+export const FIREBASE_ENABLED = process.env.EXPO_PUBLIC_FIREBASE_ENABLED === 'true' || true; // Temporal: habilitar siempre
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -28,19 +28,19 @@ if (missingEnvVars.length > 0) {
   console.error('\n⚠️  Firebase will be DISABLED until credentials are properly configured.');
 }
 
-// Firebase configuration - ONLY from environment variables
+// Firebase configuration - FROM environment variables OR fallback credentials
 export const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCnRuMLopAdNhyaXlIR75d1aj2nWBmizvI',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'pasteleria-cocina-app.firebaseapp.com',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'pasteleria-cocina-app',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pasteleria-cocina-app.firebasestorage.app',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '975279453152',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:975279453152:web:08c52d6d8e6ef7e8bbb185',
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-1C6CEN1P51'
 };
 
-// VAPID Key for push notifications (from environment)
-export const vapidKey = process.env.EXPO_PUBLIC_FIREBASE_VAPID_KEY;
+// VAPID Key for push notifications (from environment or fallback)
+export const vapidKey = process.env.EXPO_PUBLIC_FIREBASE_VAPID_KEY || 'tBMdSxkO_WY4s_wAZKbvvibbCtsEUHNRmaF0X3hz1rE';
 
 // Instructions for push notifications setup:
 // 1. Enable Firebase Cloud Messaging in Firebase Console

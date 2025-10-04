@@ -39,6 +39,7 @@ export interface Relleno {
 export interface AppSettings {
   notifications_enabled: boolean;
   days_before: number;
+  notification_days: number[];
   contact_name?: string;
   company_name?: string;
   phone?: string;
@@ -186,8 +187,34 @@ export const obtenerPedidosPorFecha = (fechaInicio: string, fechaFin: string): P
 // Settings
 export const obtenerSettings = (): Promise<AppSettings> => {
   return new Promise((resolve) => {
-    const s = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{"notifications_enabled":false,"days_before":0,"contact_name":"Raquel Alejandra Rousselin Pellecer","company_name":"Sweet Cakes","phone":"53597287"}');
-    resolve(s);
+    const defaultSettings = {
+      "notifications_enabled": false,
+      "days_before": 0,
+      "notification_days": [0],
+      "contact_name": "Raquel Alejandra Rousselin Pellecer",
+      "company_name": "Sweet Cakes",
+      "phone": "53597287"
+    };
+    
+    const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    let settings;
+    
+    if (stored) {
+      try {
+        settings = JSON.parse(stored);
+        // Asegurar que notification_days existe
+        if (!settings.notification_days) {
+          settings.notification_days = [0];
+        }
+      } catch (error) {
+        console.log('⚠️ Error parseando settings, usando valores por defecto');
+        settings = defaultSettings;
+      }
+    } else {
+      settings = defaultSettings;
+    }
+    
+    resolve(settings);
   });
 };
 

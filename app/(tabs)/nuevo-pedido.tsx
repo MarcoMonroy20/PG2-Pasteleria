@@ -103,6 +103,65 @@ export default function NuevoPedidoScreen() {
     }
   }, [refreshTrigger]);
 
+  // Estilos CSS adicionales para el selector de fecha en web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const style = document.createElement('style');
+      style.textContent = `
+        .date-picker-input {
+          width: 100% !important;
+          box-sizing: border-box !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          appearance: none !important;
+        }
+        
+        .date-picker-input::-webkit-calendar-picker-indicator {
+          background: transparent;
+          bottom: 0;
+          color: transparent;
+          cursor: pointer;
+          height: auto;
+          left: 0;
+          position: absolute;
+          right: 0;
+          top: 0;
+          width: auto;
+        }
+        
+        .date-picker-input::-webkit-inner-spin-button,
+        .date-picker-input::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        
+        @media (max-width: 768px) {
+          .date-picker-input {
+            font-size: 14px !important;
+            padding: 10px 12px !important;
+            min-height: 44px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .date-picker-input {
+            font-size: 13px !important;
+            padding: 8px 10px !important;
+            min-height: 40px !important;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        // Cleanup: remover el estilo cuando el componente se desmonte
+        if (document.head.contains(style)) {
+          document.head.removeChild(style);
+        }
+      };
+    }
+  }, []);
+
   const formatearFecha = (fecha: Date) => {
     return fecha.toLocaleDateString('es-ES', {
       weekday: 'long',
@@ -918,62 +977,3 @@ const styles = StyleSheet.create({
     color: 'white',
   },
 });
-
-// Estilos CSS adicionales para el selector de fecha en web
-useEffect(() => {
-  if (Platform.OS === 'web' && typeof document !== 'undefined') {
-    const style = document.createElement('style');
-    style.textContent = `
-      .date-picker-input {
-        width: 100% !important;
-        box-sizing: border-box !important;
-        -webkit-appearance: none !important;
-        -moz-appearance: none !important;
-        appearance: none !important;
-      }
-      
-      .date-picker-input::-webkit-calendar-picker-indicator {
-        background: transparent;
-        bottom: 0;
-        color: transparent;
-        cursor: pointer;
-        height: auto;
-        left: 0;
-        position: absolute;
-        right: 0;
-        top: 0;
-        width: auto;
-      }
-      
-      .date-picker-input::-webkit-inner-spin-button,
-      .date-picker-input::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-      
-      @media (max-width: 768px) {
-        .date-picker-input {
-          font-size: 14px !important;
-          padding: 10px 12px !important;
-          min-height: 44px !important;
-        }
-      }
-      
-      @media (max-width: 480px) {
-        .date-picker-input {
-          font-size: 13px !important;
-          padding: 8px 10px !important;
-          min-height: 40px !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      // Cleanup: remover el estilo cuando el componente se desmonte
-      if (document.head.contains(style)) {
-        document.head.removeChild(style);
-      }
-    };
-  }
-}, []);

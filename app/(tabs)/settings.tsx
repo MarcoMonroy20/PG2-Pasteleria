@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Platform, TextInput, Alert, ScrollView } from 'react-native';
+import { useNavigation } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import Colors from '../../constants/Colors';
 import hybridDB from '../../services/hybrid-db';
@@ -8,21 +9,64 @@ import FirebaseStatus from '../../components/FirebaseStatus';
 import NotificationDebugger from '../../components/NotificationDebugger';
 import FirebaseDebugger from '../../components/FirebaseDebugger';
 import { enhancedNotifications } from '../../services/notifications';
+import { useAuth } from '../../contexts/AuthContext';
 
 type AppSettings = {
   notifications_enabled: boolean;
-  days_before: number;
+  days_before: number; // Mantener para compatibilidad
+  notification_days: number[]; // Nuevo campo para múltiples días
   contact_name?: string;
   company_name?: string;
   phone?: string;
 };
 
 export default function SettingsScreen() {
-  const [settings, setSettings] = useState<AppSettings>({ notifications_enabled: false, days_before: 0, contact_name: 'Ejemplo Contacto', company_name: 'Pasteleria Cocina', phone: '12345678' });
+  const navigation = useNavigation();
+  const { user, hasPermission } = useAuth();
+  const [settings, setSettings] = useState<AppSettings>({ 
+    notifications_enabled: false, 
+    days_before: 0, 
+    notification_days: [0], // Por defecto solo el mismo día
+    contact_name: 'Ejemplo Contacto', 
+    company_name: 'Pasteleria Cocina', 
+    phone: '12345678' 
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
+
+  // Verificar permisos al inicio
+  if (!hasPermission('manage_settings')) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>← Atrás</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Configuraciones</Text>
+        </View>
+        <View style={styles.noPermissionContainer}>
+          <Text style={styles.noPermissionTitle}>Acceso Restringido</Text>
+          <Text style={styles.noPermissionText}>
+            No tienes permisos para acceder a esta sección.
+          </Text>
+          <Text style={styles.noPermissionSubtext}>
+            Solo los administradores y dueños pueden modificar las configuraciones.
+          </Text>
+          <TouchableOpacity
+            style={styles.backToHomeButton}
+            onPress={() => navigation.navigate('index' as never)}
+          >
+            <Text style={styles.backToHomeButtonText}>Ir al Inicio</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   useEffect(() => {
     (async () => {
@@ -60,6 +104,28 @@ export default function SettingsScreen() {
 
   const setDaysBefore = async (days: number) => {
     const next = { ...settings, days_before: Math.max(0, Math.min(7, days)) };
+    setSettings(next);
+    await hybridDB.guardarSettings(next);
+  };
+
+  const toggleNotificationDay = async (day: number) => {
+    const currentDays = settings.notification_days || [];
+    let newDays: number[];
+    
+    if (currentDays.includes(day)) {
+      // Remover el día si ya está seleccionado
+      newDays = currentDays.filter(d => d !== day);
+    } else {
+      // Agregar el día si no está seleccionado
+      newDays = [...currentDays, day].sort((a, b) => a - b);
+    }
+    
+    // Asegurar que siempre haya al menos un día seleccionado
+    if (newDays.length === 0) {
+      newDays = [0]; // Por defecto el mismo día
+    }
+    
+    const next = { ...settings, notification_days: newDays };
     setSettings(next);
     await hybridDB.guardarSettings(next);
   };
@@ -183,21 +249,38 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.label, { marginTop: 16 }]}>Días de anticipación</Text>
+        <Text style={[styles.helper, { marginBottom: 12 }]}>Selecciona uno o más días para recibir notificaciones:</Text>
         <View style={styles.daysGrid}>
-          {[0,1,2,3,4,5,6,7].map((d) => (
-            <TouchableOpacity
-              key={d}
-              style={[styles.dayChip, settings.days_before === d && styles.dayChipActive]}
-              onPress={() => setDaysBefore(d)}
-              disabled={!settings.notifications_enabled}
-            >
-              <Text style={[styles.dayChipText, settings.days_before === d && styles.dayChipTextActive]}>
-                {d === 0 ? 'Mismo día' : `${d}d`}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {[0,1,2,3,4,5,6,7].map((d) => {
+            const isSelected = (settings.notification_days || []).includes(d);
+            return (
+              <TouchableOpacity
+                key={d}
+                style={[styles.dayChip, isSelected && styles.dayChipActive]}
+                onPress={() => toggleNotificationDay(d)}
+                disabled={!settings.notifications_enabled}
+              >
+                <Text style={[styles.dayChipText, isSelected && styles.dayChipTextActive]}>
+                  {d === 0 ? 'Mismo día' : `${d} día${d > 1 ? 's' : ''}`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <Text style={styles.helper}>Recibirás un recordatorio {settings.days_before === 0 ? 'el mismo día' : `${settings.days_before} día(s) antes`} de la entrega.</Text>
+        <Text style={styles.helper}>
+          {(() => {
+            const selectedDays = settings.notification_days || [];
+            if (selectedDays.length === 0) {
+              return 'No hay días seleccionados.';
+            } else if (selectedDays.length === 1) {
+              const day = selectedDays[0];
+              return `Recibirás un recordatorio ${day === 0 ? 'el mismo día' : `${day} día${day > 1 ? 's' : ''} antes`} de la entrega.`;
+            } else {
+              const daysText = selectedDays.map(d => d === 0 ? 'mismo día' : `${d} día${d > 1 ? 's' : ''}`).join(', ');
+              return `Recibirás recordatorios el ${daysText} de la entrega.`;
+            }
+          })()}
+        </Text>
 
         {/* Push Notifications Status */}
         {Platform.OS === 'web' && (
@@ -391,5 +474,44 @@ const styles = StyleSheet.create({
   },
   buttonTextDisabled: {
     color: Colors.light.inputText,
+  },
+  // Estilos para pantalla de acceso restringido
+  noPermissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  noPermissionTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.light.titleColor,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  noPermissionText: {
+    fontSize: 18,
+    color: Colors.light.text,
+    marginBottom: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  noPermissionSubtext: {
+    fontSize: 14,
+    color: Colors.light.inputText,
+    marginBottom: 32,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  backToHomeButton: {
+    backgroundColor: Colors.light.buttonPrimary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  backToHomeButtonText: {
+    color: Colors.light.buttonText,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 

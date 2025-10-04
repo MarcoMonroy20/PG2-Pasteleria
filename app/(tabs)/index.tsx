@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Colors from '../../constants/Colors';
@@ -9,6 +9,11 @@ import OfflineIndicator from '../../components/OfflineIndicator';
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { user, hasPermission, logout } = useAuth();
+
+  // Debug: Log user info
+  console.log('🏠 HomeScreen - Usuario actual:', user);
+  console.log('🏠 HomeScreen - Rol del usuario:', user?.role);
+  console.log('🏠 HomeScreen - Tiene permiso manage_settings:', hasPermission('manage_settings'));
 
   const getWelcomeMessage = (user: any) => {
     // Para usuarios por defecto, usar el mensaje específico
@@ -20,7 +25,23 @@ export default function HomeScreen() {
   };
 
   const renderButtonsByRole = () => {
-    if (!user) return null;
+    // Fallback: Si no hay usuario o rol, mostrar botones básicos
+    if (!user || !user.role) {
+      console.log('⚠️ Usuario sin rol, mostrando botones por defecto');
+      return (
+        <>
+          <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('nuevo-pedido' as never)}>
+            <Text style={styles.mainButtonText}>Nuevo Pedido</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('proximos-pedidos' as never)}>
+            <Text style={styles.buttonText}>Ver Próximos Pedidos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('calendario' as never)}>
+            <Text style={styles.buttonText}>Ver Calendario</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
 
     switch (user.role) {
       case 'admin':
@@ -66,7 +87,17 @@ export default function HomeScreen() {
         );
 
       default:
-        return null;
+        // Fallback adicional
+        return (
+          <>
+            <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('nuevo-pedido' as never)}>
+              <Text style={styles.mainButtonText}>Nuevo Pedido</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('proximos-pedidos' as never)}>
+              <Text style={styles.buttonText}>Ver Próximos Pedidos</Text>
+            </TouchableOpacity>
+          </>
+        );
     }
   };
 
@@ -117,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'android' ? 40 : 50, // Menos padding en Android
     paddingBottom: 20,
     backgroundColor: Colors.light.cardBackground,
     borderBottomWidth: 1,
