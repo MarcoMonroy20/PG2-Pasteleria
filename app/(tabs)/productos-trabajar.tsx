@@ -11,6 +11,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+// Using localStorage for web compatibility - AsyncStorage would be used in React Native
 import { useNavigation, useFocusEffect } from 'expo-router';
 import hybridDB from '../../services/hybrid-db';
 import { Pedido, Producto } from '../../services/db';
@@ -23,7 +24,17 @@ interface ProductoTrabajar {
   fecha: string;
   pedidoNombre: string;
   producto: Producto;
-  index: number;
+  index: number; // Índice real del producto (para persistencia)
+  displayIndex: number; // Enumeración visual que empieza en 1
+  pedidoId: number;
+}
+
+interface ProductoTrabajado {
+  semanaKey: string; // YYYY-WW (año-semana)
+  productoTrabajarId: string; // Combinación única del producto
+  fecha: string;
+  pedidoId: number;
+  productIndex: number;
 }
 
 export default function ProductosTrabajarScreen() {
@@ -38,14 +49,101 @@ export default function ProductosTrabajarScreen() {
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [showWeekSelector, setShowWeekSelector] = useState(false);
 
+  // Estado para productos trabajados
+  const [productosTrabajados, setProductosTrabajados] = useState<Set<string>>(new Set());
+
   // Ref para el ScrollView del selector de semana
   const weekScrollRef = useRef<ScrollView>(null);
 
   const isNarrow = width < 400;
 
+  // Función para obtener la clave de semana (YYYY-WW)
+  const getSemanaKey = (date: Date): string => {
+    const startOfWeek = getWeekStart(date);
+    const year = startOfWeek.getFullYear();
+    const weekNumber = Math.ceil((startOfWeek.getTime() - new Date(year, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+    return `${year}-${weekNumber.toString().padStart(2, '0')}`;
+  };
+
+  // Función para generar ID único del producto
+  const getProductoTrabajarId = (pedidoId: number, productIndex: number, fecha: string): string => {
+    return `${pedidoId}-${productIndex}-${fecha}`;
+  };
+
+  // Función para cargar productos trabajados desde almacenamiento
+  const cargarProductosTrabajados = async () => {
+    try {
+      const semanaKey = getSemanaKey(selectedWeek);
+      const storageKey = `productosTrabajados_${semanaKey}`;
+      
+      let data: string | null = null;
+      // Using localStorage for both web and React Native compatibility
+      data = localStorage.getItem(storageKey);
+      
+      if (data) {
+        const productos: ProductoTrabajado[] = JSON.parse(data);
+        const ids = new Set(productos.map(p => getProductoTrabajarId(p.pedidoId, p.productIndex, p.fecha)));
+        setProductosTrabajados(ids);
+      } else {
+        setProductosTrabajados(new Set());
+      }
+    } catch (error) {
+      console.error('Error cargando productos trabajados:', error);
+      setProductosTrabajados(new Set());
+    }
+  };
+
+  // Función para guardar productos trabajados en almacenamiento
+  const guardarProductosTrabajados = async (productosIds: Set<string>) => {
+    try {
+      const semanaKey = getSemanaKey(selectedWeek);
+      const storageKey = `productosTrabajados_${semanaKey}`;
+      
+      // Convertir IDs de vuelta a objetos ProductoTrabajado
+      const productos: ProductoTrabajado[] = Array.from(productosIds).map(id => {
+        const [pedidoIdStr, productIndexStr, fecha] = id.split('-');
+        return {
+          semanaKey,
+          productoTrabajarId: id,
+          fecha,
+          pedidoId: parseInt(pedidoIdStr),
+          productIndex: parseInt(productIndexStr)
+        };
+      });
+      
+      const data = JSON.stringify(productos);
+      
+      // Using localStorage for both web and React Native compatibility
+      localStorage.setItem(storageKey, data);
+    } catch (error) {
+      console.error('Error guardando productos trabajados:', error);
+    }
+  };
+
+  // Función para alternar estado de producto trabajado
+  const toggleProductoTrabajado = async (productoTrabajar: ProductoTrabajar) => {
+    const id = getProductoTrabajarId(productoTrabajar.pedidoId, productoTrabajar.index, productoTrabajar.fecha);
+    const nuevosProductosTrabajados = new Set(productosTrabajados);
+    
+    if (nuevosProductosTrabajados.has(id)) {
+      nuevosProductosTrabajados.delete(id);
+    } else {
+      nuevosProductosTrabajados.add(id);
+    }
+    
+    setProductosTrabajados(nuevosProductosTrabajados);
+    await guardarProductosTrabajados(nuevosProductosTrabajados);
+  };
+
   useEffect(() => {
     cargarPedidos();
+    cargarProductosTrabajados();
   }, []);
+
+  // Recargar productos trabajados cuando cambia la semana seleccionada
+  useEffect(() => {
+    cargarProductosTrabajados();
+  }, [selectedWeek]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -125,7 +223,9 @@ export default function ProductosTrabajarScreen() {
             fecha: pedido.fecha_entrega,
             pedidoNombre: pedido.nombre,
             producto,
-            index: productosFiltrados.length + 1,
+            index: index, // Índice real del producto (para persistencia)
+            displayIndex: 0, // Se asignará después del ordenamiento
+            pedidoId: pedido.id!,
           });
         });
       }
@@ -133,6 +233,11 @@ export default function ProductosTrabajarScreen() {
 
     // Ordenar por fecha
     productosFiltrados.sort((a, b) => a.fecha.localeCompare(b.fecha));
+    
+    // Asignar displayIndex secuencial para toda la lista
+    productosFiltrados.forEach((producto, index) => {
+      producto.displayIndex = index + 1;
+    });
 
     return productosFiltrados;
   }, [pedidos, selectedWeek]);
@@ -287,18 +392,35 @@ export default function ProductosTrabajarScreen() {
     });
   };
 
-  const renderProducto = ({ item }: { item: ProductoTrabajar }) => (
-    <View style={styles.productoCard}>
-      <View style={styles.productoHeader}>
-        <Text style={styles.productoNumero}>{item.index}.</Text>
-        <View style={styles.productoInfo}>
-          <Text style={styles.productoTexto}>{formatProducto(item.producto)}</Text>
-          <Text style={styles.productoPedido}>Pedido: {item.pedidoNombre}</Text>
-          <Text style={styles.productoFecha}>{formatearFecha(item.fecha)}</Text>
+  const renderProducto = ({ item }: { item: ProductoTrabajar }) => {
+    const productId = getProductoTrabajarId(item.pedidoId, item.index, item.fecha);
+    const isTrabajado = productosTrabajados.has(productId);
+
+    return (
+      <View style={styles.productoCard}>
+        <View style={styles.productoHeader}>
+          <Text style={styles.productoNumero}>{item.displayIndex}.</Text>
+          <View style={styles.productoInfo}>
+            <Text style={[styles.productoTexto, isTrabajado && styles.productoTextoCompletado]}>
+              {formatProducto(item.producto)}
+            </Text>
+            <Text style={[styles.productoPedido, isTrabajado && styles.productoTextoCompletado]}>
+              Pedido: {item.pedidoNombre}
+            </Text>
+            <Text style={styles.productoFecha}>{formatearFecha(item.fecha)}</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.checkButton, isTrabajado && styles.checkButtonCompletado]}
+            onPress={() => toggleProductoTrabajado(item)}
+          >
+            <Text style={styles.checkButtonText}>
+              {isTrabajado ? '✓' : ''}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -657,5 +779,30 @@ const styles = StyleSheet.create({
     color: Colors.light.titleColor,
     marginBottom: 20,
     textAlign: 'center',
+  },
+  // Estilos para checkbutton
+  checkButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: Colors.light.inputBorder,
+    backgroundColor: Colors.light.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  checkButtonCompletado: {
+    backgroundColor: Colors.light.buttonPrimary,
+    borderColor: Colors.light.buttonPrimary,
+  },
+  checkButtonText: {
+    fontSize: 16,
+    color: Colors.light.buttonText,
+    fontWeight: 'bold',
+  },
+  productoTextoCompletado: {
+    textDecorationLine: 'line-through',
+    opacity: 0.6,
   },
 });

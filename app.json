@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "Sweet Cakes: Agenda",
+    "name": "Pasteleria Cocina: Agenda",
     "slug": "pasteleria-cocina-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "pasteleriacocinaapp",
     "userInterfaceStyle": "automatic",
     "primaryColor": "#E75480",
     "backgroundColor": "#FDC8E3",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FDC8E3"
     },
     "notification": {
-      "icon": "./assets/images/notification-icon.png",
+      "icon": "./assets/images/icon.png",
       "color": "#E75480",
       "androidMode": "default",
       "androidCollapsedTitle": "Pastelería Cocina"
@@ -27,11 +27,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#FDC8E3",
-        "monochromeImage": "./assets/images/adaptive-icon.png"
+        "monochromeImage": "./assets/images/icon.png"
       },
-      "icon": "./assets/images/logo.png",
+      "icon": "./assets/images/icon.png",
       "package": "com.pasteleriacocina.app",
       "versionCode": 1,
       "permissions": [
@@ -77,7 +77,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/notification-icon.png",
+          "icon": "./assets/images/icon.png",
           "color": "#E75480",
           "defaultChannel": "default"
         }

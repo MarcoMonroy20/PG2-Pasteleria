@@ -6,6 +6,8 @@ let authModule;
 try {
   if (Platform.OS === 'web') {
     authModule = require('../services/auth.web');
+  } else if (Platform.OS === 'android') {
+    authModule = require('../services/auth-android');
   } else {
     authModule = require('../services/auth');
   }
@@ -15,7 +17,7 @@ try {
   authModule = require('../services/auth');
 }
 
-const { User, authenticateUser, resetAuthDB } = authModule;
+const { authenticateUser, resetAuthDB } = authModule;
 
 interface User {
   id: number;

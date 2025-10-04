@@ -13,25 +13,16 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from 'expo-router';
-import {
-  initDB,
-  obtenerSabores,
-  obtenerRellenos,
-  crearSabor,
-  crearRelleno,
-  actualizarSabor,
-  actualizarRelleno,
-  eliminarSabor,
-  eliminarRelleno,
-  Sabor,
-  Relleno,
-} from '../../services/db';
+import { useDataRefresh } from '../../contexts/DataContext';
+import hybridDB from '../../services/hybrid-db';
+import { Sabor, Relleno } from '../../services/db';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
 
 export default function RellenosMasasScreen() {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
+  const { triggerRefresh } = useDataRefresh();
   const [sabores, setSabores] = useState<Sabor[]>([]);
   const [rellenos, setRellenos] = useState<Relleno[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,10 +48,10 @@ export default function RellenosMasasScreen() {
 
   const cargarDatos = async () => {
     try {
-      await initDB();
+      await hybridDB.initialize();
       const [saboresData, rellenosData] = await Promise.all([
-        obtenerSabores(),
-        obtenerRellenos(),
+        hybridDB.obtenerSabores(),
+        hybridDB.obtenerRellenos(),
       ]);
       setSabores(saboresData);
       setRellenos(rellenosData);
@@ -101,13 +92,13 @@ export default function RellenosMasasScreen() {
     try {
       if (activeTab === 'sabores') {
         if (editingItem) {
-          await actualizarSabor(editingItem.id!, {
+          await hybridDB.actualizarSabor(editingItem.id!, {
             nombre: formData.nombre,
             tipo: formData.tipo,
             activo: formData.activo,
           });
         } else {
-          await crearSabor({
+          await hybridDB.crearSabor({
             nombre: formData.nombre,
             tipo: formData.tipo,
             activo: formData.activo,
@@ -115,12 +106,12 @@ export default function RellenosMasasScreen() {
         }
       } else {
         if (editingItem) {
-          await actualizarRelleno(editingItem.id!, {
+          await hybridDB.actualizarRelleno(editingItem.id!, {
             nombre: formData.nombre,
             activo: formData.activo,
           });
         } else {
-          await crearRelleno({
+          await hybridDB.crearRelleno({
             nombre: formData.nombre,
             activo: formData.activo,
           });
@@ -128,6 +119,7 @@ export default function RellenosMasasScreen() {
       }
 
       await cargarDatos();
+      triggerRefresh(); // Notificar a otros componentes
       setShowModal(false);
       setEditingItem(null);
       Alert.alert('Éxito', 'Elemento guardado correctamente');
@@ -141,11 +133,12 @@ export default function RellenosMasasScreen() {
     const eliminarElemento = async () => {
       try {
         if (activeTab === 'sabores') {
-          await eliminarSabor(item.id!);
+          await hybridDB.eliminarSabor(item.id!);
         } else {
-          await eliminarRelleno(item.id!);
+          await hybridDB.eliminarRelleno(item.id!);
         }
         await cargarDatos();
+        triggerRefresh(); // Notificar a otros componentes
         
         // Mostrar mensaje de éxito
         if (Platform.OS === 'web') {

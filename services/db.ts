@@ -23,6 +23,15 @@ export const initDB = () => {
       // Tabla de settings
       db.execSync(CREATE_SETTINGS_TABLE);
 
+      // Migración: agregar direccion_entrega si no existe
+      try {
+        db.runSync('ALTER TABLE pedidos ADD COLUMN direccion_entrega TEXT');
+        console.log('✅ Migración: direccion_entrega agregada');
+      } catch (error) {
+        // La columna ya existe, ignorar error
+        console.log('📝 direccion_entrega ya existe');
+      }
+
       // Asegurar fila única de settings
       db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 1)');
 
@@ -114,6 +123,7 @@ export interface Pedido {
   precio_final: number;
   monto_abonado: number;
   descripcion?: string;
+  direccion_entrega?: string;
   imagen?: string;
   productos: Producto[];
 }
@@ -125,13 +135,14 @@ export const crearPedido = (pedido: Omit<Pedido, 'id'>): Promise<number> => {
       const productosJson = JSON.stringify(pedido.productos);
       console.log('Guardando fecha_entrega:', pedido.fecha_entrega);
       const result = db.runSync(
-        'INSERT INTO pedidos (fecha_entrega, nombre, precio_final, monto_abonado, descripcion, imagen, productos) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO pedidos (fecha_entrega, nombre, precio_final, monto_abonado, descripcion, direccion_entrega, imagen, productos) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [
           pedido.fecha_entrega,
           pedido.nombre,
           pedido.precio_final,
           pedido.monto_abonado,
           pedido.descripcion || null,
+          pedido.direccion_entrega || null,
           pedido.imagen || null,
           productosJson
         ]
@@ -187,22 +198,26 @@ export const obtenerPedidoPorId = (id: number): Promise<Pedido | null> => {
 export const actualizarPedido = (id: number, pedido: Omit<Pedido, 'id'>): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
+      console.log('📝 db.actualizarPedido llamado con ID:', id);
       const productosJson = JSON.stringify(pedido.productos);
       db.runSync(
-        'UPDATE pedidos SET fecha_entrega = ?, nombre = ?, precio_final = ?, monto_abonado = ?, descripcion = ?, imagen = ?, productos = ? WHERE id = ?',
+        'UPDATE pedidos SET fecha_entrega = ?, nombre = ?, precio_final = ?, monto_abonado = ?, descripcion = ?, direccion_entrega = ?, imagen = ?, productos = ? WHERE id = ?',
         [
           pedido.fecha_entrega,
           pedido.nombre,
           pedido.precio_final,
           pedido.monto_abonado,
           pedido.descripcion || null,
+          pedido.direccion_entrega || null,
           pedido.imagen || null,
           productosJson,
           id
         ]
       );
+      console.log('📝 Pedido actualizado en SQLite');
       resolve();
     } catch (error) {
+      console.error('❌ Error actualizando pedido en SQLite:', error);
       reject(error);
     }
   });
@@ -212,9 +227,12 @@ export const actualizarPedido = (id: number, pedido: Omit<Pedido, 'id'>): Promis
 export const eliminarPedido = (id: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
+      console.log('🗑️ db.eliminarPedido llamado con ID:', id);
       db.runSync('DELETE FROM pedidos WHERE id = ?', [id]);
+      console.log('🗑️ Pedido eliminado de SQLite');
       resolve();
     } catch (error) {
+      console.error('❌ Error eliminando pedido de SQLite:', error);
       reject(error);
     }
   });

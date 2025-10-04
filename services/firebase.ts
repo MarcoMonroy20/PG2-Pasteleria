@@ -57,58 +57,28 @@ if (FIREBASE_ENABLED && firebaseConfig.apiKey) {
 // Export Firebase services (null if disabled)
 export { db, auth, messaging };
 
+// Shared user ID for all app instances to access the same data
+const SHARED_APP_USER_ID = 'pasteleria-cocina-shared-user';
+
 // Initialize anonymous authentication (only if Firebase is enabled)
 export const initFirebaseAuth = async (): Promise<string | null> => {
   if (!FIREBASE_ENABLED || !auth) {
-    console.log('Firebase authentication disabled');
-    return null;
+    console.log('Firebase authentication disabled, using shared user ID');
+    return SHARED_APP_USER_ID;
   }
 
   console.log('🔐 Iniciando autenticación anónima de Firebase...');
 
-  return new Promise((resolve) => {
-    // Set a timeout to prevent hanging
-    const timeout = setTimeout(() => {
-      console.error('❌ Timeout en autenticación Firebase (10s)');
-      console.error('🔧 Posible bloqueo de red o adblocker');
-      resolve(null);
-    }, 10000);
+  // Always return shared user ID for consistent data access
+  // Perform anonymous auth in background for security
+  try {
+    await signInAnonymously(auth);
+    console.log('✅ Autenticación anónima completada en background');
+  } catch (error) {
+    console.log('⚠️ Error en autenticación anónima, continuando con shared user ID:', error);
+  }
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log('✅ Usuario autenticado:', user.uid);
-        clearTimeout(timeout);
-        resolve(user.uid);
-      } else {
-        console.log('🔐 Iniciando sesión anónima...');
-        // Sign in anonymously
-        signInAnonymously(auth)
-          .then((result) => {
-            console.log('✅ Autenticación anónima exitosa:', result.user.uid);
-            clearTimeout(timeout);
-            resolve(result.user.uid);
-          })
-          .catch((error) => {
-            console.error('❌ Error en autenticación Firebase:', error);
-            console.error('🔧 Código de error:', error.code);
-            console.error('🔧 Mensaje:', error.message);
-            
-            // Check for specific error types
-            if (error.code === 'auth/network-request-failed') {
-              console.error('🌐 Error de red: Verificar conexión a internet');
-            } else if (error.code === 'auth/too-many-requests') {
-              console.error('🚫 Demasiadas solicitudes: Esperar un momento');
-            } else if (error.message?.includes('ERR_BLOCKED_BY_CLIENT')) {
-              console.error('🚫 Bloqueado por cliente (adblocker/firewall)');
-              console.error('💡 Solución: Desactivar adblocker o firewall temporalmente');
-            }
-            
-            clearTimeout(timeout);
-            resolve(null);
-          });
-      }
-    });
-  });
+  return SHARED_APP_USER_ID;
 };
 
 // Types for Firebase documents (without images)
@@ -119,6 +89,7 @@ export interface FirebasePedido {
   precio_final: number;
   monto_abonado: number;
   descripcion?: string;
+  direccion_entrega?: string;
   // imagen field removed - stays local
   productos: any[];
   userId: string;
@@ -220,20 +191,34 @@ export class LocalImageManager {
 // Firebase sync utilities
 export class FirebaseSync {
   private static userId: string | null = null;
+  private static SHARED_APP_USER_ID = 'pasteleria-cocina-shared-user';
 
   static async initialize(): Promise<void> {
     console.log('🔐 FirebaseSync.initialize() - Iniciando autenticación...');
     try {
-      this.userId = await initFirebaseAuth();
-      console.log('✅ FirebaseSync.initialize() - Autenticación completada:', this.userId);
+      // Always use shared user ID for consistency
+      this.userId = this.SHARED_APP_USER_ID;
+      
+      // Perform anonymous authentication in background for security
+      if (FIREBASE_ENABLED && auth) {
+        try {
+          await signInAnonymously(auth);
+          console.log('✅ Firebase authentication completed in background');
+        } catch (authError) {
+          console.warn('⚠️ Background authentication failed, but continuing with shared user ID');
+        }
+      }
+      
+      console.log('✅ FirebaseSync.initialize() - Usando usuario compartido:', this.userId);
     } catch (error) {
-      console.error('❌ FirebaseSync.initialize() - Error en autenticación:', error);
-      this.userId = null;
+      console.error('❌ FirebaseSync.initialize() - Error en inicialización:', error);
+      // Even if Firebase fails, use shared user ID for consistency
+      this.userId = this.SHARED_APP_USER_ID;
     }
   }
 
   static getUserId(): string | null {
-    return this.userId;
+    return this.userId || this.SHARED_APP_USER_ID;
   }
 
   static async reinitialize(): Promise<void> {
@@ -242,12 +227,21 @@ export class FirebaseSync {
     await this.initialize();
   }
 
-  // Convert local pedido to Firebase format (remove image)
-  static localPedidoToFirebase(localPedido: any): Omit<FirebasePedido, 'userId' | 'created_at' | 'updated_at'> {
+  // Convert local pedido to Firebase format (remove image and undefined values)
+  static localPedidoToFirebase(localPedido: any): any {
     const { imagen, ...pedidoWithoutImage } = localPedido;
+    
+    // Clean undefined values - Firebase doesn't accept undefined
+    const cleanPedido = Object.fromEntries(
+      Object.entries(pedidoWithoutImage).map(([key, value]) => [
+        key, 
+        value === undefined ? null : value
+      ])
+    );
+    
     return {
-      ...pedidoWithoutImage,
-      productos: JSON.parse(JSON.stringify(pedidoWithoutImage.productos || []))
+      ...cleanPedido,
+      productos: JSON.parse(JSON.stringify(cleanPedido.productos || []))
     };
   }
 
@@ -272,6 +266,36 @@ export class FirebaseSync {
 
     const batchPromises = localPedidos.map(pedido => this.syncPedidoToFirebase(pedido));
     await Promise.all(batchPromises);
+  }
+
+  // Delete pedido from Firebase
+  static async deletePedido(id: number): Promise<void> {
+    if (!this.userId) return;
+
+    console.log(`🗑️ FirebaseSync.deletePedido - Eliminando pedido ${id} de Firebase`);
+    const docRef = doc(db, 'pedidos', `${this.userId}_${id}`);
+    await deleteDoc(docRef);
+    console.log(`✅ FirebaseSync.deletePedido - Pedido ${id} eliminado de Firebase`);
+  }
+
+  // Update pedido in Firebase
+  static async updatePedido(id: number, pedido: Omit<any, 'id'>): Promise<void> {
+    if (!this.userId) return;
+
+    console.log(`📝 FirebaseSync.updatePedido - Actualizando pedido ${id} en Firebase`);
+    const firebasePedido = this.localPedidoToFirebase({ ...pedido, id });
+    
+    // Clean undefined values in the update data
+    const cleanUpdateData = Object.fromEntries(
+      Object.entries(firebasePedido).filter(([_, value]) => value !== undefined)
+    );
+    
+    const docRef = doc(db, 'pedidos', `${this.userId}_${id}`);
+    await updateDoc(docRef, {
+      ...cleanUpdateData,
+      updated_at: Timestamp.now()
+    });
+    console.log(`✅ FirebaseSync.updatePedido - Pedido ${id} actualizado en Firebase`);
   }
 
   // Get pedidos from Firebase

@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { View, Text, Pressable, useWindowDimensions, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 
 // Importar estilos CSS para web
 if (Platform.OS === 'web') {
@@ -12,351 +11,110 @@ if (Platform.OS === 'web') {
 
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
-import { useClientOnlyValue } from '../../components/useClientOnlyValue';
 import { useAuth } from '../../contexts/AuthContext';
-
-// Función para calcular tamaños responsive basados en el ancho de pantalla
-const useResponsiveTabBar = () => {
-  const { width, height } = useWindowDimensions();
-
-  // Detectar plataforma específica
-  const isAndroid = Platform.OS === 'android';
-  const isIOS = Platform.OS === 'ios';
-  const isWeb = Platform.OS === 'web';
-
-  // Determinar si es móvil pequeño, tablet, etc.
-  // En web, usar umbrales más conservadores ya que las pantallas son más grandes
-  const isExtraSmall = isWeb ? width < 300 : width < 350; // Web: muy pequeño solo < 300px
-  const isSmallMobile = isWeb ? width < 400 : width < 375; // Web: pequeño < 400px
-  const isMediumMobile = isWeb ? width < 600 : width < 414; // Web: mediano < 600px
-  const isTablet = width >= 768;
-  const isLandscape = width > height;
-
-  // Calcular número de tabs basado en permisos (aproximado)
-  const estimatedTabs = 6; // máximo posible
-  const availableWidth = width; // Usar TODO el ancho disponible
-  const tabWidth = availableWidth / estimatedTabs;
-  
-  // Calcular tabs visibles dinámicamente
-  const getVisibleTabsCount = (userRole: string) => {
-    let count = 4; // Tabs base siempre visibles
-    if (userRole === 'admin' || userRole === 'dueño') {
-      count += 2; // + Cotizaciones y Estadísticas
-    }
-    return count;
-  };
-
-  // Calcular tamaños dinámicos basados en plataforma y ancho disponible
-  let tabBarHeight, iconSize, fontSize, paddingVertical, paddingBottom;
-
-  // Ajustes específicos por plataforma
-  const androidAdjustment = isAndroid ? 0.9 : 1.0; // Android necesita tamaños ligeramente menores
-  const webAdjustment = isWeb ? 1.2 : 1.0; // Web puede usar tamaños ligeramente mayores
-
-  if (isExtraSmall) {
-    // Pantallas muy pequeñas
-    tabBarHeight = Math.round((isWeb ? 65 : 58) * androidAdjustment * webAdjustment);
-    iconSize = Math.round((isWeb ? 12 : 10) * androidAdjustment * webAdjustment);
-    fontSize = isWeb ? 8 : 6; // Aumentado para mejor legibilidad
-    paddingVertical = isWeb ? 1 : 0;
-    paddingBottom = isWeb ? 1 : 0;
-  } else if (isSmallMobile) {
-    // Pantallas pequeñas
-    tabBarHeight = Math.round((isWeb ? 70 : 60) * androidAdjustment * webAdjustment);
-    iconSize = Math.round((isWeb ? 16 : 12) * androidAdjustment * webAdjustment);
-    fontSize = isWeb ? 9 : 7; // Aumentado para mejor legibilidad
-    paddingVertical = isWeb ? 2 : 1;
-    paddingBottom = isWeb ? 2 : 1;
-  } else if (isMediumMobile) {
-    // Pantallas medianas
-    tabBarHeight = Math.round((isWeb ? 75 : 65) * androidAdjustment * webAdjustment);
-    iconSize = Math.round((isWeb ? 20 : 14) * androidAdjustment * webAdjustment);
-    fontSize = isWeb ? 10 : 8; // Aumentado para mejor legibilidad
-    paddingVertical = isWeb ? 4 : 2;
-    paddingBottom = isWeb ? 4 : 2;
-  } else if (isTablet) {
-    // Tablets
-    tabBarHeight = Math.round(80 * androidAdjustment * webAdjustment);
-    iconSize = Math.round(28 * androidAdjustment * webAdjustment);
-    fontSize = Math.round(12 * androidAdjustment * webAdjustment);
-    paddingVertical = Math.round(10 * androidAdjustment * webAdjustment);
-    paddingBottom = Math.round(6 * androidAdjustment * webAdjustment);
-  } else {
-    // Pantallas grandes (web)
-    tabBarHeight = Math.round(76 * androidAdjustment * webAdjustment);
-    iconSize = Math.round(24 * androidAdjustment * webAdjustment);
-    fontSize = Math.round(11 * androidAdjustment * webAdjustment);
-    paddingVertical = Math.round(8 * androidAdjustment * webAdjustment);
-    paddingBottom = Math.round(5 * androidAdjustment * webAdjustment);
-  }
-
-  const iconSizeInactive = iconSize - 2;
-
-  return {
-    tabBarHeight,
-    iconSize,
-    iconSizeInactive,
-    fontSize,
-    paddingVertical,
-    paddingBottom,
-    isExtraSmall,
-    isSmallMobile,
-    isMediumMobile,
-    isTablet,
-    isLandscape,
-    tabWidth,
-    availableWidth,
-    isAndroid,
-    isIOS,
-    isWeb,
-    getVisibleTabsCount,
-  };
-};
+import { DataProvider } from '../../contexts/DataContext';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const responsive = useResponsiveTabBar();
-  const { user, hasPermission } = useAuth();
-  const [userRole, setUserRole] = useState<string>('');
-  const [isReady, setIsReady] = useState(false);
-  const insets = useSafeAreaInsets();
-  
-  // Calcular ancho dinámico de tabs basado en rol
-  const visibleTabsCount = responsive.getVisibleTabsCount(userRole);
-  const dynamicTabWidth = responsive.availableWidth / visibleTabsCount;
+  const { user } = useAuth();
 
-  // TODOS los hooks deben estar aquí, antes de cualquier return condicional
-  const headerShown = useClientOnlyValue(false, false);
-
-  // Forzar re-render cuando cambie el usuario
-  useEffect(() => {
-    const newUserRole = user?.role || '';
-    setUserRole(newUserRole);
-    // Solo marcar como ready cuando tengamos un userRole válido
-    if (newUserRole && !isReady) {
-      setIsReady(true);
-    }
-  }, [user?.role, isReady]);
-
-  // Aplicar fix para web cuando el componente se monte
-  useEffect(() => {
-    if (Platform.OS === 'web' && isReady) {
-      const { applyWebTabBarFix, observeTabBarChanges } = require('../../utils/web-tabbar-fix.js');
-      
-      // Aplicar el fix
-      applyWebTabBarFix();
-      
-      // Observar cambios en el DOM
-      const observer = observeTabBarChanges();
-      
-      // Cleanup
-      return () => {
-        if (observer) {
-          observer.disconnect();
+  // Aplicar fixes para web después de que el componente se monte
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      const timer = setTimeout(() => {
+        try {
+          const { applyWebTabBarFix, observeTabBarChanges } = require('../../utils/web-tabbar-fix.js');
+          applyWebTabBarFix();
+          observeTabBarChanges();
+        } catch (error) {
+          console.log('Web tab bar fix no disponible:', error);
         }
-      };
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isReady, userRole]);
-
-  // Mostrar loading mientras no tengamos userRole válido
-  if (!isReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors[colorScheme ?? 'light'].background }}>
-        <Text>Cargando...</Text>
-      </View>
-    );
-  }
+  }, []);
 
   return (
-    <Tabs
-      key={`tabs-${userRole}`}
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].buttonPrimary,
-        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].textSecondary,
-        headerShown,
-
-        // Estilos responsive del tab bar optimizados para evitar sobreposición
-        tabBarStyle: {
-          backgroundColor: Colors[colorScheme ?? 'light'].surface,
-          height: 60 + insets.bottom, // Altura fija y razonable
-          paddingBottom: insets.bottom,
-          paddingTop: 8,
-          paddingHorizontal: 0,
-          paddingLeft: 0,
-          paddingRight: 0,
-          marginHorizontal: 0,
-          borderTopWidth: 0,
-          elevation: Platform.OS === 'android' ? 4 : 6,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 2,
-          width: '100%',
-          // Remover flex: 1 que estaba causando el problema
-          ...(responsive.isLandscape ? {
-            height: 50 + insets.bottom,
-            paddingTop: 4,
-            paddingBottom: insets.bottom,
-          } : {}),
-        },
-
-        // Distribución simple y funcional de tabs
-        tabBarItemStyle: {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: 4,
-          marginHorizontal: 0,
-        },
-
-
-        // Estilos del texto simples y funcionales
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '500',
-          marginTop: 2,
-          textAlign: 'center',
-          lineHeight: 12,
-        },
-      }}
-    >
-      {/* Renderizar tabs condicionalmente */}
-      {(() => {
-        const tabs = [];
-
-        // Tabs siempre visibles
-        tabs.push(
-          <Tabs.Screen
-            key="index"
-            name="index"
-            options={{
-              title: 'Inicio',
-              tabBarIcon: ({ color, focused }) => (
-                <FontAwesome
-                  name="home"
-                  size={focused ? 20 : 18}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        );
-
-        tabs.push(
-          <Tabs.Screen
-            key="calendario"
-            name="calendario"
-            options={{
-              title: 'Calendario',
-              tabBarIcon: ({ color, focused }) => (
-                <FontAwesome
-                  name="calendar"
-                  size={focused ? 20 : 18}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        );
-
-        tabs.push(
-          <Tabs.Screen
-            key="proximos-pedidos"
-            name="proximos-pedidos"
-            options={{
-              title: 'Próximos',
-              tabBarIcon: ({ color, focused }) => (
-                <FontAwesome
-                  name="list"
-                  size={focused ? 20 : 18}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        );
-
-        tabs.push(
-          <Tabs.Screen
-            key="productos-trabajar"
-            name="productos-trabajar"
-            options={{
-              title: 'Esta Semana',
-              tabBarIcon: ({ color, focused }) => (
-                <FontAwesome
-                  name="calendar-check-o"
-                  size={focused ? 20 : 18}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        );
-
-        // Tabs condicionales - visibles según permisos
-        tabs.push(
-          <Tabs.Screen
-            key="cotizaciones"
-            name="cotizaciones"
-            options={{
-              title: 'Cotizaciones',
-              tabBarButton: userRole === 'admin' || userRole === 'dueño' ? undefined : () => null,
-              tabBarIcon: ({ color, focused }) => (
-                <FontAwesome
-                  name="file-text"
-                  size={focused ? 20 : 18}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        );
-
-        tabs.push(
-          <Tabs.Screen
-            key="two"
-            name="two"
-            options={{
-              title: 'Estadísticas',
-              tabBarButton: userRole === 'admin' || userRole === 'dueño' ? undefined : () => null,
-              tabBarIcon: ({ color, focused }) => (
-                <FontAwesome
-                  name="bar-chart"
-                  size={focused ? 20 : 18}
-                  color={color}
-                />
-              ),
-            }}
-          />
-        );
-
-        return tabs;
-      })()}
-
-      {/* Tabs ocultos (accesibles por navegación programática) */}
-      <Tabs.Screen
-        name="nuevo-pedido"
-        options={{
-          tabBarButton: () => null, // Oculto de la barra
-          title: 'Nuevo Pedido',
+    <DataProvider>
+      <Tabs
+        screenOptions={{
+          headerShown: false, // Ocultar header blanco en todas las pantallas
+          tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+          tabBarStyle: {
+            height: 60,
+            paddingBottom: 8,
+            paddingTop: 8,
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '500',
+          },
+          tabBarItemStyle: {
+            paddingVertical: 4,
+          },
         }}
-      />
-
-      <Tabs.Screen
-        name="rellenos-masas"
-        options={{
-          tabBarButton: () => null, // Oculto de la barra
-          title: 'Rellenos y Masas',
-        }}
-      />
-
-      <Tabs.Screen
-        name="settings"
-        options={{
-          tabBarButton: () => null, // Oculto de la barra
-          title: 'Configuración',
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Inicio',
+            tabBarIcon: ({ color }) => <FontAwesome size={20} name="home" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="calendario"
+          options={{
+            title: 'Calendario',
+            tabBarIcon: ({ color }) => <FontAwesome size={20} name="calendar" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="proximos-pedidos"
+          options={{
+            title: 'Próximos Pedidos',
+            tabBarIcon: ({ color }) => <FontAwesome size={20} name="clock-o" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="productos-trabajar"
+          options={{
+            title: 'Próximos Productos',
+            tabBarIcon: ({ color }) => <FontAwesome size={20} name="list" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="cotizaciones"
+          options={{
+            title: 'Cotizaciones',
+            tabBarIcon: ({ color }) => <FontAwesome size={20} name="dollar" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="two"
+          options={{
+            title: 'Estadísticas',
+            tabBarIcon: ({ color }) => <FontAwesome size={20} name="bar-chart" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="nuevo-pedido"
+          options={{
+            href: null, // Ocultar de la navbar
+          }}
+        />
+        <Tabs.Screen
+          name="rellenos-masas"
+          options={{
+            href: null, // Ocultar de la navbar
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            href: null, // Ocultar de la navbar
+          }}
+        />
+      </Tabs>
+    </DataProvider>
   );
 }

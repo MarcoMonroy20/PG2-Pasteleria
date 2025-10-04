@@ -18,7 +18,7 @@ type AppSettings = {
 };
 
 export default function SettingsScreen() {
-  const [settings, setSettings] = useState<AppSettings>({ notifications_enabled: false, days_before: 0, contact_name: 'Raquel Alejandra Rousselin Pellecer', company_name: 'Sweet Cakes', phone: '53597287' });
+  const [settings, setSettings] = useState<AppSettings>({ notifications_enabled: false, days_before: 0, contact_name: 'Ejemplo Contacto', company_name: 'Pasteleria Cocina', phone: '12345678' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);

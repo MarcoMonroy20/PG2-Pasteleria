@@ -23,6 +23,7 @@ import { schedulePedidoNotification, cancelNotificationById } from '../../servic
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDataRefresh } from '../../contexts/DataContext';
 import OptimizedList from '../../components/OptimizedList';
 import OptimizedCard from '../../components/OptimizedCard';
 import OptimizedButton from '../../components/OptimizedButton';
@@ -34,6 +35,7 @@ export default function ProximosPedidosScreen() {
   const { width } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const { hasPermission } = useAuth();
+  const { triggerRefresh, refreshTrigger } = useDataRefresh();
 
   // Animations
   const { animateIn, getAnimatedStyle } = useStaggeredAnimation(10, 50);
@@ -49,6 +51,7 @@ export default function ProximosPedidosScreen() {
     precio_final: '',
     monto_abonado: '',
     descripcion: '',
+    direccion_entrega: '',
     productos: [] as Producto[],
     fecha_entrega: '',
   });
@@ -83,11 +86,6 @@ export default function ProximosPedidosScreen() {
   const [startDateObj, setStartDateObj] = useState<Date | null>(null);
   const [endDateObj, setEndDateObj] = useState<Date | null>(null);
 
-  // Nuevos filtros avanzados
-  const [paymentStatus, setPaymentStatus] = useState<'todos' | 'pendiente' | 'parcial' | 'completo'>('todos');
-  const [productType, setProductType] = useState<'todos' | 'pastel' | 'cupcakes' | 'otros'>('todos');
-  const [priceRange, setPriceRange] = useState<'todos' | 'bajo' | 'medio' | 'alto'>('todos');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   useEffect(() => {
     cargarPedidosPorRango();
@@ -100,6 +98,14 @@ export default function ProximosPedidosScreen() {
       cargarSaboresYRellenos();
     }, [])
   );
+
+  // Recargar pedidos cuando cambie el refreshTrigger
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      cargarPedidosPorRango();
+      console.log('🔄 Pedidos actualizados en Próximos Pedidos');
+    }
+  }, [refreshTrigger]);
 
   const cargarSaboresYRellenos = async () => {
     try {
@@ -118,6 +124,7 @@ export default function ProximosPedidosScreen() {
     return lista.filter((p) => {
       const enNombre = p.nombre.toLowerCase().includes(t);
       const enDesc = (p.descripcion || '').toLowerCase().includes(t);
+      const enDireccion = (p.direccion_entrega || '').toLowerCase().includes(t);
       const enProductos = (p.productos || []).some((prod) => (
         (prod.tipo || '').toLowerCase().includes(t) ||
         (prod.sabor || '').toLowerCase().includes(t) ||
@@ -126,76 +133,48 @@ export default function ProximosPedidosScreen() {
         String(prod.cantidad || '').toLowerCase().includes(t) ||
         (prod.descripcion || '').toLowerCase().includes(t)
       ));
-      return enNombre || enDesc || enProductos;
+      return enNombre || enDesc || enDireccion || enProductos;
     });
   };
 
-  // Función para determinar el estado de pago
-  const getPaymentStatus = (pedido: Pedido): 'pendiente' | 'parcial' | 'completo' => {
-    const total = pedido.precio_final;
-    const abonado = pedido.monto_abonado || 0;
-
-    if (abonado === 0) return 'pendiente';
-    if (abonado >= total) return 'completo';
-    return 'parcial';
-  };
-
-  // Función para determinar el rango de precio
-  const getPriceRange = (precio: number): 'bajo' | 'medio' | 'alto' => {
-    if (precio < 100) return 'bajo';
-    if (precio < 500) return 'medio';
-    return 'alto';
-  };
-
-  // Función para verificar si el pedido tiene un tipo de producto específico
-  const hasProductType = (pedido: Pedido, tipo: string): boolean => {
-    return (pedido.productos || []).some(prod => prod.tipo === tipo);
-  };
-
-  // Aplicar todos los filtros avanzados
-  const aplicarFiltrosAvanzados = (lista: Pedido[]): Pedido[] => {
-    return lista.filter(pedido => {
-      // Filtro por estado de pago
-      if (paymentStatus !== 'todos') {
-        const status = getPaymentStatus(pedido);
-        if (status !== paymentStatus) return false;
-      }
-
-      // Filtro por tipo de producto
-      if (productType !== 'todos') {
-        if (!hasProductType(pedido, productType)) return false;
-      }
-
-      // Filtro por rango de precio
-      if (priceRange !== 'todos') {
-        const range = getPriceRange(pedido.precio_final);
-        if (range !== priceRange) return false;
-      }
-
-      return true;
-    });
-  };
 
   const cargarPedidosPorRango = async () => {
+    console.log('📋 cargarPedidosPorRango iniciado');
     try {
       await hybridDB.initialize();
       let base: Pedido[];
+      
       if (dateStart && dateEnd) {
+        // Usar filtros de fecha específicos
         base = await hybridDB.obtenerPedidosPorFecha(dateStart, dateEnd);
       } else {
+        // Obtener todos los pedidos primero
         base = await hybridDB.obtenerPedidos();
-        if (dateStart) base = base.filter(p => p.fecha_entrega >= dateStart);
-        if (dateEnd) base = base.filter(p => p.fecha_entrega <= dateEnd);
+        
+        // Si no hay filtros de fecha Y no hay búsqueda de texto, mostrar solo pedidos futuros
+        if (!dateStart && !dateEnd && !searchText.trim()) {
+          const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+          base = base.filter(p => p.fecha_entrega >= hoy);
+          console.log(`📅 Filtrando pedidos futuros desde ${hoy} (sin búsqueda activa)`);
+        } else {
+          // Aplicar filtros de fecha si existen
+          if (dateStart) base = base.filter(p => p.fecha_entrega >= dateStart);
+          if (dateEnd) base = base.filter(p => p.fecha_entrega <= dateEnd);
+        }
       }
+      
+      console.log('📋 Pedidos cargados:', base.length);
       setAllPedidos(base);
-      // Aplicar filtros en secuencia: texto -> avanzados
-      const filtradosPorTexto = aplicarFiltroTexto(base, searchText);
-      setPedidos(aplicarFiltrosAvanzados(filtradosPorTexto));
+      // Aplicar solo filtro de texto
+      const pedidosFinales = aplicarFiltroTexto(base, searchText);
+      console.log('📋 Pedidos después de filtro de texto:', pedidosFinales.length);
+      setPedidos(pedidosFinales);
     } catch (error) {
-      console.error('Error cargando pedidos:', error);
+      console.error('❌ Error cargando pedidos:', error);
       Alert.alert('Error', 'No se pudieron cargar los pedidos');
     } finally {
       setLoading(false);
+      console.log('📋 cargarPedidosPorRango completado');
 
       // Trigger animations when data is loaded
       setTimeout(() => {
@@ -210,29 +189,25 @@ export default function ProximosPedidosScreen() {
     setRefreshing(false);
   };
 
-  // Reaplicar filtro de texto cuando cambia el texto o la base
+  // Reaplicar filtros cuando cambia el texto o la base
   useEffect(() => {
-    // Aplicar filtros en secuencia: texto -> avanzados
-    const filtradosPorTexto = aplicarFiltroTexto(allPedidos, searchText);
-    setPedidos(aplicarFiltrosAvanzados(filtradosPorTexto));
-  }, [searchText, allPedidos, paymentStatus, productType, priceRange]);
-
-  // Calcular si hay filtros avanzados activos
-  const hasActiveAdvancedFilters = useMemo(() => {
-    return paymentStatus !== 'todos' || productType !== 'todos' || priceRange !== 'todos';
-  }, [paymentStatus, productType, priceRange]);
-
-  // Totales de la lista filtrada actual
-  const totals = useMemo(() => {
-    const totalPrecio = pedidos.reduce((acc, p) => acc + (Number(p.precio_final) || 0), 0);
-    const totalAbonado = pedidos.reduce((acc, p) => acc + (Number(p.monto_abonado) || 0), 0);
-    const totalPendiente = totalPrecio - totalAbonado;
-    return { totalPrecio, totalAbonado, totalPendiente };
-  }, [pedidos]);
+    let base = allPedidos;
+    
+    // Si no hay filtros de fecha Y no hay búsqueda de texto, aplicar filtro de fecha futura
+    if (!dateStart && !dateEnd && !searchText.trim()) {
+      const hoy = new Date().toISOString().split('T')[0];
+      base = allPedidos.filter(p => p.fecha_entrega >= hoy);
+      console.log(`📅 Aplicando filtro de fecha futura desde ${hoy} (sin búsqueda activa)`);
+    }
+    
+    // Aplicar filtro de texto
+    const pedidosFiltrados = aplicarFiltroTexto(base, searchText);
+    setPedidos(pedidosFiltrados);
+  }, [searchText, allPedidos, dateStart, dateEnd]);
 
 
 
-  const [showSummary, setShowSummary] = useState(false);
+
   const [showFilters, setShowFilters] = useState(false);
 
   const handleResetFilters = () => {
@@ -241,13 +216,10 @@ export default function ProximosPedidosScreen() {
     setDateEnd('');
     setStartDateObj(null);
     setEndDateObj(null);
-    // Resetear filtros avanzados
-    setPaymentStatus('todos');
-    setProductType('todos');
-    setPriceRange('todos');
-    setShowAdvancedFilters(false);
     setLoading(true);
+    // Al resetear, volver a mostrar solo pedidos futuros
     cargarPedidosPorRango();
+    triggerRefresh(); // Notificar a otros componentes
   };
 
   const handleEditarPedido = (pedido: Pedido) => {
@@ -257,6 +229,7 @@ export default function ProximosPedidosScreen() {
       precio_final: pedido.precio_final.toString(),
       monto_abonado: pedido.monto_abonado.toString(),
       descripcion: pedido.descripcion || '',
+      direccion_entrega: pedido.direccion_entrega || '',
       productos: pedido.productos || [],
       fecha_entrega: pedido.fecha_entrega,
     });
@@ -282,11 +255,13 @@ export default function ProximosPedidosScreen() {
         precio_final: pedido.precio_final,
         monto_abonado: pedido.monto_abonado + montoAbono,
         descripcion: pedido.descripcion,
+        direccion_entrega: pedido.direccion_entrega,
         imagen: pedido.imagen,
         productos: pedido.productos,
       };
       await hybridDB.actualizarPedido(pedido.id!, actualizado);
       await cargarPedidosPorRango();
+      triggerRefresh(); // Notificar a otros componentes
       Platform.OS === 'web' ? alert('Abono registrado') : Alert.alert('Éxito', 'Abono registrado');
     } catch (e) {
       console.error(e);
@@ -322,6 +297,7 @@ export default function ProximosPedidosScreen() {
         precio_final: parseFloat(editForm.precio_final),
         monto_abonado: parseFloat(editForm.monto_abonado),
         descripcion: editForm.descripcion || undefined,
+        direccion_entrega: editForm.direccion_entrega || undefined,
         productos: editForm.productos,
         fecha_entrega: editForm.fecha_entrega,
       };
@@ -353,6 +329,7 @@ export default function ProximosPedidosScreen() {
         console.log('No se pudo reprogramar notificación:', e);
       }
       await cargarPedidosPorRango();
+      triggerRefresh(); // Notificar a otros componentes
       setShowEditModal(false);
       setPedidoEditando(null);
       Alert.alert('Éxito', 'Pedido actualizado correctamente');
@@ -387,6 +364,7 @@ export default function ProximosPedidosScreen() {
   };
 
   const eliminarPedidoConfirmado = async (pedido: Pedido) => {
+    console.log('🗑️ Iniciando eliminación del pedido:', pedido.id, pedido.nombre);
     try {
       try {
         const existingNotif = await getNotificationIdForPedido(pedido.id!);
@@ -397,8 +375,16 @@ export default function ProximosPedidosScreen() {
       } catch (e) {
         console.log('No se pudo cancelar notificación:', e);
       }
+      
+      console.log('🗑️ Llamando a hybridDB.eliminarPedido con ID:', pedido.id);
       await hybridDB.eliminarPedido(pedido.id!);
+      console.log('🗑️ Pedido eliminado de la base de datos');
+      
       await cargarPedidosPorRango();
+      console.log('🗑️ Lista de pedidos recargada');
+      
+      triggerRefresh(); // Notificar a otros componentes
+      console.log('🗑️ triggerRefresh() llamado');
       
       // Mostrar mensaje de éxito
       if (Platform.OS === 'web') {
@@ -407,7 +393,7 @@ export default function ProximosPedidosScreen() {
         Alert.alert('Éxito', 'Pedido eliminado correctamente');
       }
     } catch (error) {
-      console.error('Error eliminando pedido:', error);
+      console.error('❌ Error eliminando pedido:', error);
       if (Platform.OS === 'web') {
         alert(`Error: No se pudo eliminar el pedido: ${error}`);
       } else {
@@ -576,6 +562,13 @@ export default function ProximosPedidosScreen() {
         <Text style={styles.descripcion}>{item.descripcion}</Text>
       )}
 
+      {item.direccion_entrega && (
+        <View style={styles.direccionContainer}>
+          <Text style={styles.direccionLabel}>📍 Dirección de entrega:</Text>
+          <Text style={styles.direccionText}>{item.direccion_entrega}</Text>
+        </View>
+      )}
+
       <View style={styles.productosContainer}>
         <Text style={styles.productosTitulo}>Productos:</Text>
         {item.productos.map((producto, index) => (
@@ -671,7 +664,7 @@ export default function ProximosPedidosScreen() {
                   }}
                 />
               </View>
-              <View style={isNarrow ? { height: 12 } : { width: 12 }} />
+              <View style={isNarrow ? { height: 8 } : { width: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Hasta</Text>
                 <input
@@ -728,7 +721,7 @@ export default function ProximosPedidosScreen() {
                   </View>
                 )}
               </View>
-              <View style={isNarrow ? { height: 12 } : { width: 12 }} />
+              <View style={isNarrow ? { height: 8 } : { width: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Hasta</Text>
                 <TouchableOpacity
@@ -761,118 +754,8 @@ export default function ProximosPedidosScreen() {
             </View>
           )}
 
-          {/* Contenedor de filtros avanzados y reset */}
+          {/* Botón para limpiar filtros */}
           <View>
-            {/* Filtros Avanzados */}
-            <View style={styles.advancedFiltersToggle}>
-              <TouchableOpacity
-                style={[styles.advancedFiltersBtn, hasActiveAdvancedFilters && styles.advancedFiltersBtnActive]}
-                onPress={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              >
-                <Text style={[styles.advancedFiltersText, hasActiveAdvancedFilters && styles.advancedFiltersTextActive]}>
-                  {showAdvancedFilters ? 'Ocultar filtros avanzados ▲' : 'Mostrar filtros avanzados ▼'}
-                  {hasActiveAdvancedFilters && !showAdvancedFilters && ' (activos)'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {showAdvancedFilters && (
-              <View style={[styles.advancedFiltersContainer, isNarrow && styles.advancedFiltersContainerNarrow]}>
-                  {/* Estado de Pago */}
-                  <View style={[styles.filterGroup, isNarrow && styles.filterGroupNarrow]}>
-                    <Text style={[styles.filterGroupTitle, isNarrow && styles.filterGroupTitleNarrow]}>Estado de Pago</Text>
-                    <View style={[styles.filterOptions, isNarrow && styles.filterOptionsNarrow]}>
-                      {[
-                        { key: 'todos', label: 'Todos' },
-                        { key: 'pendiente', label: 'Pendiente' },
-                        { key: 'parcial', label: 'Parcial' },
-                        { key: 'completo', label: 'Completo' },
-                      ].map(option => (
-                        <TouchableOpacity
-                          key={option.key}
-                          style={[
-                            styles.filterOption,
-                            isNarrow && styles.filterOptionNarrow,
-                            paymentStatus === option.key && styles.filterOptionSelected
-                          ]}
-                          onPress={() => setPaymentStatus(option.key as any)}
-                        >
-                          <Text style={[
-                            styles.filterOptionText,
-                            isNarrow && styles.filterOptionTextNarrow,
-                            paymentStatus === option.key && styles.filterOptionTextSelected
-                          ]} numberOfLines={1}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Tipo de Producto */}
-                  <View style={[styles.filterGroup, isNarrow && styles.filterGroupNarrow]}>
-                    <Text style={[styles.filterGroupTitle, isNarrow && styles.filterGroupTitleNarrow]}>Tipo de Producto</Text>
-                    <View style={[styles.filterOptions, isNarrow && styles.filterOptionsNarrow]}>
-                      {[
-                        { key: 'todos', label: 'Todos' },
-                        { key: 'pastel', label: 'Pasteles' },
-                        { key: 'cupcakes', label: 'Cupcakes' },
-                        { key: 'otros', label: 'Otros' },
-                      ].map(option => (
-                        <TouchableOpacity
-                          key={option.key}
-                          style={[
-                            styles.filterOption,
-                            isNarrow && styles.filterOptionNarrow,
-                            productType === option.key && styles.filterOptionSelected
-                          ]}
-                          onPress={() => setProductType(option.key as any)}
-                        >
-                          <Text style={[
-                            styles.filterOptionText,
-                            isNarrow && styles.filterOptionTextNarrow,
-                            productType === option.key && styles.filterOptionTextSelected
-                          ]} numberOfLines={1}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Rango de Precio */}
-                  <View style={[styles.filterGroup, isNarrow && styles.filterGroupNarrow]}>
-                    <Text style={[styles.filterGroupTitle, isNarrow && styles.filterGroupTitleNarrow]}>Rango de Precio</Text>
-                    <View style={[styles.filterOptions, isNarrow && styles.filterOptionsNarrow]}>
-                      {[
-                        { key: 'todos', label: 'Todos' },
-                        { key: 'bajo', label: '< Q100' },
-                        { key: 'medio', label: 'Q100-Q500' },
-                        { key: 'alto', label: '> Q500' },
-                      ].map(option => (
-                        <TouchableOpacity
-                          key={option.key}
-                          style={[
-                            styles.filterOption,
-                            isNarrow && styles.filterOptionNarrow,
-                            priceRange === option.key && styles.filterOptionSelected
-                          ]}
-                          onPress={() => setPriceRange(option.key as any)}
-                        >
-                          <Text style={[
-                            styles.filterOptionText,
-                            isNarrow && styles.filterOptionTextNarrow,
-                            priceRange === option.key && styles.filterOptionTextSelected
-                          ]} numberOfLines={1}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-              )}
-
             <TouchableOpacity style={styles.resetBtn} onPress={handleResetFilters}>
               <Text style={styles.resetBtnText}>Limpiar filtros</Text>
             </TouchableOpacity>
@@ -880,34 +763,6 @@ export default function ProximosPedidosScreen() {
         </View>
       )}
 
-      {/* Barra de totales retráctil */}
-      <View style={styles.summaryToggleContainer}>
-        <TouchableOpacity style={styles.summaryToggleBtn} onPress={() => setShowSummary(!showSummary)}>
-          <Text style={styles.summaryToggleText}>{showSummary ? 'Ocultar resumen ▲' : 'Mostrar resumen ▼'}</Text>
-        </TouchableOpacity>
-      </View>
-      {showSummary && (
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Pedidos</Text>
-              <Text style={styles.summaryValue}>{pedidos.length}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total</Text>
-              <Text style={styles.summaryValue}>{formatearPrecio(totals.totalPrecio)}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Abonado</Text>
-              <Text style={styles.summaryValue}>{formatearPrecio(totals.totalAbonado)}</Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={[styles.summaryLabel, styles.pendienteLabel]}>Debe</Text>
-              <Text style={[styles.summaryValue, styles.pendiente]}>{formatearPrecio(totals.totalPendiente)}</Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       {pedidos.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -954,10 +809,10 @@ export default function ProximosPedidosScreen() {
                   }}
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: '8px', // Reducido de 12px a 8px
                     border: `1px solid ${Colors.light.inputBorder}`,
                     borderRadius: '8px',
-                    fontSize: '16px',
+                    fontSize: '14px', // Reducido de 16px a 14px
                     backgroundColor: Colors.light.background,
                     color: Colors.light.inputText,
                     fontFamily: 'System',
@@ -1036,6 +891,19 @@ export default function ProximosPedidosScreen() {
                 placeholder="Descripción del pedido"
                 multiline
                 numberOfLines={3}
+                placeholderTextColor={Colors.light.inputText}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Dirección de Entrega</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={editForm.direccion_entrega}
+                onChangeText={(text) => setEditForm({...editForm, direccion_entrega: text})}
+                placeholder="Dirección completa donde se entregará el pedido"
+                multiline
+                numberOfLines={2}
                 placeholderTextColor={Colors.light.inputText}
               />
             </View>
@@ -1491,12 +1359,12 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 8, // Reducido de 12 a 8
   },
   dateRowNarrow: {
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 8,
+    gap: 6, // Reducido de 8 a 6
   },
   datePickerContainer: {
     marginTop: 8,
@@ -1533,31 +1401,6 @@ const styles = StyleSheet.create({
     color: Colors.light.buttonText,
     fontWeight: 'bold',
   },
-  summaryContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.light.cardBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.inputBorder,
-    gap: 8,
-  },
-  summaryToggleContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    backgroundColor: Colors.light.cardBackground,
-  },
-  summaryToggleBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.light.buttonSecondary,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    marginBottom: 6,
-  },
-  summaryToggleText: {
-    color: Colors.light.buttonText,
-    fontWeight: 'bold',
-  },
   filtersToggleContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -1573,35 +1416,6 @@ const styles = StyleSheet.create({
   },
   filtersToggleText: {
     color: Colors.light.buttonText,
-    fontWeight: 'bold',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryItem: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    padding: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.light.inputBorder,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: Colors.light.inputText,
-    marginBottom: 4,
-    fontWeight: '600',
-  },
-  pendienteLabel: {
-    color: Colors.light.buttonPrimary,
-  },
-  summaryValue: {
-    fontSize: 16,
-    color: Colors.light.titleColor,
     fontWeight: 'bold',
   },
   copyBtn: {
@@ -1727,6 +1541,25 @@ const styles = StyleSheet.create({
     color: Colors.light.inputText,
     fontStyle: 'italic',
     marginBottom: 12,
+  },
+  direccionContainer: {
+    marginBottom: 12,
+    padding: 8,
+    backgroundColor: Colors.light.background,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.light.buttonPrimary,
+  },
+  direccionLabel: {
+    fontSize: 12,
+    color: Colors.light.buttonPrimary,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  direccionText: {
+    fontSize: 14,
+    color: Colors.light.text,
+    lineHeight: 18,
   },
   productosContainer: {
     marginBottom: 12,
@@ -1861,16 +1694,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.light.inputBorder,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 8, // Reducido de 12 a 8
+    paddingVertical: 8, // Reducido de 10 a 8
     backgroundColor: Colors.light.inputBackground,
     marginTop: 8,
     flex: 1, // Hace que el botón ocupe el espacio disponible
-    minWidth: 120, // Ancho mínimo razonable
+    minWidth: 100, // Reducido de 120 a 100
+    maxWidth: 140, // Agregado para limitar el ancho máximo
   },
   dateButtonText: {
     color: Colors.light.inputText,
-    fontSize: 16,
+    fontSize: 14, // Reducido de 16 a 14
+    flexShrink: 1, // Permite que el texto se encoja si es necesario
   },
   dateButtonIcon: {
     fontSize: 16,
@@ -1983,110 +1818,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Estilos para filtros avanzados
-  advancedFiltersToggle: {
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  advancedFiltersBtn: {
-    backgroundColor: Colors.light.surface,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.inputBorder,
-    alignItems: 'center',
-  },
-  advancedFiltersBtnActive: {
-    borderColor: Colors.light.buttonPrimary,
-    backgroundColor: Colors.light.buttonPrimary + '10', // Color de fondo sutil
-  },
-  advancedFiltersText: {
-    color: Colors.light.titleColor,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  advancedFiltersTextActive: {
-    color: Colors.light.buttonPrimary,
-    fontWeight: '700',
-  },
-  advancedFiltersContainer: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: Colors.light.surface,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.light.inputBorder,
-    maxHeight: 280, // Altura máxima más conservadora
-  },
-  advancedFiltersContainerNarrow: {
-    padding: 8, // Padding aún más reducido para pantallas pequeñas
-    maxHeight: 250, // Altura máxima más pequeña en narrow
-  },
-  filterGroup: {
-    marginBottom: 12,
-  },
-  filterGroupNarrow: {
-    marginBottom: 8, // Espacio aún más reducido
-  },
-  filterGroupTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.light.titleColor,
-    marginBottom: 8,
-  },
-  filterGroupTitleNarrow: {
-    fontSize: 14, // Fuente más pequeña
-    marginBottom: 6,
-  },
-  filterOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterOptionsNarrow: {
-    gap: 6, // Gap más pequeño
-    justifyContent: 'flex-start', // Alinear a la izquierda
-    flexWrap: 'wrap', // Asegurar que se envuelva
-  },
-  filterOption: {
-    backgroundColor: Colors.light.background,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Colors.light.inputBorder,
-    minWidth: 70,
-    maxWidth: 100, // Ancho máximo más pequeño para mejor ajuste
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 32, // Altura mínima más pequeña
-    flexShrink: 1, // Permitir encogimiento
-    marginHorizontal: 2, // Margen horizontal pequeño
-  },
-  filterOptionNarrow: {
-    minWidth: 60, // Ancho mínimo aún más pequeño
-    maxWidth: 85, // Ancho máximo aún más pequeño
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    marginHorizontal: 1,
-  },
-  filterOptionSelected: {
-    backgroundColor: Colors.light.buttonPrimary,
-    borderColor: Colors.light.buttonPrimary,
-  },
-  filterOptionText: {
-    color: Colors.light.inputText,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterOptionTextNarrow: {
-    fontSize: 12, // Fuente más pequeña
-    fontWeight: '500',
-  },
-  filterOptionTextSelected: {
-    color: Colors.light.buttonText,
-    fontWeight: 'bold',
-  },
 
 }); 

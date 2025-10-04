@@ -1,79 +1,93 @@
 #!/usr/bin/env node
 
-// Script para probar la conexión directa a Firebase
+/**
+ * Test Firebase Connection
+ * Verifica que Firebase esté configurado correctamente
+ */
+
 const { initializeApp } = require('firebase/app');
-const { getFirestore, connectFirestoreEmulator } = require('firebase/firestore');
+const { getFirestore, collection, getDocs } = require('firebase/firestore');
 const { getAuth, signInAnonymously } = require('firebase/auth');
 
-// Configuración de Firebase (usando las credenciales del .env.local)
+// Cargar variables de entorno
+require('dotenv').config({ path: '.env.local' });
+
 const firebaseConfig = {
-  apiKey: "TU_API_KEY_AQUI",
-  authDomain: "pasteleria-cocina-app.firebaseapp.com",
-  projectId: "pasteleria-cocina-app",
-  storageBucket: "pasteleria-cocina-app.firebasestorage.app",
-  messagingSenderId: "975279453152",
-  appId: "1:975279453152:web:08c52d6d8e6ef7e8bbb185"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-console.log('🔥 Probando conexión directa a Firebase...');
-console.log('📋 Configuración:');
-console.log('  Project ID:', firebaseConfig.projectId);
-console.log('  Auth Domain:', firebaseConfig.authDomain);
-console.log('  API Key:', firebaseConfig.apiKey.substring(0, 10) + '...');
+console.log('🔥 Testing Firebase Connection...');
+console.log('================================');
 
-async function testFirebaseConnection() {
+// Verificar configuración
+console.log('📋 Configuration:');
+console.log('  API Key:', firebaseConfig.apiKey ? '✅ Set' : '❌ Missing');
+console.log('  Auth Domain:', firebaseConfig.authDomain || '❌ Missing');
+console.log('  Project ID:', firebaseConfig.projectId || '❌ Missing');
+console.log('  Storage Bucket:', firebaseConfig.storageBucket || '❌ Missing');
+console.log('  App ID:', firebaseConfig.appId || '❌ Missing');
+
+if (!firebaseConfig.apiKey) {
+  console.error('❌ Firebase configuration incomplete!');
+  process.exit(1);
+}
+
+async function testFirebase() {
   try {
-    console.log('\n🔄 Inicializando Firebase...');
+    // Inicializar Firebase
+    console.log('\n🚀 Initializing Firebase...');
     const app = initializeApp(firebaseConfig);
-    console.log('✅ Firebase app inicializada');
-
-    console.log('\n🔄 Inicializando Firestore...');
     const db = getFirestore(app);
-    console.log('✅ Firestore inicializada');
-
-    console.log('\n🔄 Inicializando Auth...');
     const auth = getAuth(app);
-    console.log('✅ Auth inicializada');
+    
+    console.log('✅ Firebase initialized successfully');
 
-    console.log('\n🔄 Probando autenticación anónima...');
+    // Probar autenticación anónima
+    console.log('\n🔐 Testing anonymous authentication...');
     const userCredential = await signInAnonymously(auth);
-    console.log('✅ Autenticación anónima exitosa');
+    console.log('✅ Anonymous authentication successful');
     console.log('  User ID:', userCredential.user.uid);
 
-    console.log('\n🎉 ¡CONEXIÓN A FIREBASE EXITOSA!');
-    console.log('\n📋 Estado de la configuración:');
-    console.log('  ✅ Proyecto: pasteleria-cocina-app');
-    console.log('  ✅ Firestore: Conectado');
-    console.log('  ✅ Authentication: Funcionando');
-    console.log('  ✅ User ID generado:', userCredential.user.uid);
-
-    console.log('\n🔗 Enlaces útiles:');
-    console.log('  Firebase Console: https://console.firebase.google.com/project/pasteleria-cocina-app');
-    console.log('  Firestore: https://console.firebase.google.com/project/pasteleria-cocina-app/firestore');
-
-  } catch (error) {
-    console.error('\n❌ ERROR DE CONEXIÓN:');
-    console.error('  Código:', error.code);
-    console.error('  Mensaje:', error.message);
+    // Probar acceso a Firestore
+    console.log('\n📊 Testing Firestore access...');
+    const testCollection = collection(db, 'test');
     
-    if (error.code === 'auth/api-key-not-valid') {
-      console.error('\n🔧 SOLUCIÓN: La API Key no es válida');
-      console.error('  1. Verificar en Firebase Console > Project Settings');
-      console.error('  2. Regenerar la API Key si es necesario');
-    } else if (error.code === 'auth/project-not-found') {
-      console.error('\n🔧 SOLUCIÓN: El proyecto no existe');
-      console.error('  1. Verificar que el Project ID sea correcto');
-      console.error('  2. Crear el proyecto en Firebase Console');
-    } else if (error.code === 'auth/invalid-api-key') {
-      console.error('\n🔧 SOLUCIÓN: API Key inválida');
-      console.error('  1. Verificar la API Key en Firebase Console');
-      console.error('  2. Asegurarse de que la app web esté registrada');
+    try {
+      const snapshot = await getDocs(testCollection);
+      console.log('✅ Firestore access successful');
+      console.log('  Documents found:', snapshot.size);
+    } catch (firestoreError) {
+      console.error('❌ Firestore access failed:', firestoreError.message);
+      
+      if (firestoreError.code === 'permission-denied') {
+        console.log('\n🔧 SOLUTION:');
+        console.log('1. Go to Firebase Console > Firestore Database');
+        console.log('2. Go to Rules tab');
+        console.log('3. Make sure rules allow anonymous access:');
+        console.log('   match /{document=**} { allow read, write: if true; }');
+        console.log('4. Click "Publish"');
+      }
     }
+
+    console.log('\n🎉 Firebase test completed successfully!');
     
-    console.error('\n📞 SOPORTE:');
-    console.error('  - Firebase Console: https://console.firebase.google.com/');
-    console.error('  - Documentación: https://firebase.google.com/docs');
+  } catch (error) {
+    console.error('❌ Firebase test failed:', error.message);
+    
+    if (error.code === 'auth/operation-not-allowed') {
+      console.log('\n🔧 SOLUTION:');
+      console.log('1. Go to Firebase Console > Authentication');
+      console.log('2. Go to Sign-in method tab');
+      console.log('3. Enable "Anonymous" sign-in provider');
+      console.log('4. Click "Save"');
+    }
   }
 }
 
-testFirebaseConnection();
+testFirebase().catch(console.error);

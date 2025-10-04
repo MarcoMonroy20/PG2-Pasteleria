@@ -19,6 +19,7 @@ import { useColorScheme } from '../../components/useColorScheme';
 import { AndroidDeviceInfo } from '../../utils/android-optimizations';
 import { useAccessibility, useScreenReader } from '../../hooks/useAccessibility';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDataRefresh } from '../../contexts/DataContext';
 
 interface PedidoPorFecha {
   fecha: string;
@@ -32,6 +33,7 @@ export default function CalendarioScreen() {
   const { screenReaderEnabled } = useAccessibility();
   const { announce } = useScreenReader();
   const { hasPermission } = useAuth();
+  const { triggerRefresh, refreshTrigger } = useDataRefresh();
 
   // Optimizado a Android y estable en web: grid con FlatList numColumns=7
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -51,6 +53,14 @@ export default function CalendarioScreen() {
   useEffect(() => {
     cargarPedidos();
   }, []);
+
+  // Recargar pedidos cuando cambie el refreshTrigger
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      cargarPedidos();
+      console.log('📅 Calendario actualizado');
+    }
+  }, [refreshTrigger]);
 
   // Recargar datos cuando la pantalla se enfoque (al volver desde crear/editar)
   useFocusEffect(
@@ -369,7 +379,7 @@ export default function CalendarioScreen() {
                   </Text>
                   {count > 0 && (
                     <View style={[styles.cellBadge, isCurrentDay && styles.cellBadgeToday]}>
-                      <Text style={[styles.cellBadgeText, { fontSize: badgeFontSize }]}>{count}</Text>
+                      <Text style={[styles.cellBadgeText, { fontSize: badgeFontSize }, isCurrentDay && { color: 'white' }]}>{count}</Text>
                     </View>
                   )}
                   {isCurrentDay && (
@@ -717,7 +727,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 4,
     top: 4,
-    backgroundColor: Colors.light.buttonPrimary,
+    backgroundColor: 'white',
     borderRadius: 12,
     paddingHorizontal: 6,
     paddingVertical: 3,
@@ -727,16 +737,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 2,
-    elevation: 3,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.buttonPrimary,
   },
   cellBadgeToday: {
-    backgroundColor: Colors.light.buttonText,
+    backgroundColor: Colors.light.buttonPrimary,
+    borderColor: Colors.light.buttonText,
     shadowColor: Colors.light.buttonPrimary,
   },
   cellBadgeText: {
-    color: Colors.light.buttonText,
+    color: Colors.light.buttonPrimary,
     fontSize: 11,
     fontWeight: 'bold',
     textAlign: 'center'

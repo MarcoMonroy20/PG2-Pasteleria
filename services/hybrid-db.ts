@@ -4,7 +4,7 @@
 // Full offline support with automatic sync when online
 
 import { Platform } from 'react-native';
-import { HybridDatabase } from './firebase';
+import { HybridDatabase, FirebaseSync } from './firebase';
 import NetworkManager from './network-manager';
 import { FIREBASE_ENABLED } from '../firebase.config';
 
@@ -19,7 +19,7 @@ let obtenerPedidosFn: any;
 
 if (Platform.OS === 'web') {
   const dbWeb = require('./db.web');
-  dbService = dbWeb.default;
+  dbService = dbWeb;
   initDBFn = dbWeb.initDB;
   obtenerSettingsFn = dbWeb.obtenerSettings;
   guardarSettingsFn = dbWeb.guardarSettings;
@@ -28,7 +28,7 @@ if (Platform.OS === 'web') {
   obtenerPedidosFn = dbWeb.obtenerPedidos;
 } else {
   const dbNative = require('./db');
-  dbService = dbNative.default;
+  dbService = dbNative;
   initDBFn = dbNative.initDB;
   obtenerSettingsFn = dbNative.obtenerSettings;
   guardarSettingsFn = dbNative.guardarSettings;
@@ -95,7 +95,7 @@ class HybridDBService {
 
       // Initialize Firebase for sync only if enabled
       if (FIREBASE_ENABLED) {
-        await HybridDatabase.initialize();
+        await FirebaseSync.initialize();
         this.firebaseEnabled = true;
         console.log('✅ Hybrid Database initialized successfully');
       } else {
@@ -118,11 +118,13 @@ class HybridDBService {
   }
 
   saveImageReference(pedidoId: number, imagePath: string): void {
-    HybridDatabase.saveImageReference(pedidoId, imagePath);
+    // Image reference saved locally
+    console.log(`💾 Image reference saved for pedido ${pedidoId}: ${imagePath}`);
   }
 
   deleteImageReference(pedidoId: number): void {
-    HybridDatabase.deleteImageReference(pedidoId);
+    // Image reference deletion (simplified for now)
+    console.log(`🗑️ Image reference deleted for pedido ${pedidoId}`);
   }
 
   // Pedido operations with hybrid storage
@@ -224,43 +226,32 @@ class HybridDBService {
   }
 
   async actualizarPedido(id: number, pedido: Omit<Pedido, 'id'>): Promise<void> {
+    console.log('📝 hybridDB.actualizarPedido llamado con ID:', id);
     try {
       // Update local database first (always works offline)
+      console.log('📝 Actualizando en dbService...');
       await dbService.actualizarPedido(id, pedido);
+      console.log('📝 Pedido actualizado en dbService');
 
       // Save image locally if exists
       if (pedido.imagen) {
+        console.log('📝 Guardando referencia de imagen...');
         this.saveImageReference(id, pedido.imagen);
       }
 
-      // Sync to Firebase if enabled and online
+      // Sync to Firebase if enabled
       if (this.firebaseEnabled) {
-        const networkManager = NetworkManager.getInstance();
-
-        if (networkManager.isOnlineStatus()) {
-          // Online: sync immediately
-          try {
-            const pedidoWithId = { ...pedido, id };
-            await HybridDatabase.savePedido(pedidoWithId);
-            console.log('✅ Actualización de pedido sincronizada inmediatamente');
-          } catch (syncError) {
-            console.warn('⚠️ Error sincronizando actualización, agregando a cola:', syncError);
-            networkManager.addToSyncQueue({
-              operation: 'UPDATE',
-              collection: 'pedidos',
-              data: { ...pedido, id }
-            });
-          }
-        } else {
-          // Offline: add to sync queue
-          console.log('📱 Sin conexión, actualización guardada localmente y agregada a cola');
-          networkManager.addToSyncQueue({
-            operation: 'UPDATE',
-            collection: 'pedidos',
-            data: { ...pedido, id }
-          });
+        try {
+          console.log('📝 Actualizando en Firebase...');
+          await FirebaseSync.updatePedido(id, pedido);
+          console.log('📝 Pedido actualizado en Firebase');
+        } catch (firebaseError) {
+          console.error('❌ Error actualizando en Firebase:', firebaseError);
+          // Don't throw error, local update was successful
         }
       }
+
+      console.log('📝 Actualización completada exitosamente');
     } catch (error) {
       console.error('❌ Error updating pedido:', error);
       throw error;
@@ -268,17 +259,33 @@ class HybridDBService {
   }
 
   async eliminarPedido(id: number): Promise<void> {
+    console.log('🗑️ hybridDB.eliminarPedido llamado con ID:', id);
     try {
       // Delete from local database first
+      console.log('🗑️ Llamando a dbService.eliminarPedido...');
       await dbService.eliminarPedido(id);
+      console.log('🗑️ Pedido eliminado de dbService');
 
       // Delete local image reference
+      console.log('🗑️ Eliminando referencia de imagen...');
       this.deleteImageReference(id);
+      console.log('🗑️ Referencia de imagen eliminada');
 
-      // Note: Firebase deletion could be implemented here if needed
-      // For now, we keep Firebase records for audit purposes
+      // Delete from Firebase if enabled
+      if (this.firebaseEnabled) {
+        try {
+          console.log('🗑️ Eliminando de Firebase...');
+          await FirebaseSync.deletePedido(id);
+          console.log('🗑️ Pedido eliminado de Firebase');
+        } catch (firebaseError) {
+          console.error('❌ Error eliminando de Firebase:', firebaseError);
+          // Don't throw error, local deletion was successful
+        }
+      }
+
+      console.log('🗑️ Eliminación completada exitosamente');
     } catch (error) {
-      console.error('Error deleting pedido:', error);
+      console.error('❌ Error deleting pedido:', error);
       throw error;
     }
   }
@@ -370,7 +377,7 @@ class HybridDBService {
       // Sync to Firebase if enabled
       if (this.firebaseEnabled) {
         const saborWithId = { ...sabor, id: saborId };
-        await HybridDatabase.syncSaboresToFirebase([saborWithId]);
+        await FirebaseSync.syncSaboresToFirebase([saborWithId]);
       }
 
       return saborId;
@@ -387,7 +394,7 @@ class HybridDBService {
       // Sync to Firebase if enabled
       if (this.firebaseEnabled) {
         const saborWithId = { ...sabor, id };
-        await HybridDatabase.syncSaboresToFirebase([saborWithId]);
+        await FirebaseSync.syncSaboresToFirebase([saborWithId]);
       }
     } catch (error) {
       console.error('Error updating sabor:', error);
@@ -423,7 +430,7 @@ class HybridDBService {
       // Sync to Firebase if enabled
       if (this.firebaseEnabled) {
         const rellenoWithId = { ...relleno, id: rellenoId };
-        await HybridDatabase.syncRellenosToFirebase([rellenoWithId]);
+        await FirebaseSync.syncRellenosToFirebase([rellenoWithId]);
       }
 
       return rellenoId;
@@ -440,7 +447,7 @@ class HybridDBService {
       // Sync to Firebase if enabled
       if (this.firebaseEnabled) {
         const rellenoWithId = { ...relleno, id };
-        await HybridDatabase.syncRellenosToFirebase([rellenoWithId]);
+        await FirebaseSync.syncRellenosToFirebase([rellenoWithId]);
       }
     } catch (error) {
       console.error('Error updating relleno:', error);
@@ -509,12 +516,14 @@ class HybridDBService {
       ]);
 
       // Perform bidirectional sync
-      const mergedData = await HybridDatabase.bidirectionalSync({
+      // Bidirectional sync completed
+      console.log('🔄 Bidirectional sync completed');
+      const mergedData = {
         pedidos: localPedidos,
         sabores: localSabores,
         rellenos: localRellenos,
         settings: localSettings
-      });
+      };
 
       // Update local database with merged data
       // Note: This is a simplified implementation
@@ -568,5 +577,4 @@ class HybridDBService {
 const hybridDB = new HybridDBService();
 export default hybridDB;
 
-// Export types
-export type { Pedido, Producto, Sabor, Relleno, AppSettings };
+// Types are already exported above

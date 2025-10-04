@@ -139,11 +139,17 @@ export const obtenerPedidoPorId = (id: number): Promise<Pedido | null> => {
 
 export const actualizarPedido = (id: number, pedido: Omit<Pedido, 'id'>): Promise<void> => {
   return new Promise((resolve) => {
+    console.log('📝 db.web.actualizarPedido llamado con ID:', id);
     const pedidos = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEDIDOS) || '[]');
+    console.log('📝 Pedidos antes de actualizar:', pedidos.length);
     const index = pedidos.findIndex((p: Pedido) => p.id === id);
+    console.log('📝 Índice encontrado:', index);
     if (index !== -1) {
       pedidos[index] = { ...pedido, id };
       localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
+      console.log('📝 Pedido actualizado en localStorage');
+    } else {
+      console.log('❌ Pedido no encontrado para actualizar');
     }
     resolve();
   });
@@ -151,9 +157,18 @@ export const actualizarPedido = (id: number, pedido: Omit<Pedido, 'id'>): Promis
 
 export const eliminarPedido = (id: number): Promise<void> => {
   return new Promise((resolve) => {
+    console.log('🗑️ db.web.eliminarPedido llamado con ID:', id);
     const pedidos = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEDIDOS) || '[]');
-    const filteredPedidos = pedidos.filter((p: Pedido) => p.id !== id);
+    console.log('🗑️ Pedidos antes de eliminar:', pedidos.length);
+    console.log('🗑️ IDs de pedidos antes:', pedidos.map((p: Pedido) => p.id));
+    const filteredPedidos = pedidos.filter((p: Pedido) => {
+      console.log(`🗑️ Comparando ${p.id} !== ${id}:`, p.id !== id);
+      return p.id !== id;
+    });
+    console.log('🗑️ Pedidos después de filtrar:', filteredPedidos.length);
+    console.log('🗑️ IDs de pedidos después:', filteredPedidos.map((p: Pedido) => p.id));
     localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(filteredPedidos));
+    console.log('🗑️ Pedidos guardados en localStorage');
     resolve();
   });
 };
