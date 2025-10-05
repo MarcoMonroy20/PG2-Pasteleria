@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.pasteleriacocina.marcomonroyumg.app'
+    namespace 'com.pasteleriacocina.marcopolos.app'
     defaultConfig {
-        applicationId 'com.pasteleriacocina.marcomonroyumg.app'
+        applicationId 'com.pasteleriacocina.marcopolos.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -109,13 +109,20 @@ export default function ProximosPedidosScreen() {
 
   const cargarSaboresYRellenos = async () => {
     try {
-      // Sync with Firebase first (Firebase is source of truth)
+      // Try to sync with Firebase first (optional - won't fail if no connection)
       if (hybridDB.isFirebaseEnabled()) {
-        console.log('🔄 Sincronizando con Firebase en Próximos Pedidos...');
-        await hybridDB.syncFromCloud();
+        try {
+          console.log('🔄 Sincronizando con Firebase en Próximos Pedidos...');
+          await hybridDB.syncFromCloud();
+          console.log('✅ Sincronización con Firebase exitosa en Próximos Pedidos');
+        } catch (syncError) {
+          console.warn('⚠️ No se pudo sincronizar con Firebase (sin conexión o error):', syncError);
+          // Continue with local data - this is expected behavior offline
+        }
       }
       
       // Read data using hybrid DB functions (works on both web and native)
+      // This will use local data if Firebase is not available
       const saboresData = await hybridDB.obtenerSabores();
       const rellenosData = await hybridDB.obtenerRellenos();
       

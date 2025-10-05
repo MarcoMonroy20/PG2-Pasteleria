@@ -174,8 +174,11 @@ class HybridImageService {
   // Get all image references
   static async getAllImageReferences(): Promise<ImageReference[]> {
     try {
+      console.log('📷 Getting all image references...');
       const stored = await AsyncStorage.getItem(this.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const references = stored ? JSON.parse(stored) : [];
+      console.log(`📷 Found ${references.length} image references`);
+      return references;
     } catch (error) {
       console.error('❌ Error getting image references:', error);
       return [];
@@ -214,8 +217,11 @@ class HybridImageService {
   // Get pending uploads
   static async getPendingUploads(): Promise<Array<{pedidoId: number, imageUri: string, timestamp: number}>> {
     try {
+      console.log('📤 Getting pending uploads...');
       const stored = await AsyncStorage.getItem(this.PENDING_UPLOADS_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const pending = stored ? JSON.parse(stored) : [];
+      console.log(`📤 Found ${pending.length} pending uploads`);
+      return pending;
     } catch (error) {
       console.error('❌ Error getting pending uploads:', error);
       return [];
@@ -384,18 +390,42 @@ class HybridImageService {
     pendingUploads: number;
     localOnlyImages: number;
   }> {
-    const references = await this.getAllImageReferences();
-    const pending = await this.getPendingUploads();
-    
-    const uploadedImages = references.filter(ref => ref.uploaded).length;
-    const localOnlyImages = references.filter(ref => !ref.uploaded).length;
-    
-    return {
-      totalImages: references.length,
-      uploadedImages,
-      pendingUploads: pending.length,
-      localOnlyImages
-    };
+    try {
+      console.log('📊 Getting image sync status...');
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout getting sync status')), 5000);
+      });
+      
+      const getStatusPromise = async () => {
+        const references = await this.getAllImageReferences();
+        const pending = await this.getPendingUploads();
+        
+        const uploadedImages = references.filter(ref => ref.uploaded).length;
+        const localOnlyImages = references.filter(ref => !ref.uploaded).length;
+        
+        console.log(`📊 Sync status: ${references.length} total, ${uploadedImages} uploaded, ${pending.length} pending`);
+        
+        return {
+          totalImages: references.length,
+          uploadedImages,
+          pendingUploads: pending.length,
+          localOnlyImages
+        };
+      };
+      
+      return await Promise.race([getStatusPromise(), timeoutPromise]);
+    } catch (error) {
+      console.error('❌ Error getting sync status:', error);
+      // Return default values if there's an error
+      return {
+        totalImages: 0,
+        uploadedImages: 0,
+        pendingUploads: 0,
+        localOnlyImages: 0
+      };
+    }
   }
 }
 

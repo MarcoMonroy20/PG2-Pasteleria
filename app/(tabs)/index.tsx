@@ -1,14 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import Colors from '../../constants/Colors';
 import { useAuth } from '../../contexts/AuthContext';
 import OfflineIndicator from '../../components/OfflineIndicator';
+import AndroidDebugger from '../../components/AndroidDebugger';
+import hybridDB from '../../services/hybrid-db';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { user, hasPermission, logout } = useAuth();
+  const [localDataStatus, setLocalDataStatus] = useState({ sabores: 0, rellenos: 0, pedidos: 0 });
+
+  // Cargar estado de datos locales
+  useEffect(() => {
+    const checkLocalData = async () => {
+      try {
+        await hybridDB.initialize();
+        const [sabores, rellenos, pedidos] = await Promise.all([
+          hybridDB.obtenerSabores(),
+          hybridDB.obtenerRellenos(),
+          hybridDB.obtenerPedidos(),
+        ]);
+        setLocalDataStatus({
+          sabores: sabores.length,
+          rellenos: rellenos.length,
+          pedidos: pedidos.length,
+        });
+      } catch (error) {
+        console.error('Error checking local data:', error);
+      }
+    };
+    checkLocalData();
+  }, []);
 
   // Debug logs
   console.log('🏠 HomeScreen - Usuario actual:', user);
@@ -130,10 +155,28 @@ export default function HomeScreen() {
       {/* Indicador de estado offline */}
       <OfflineIndicator />
 
+      {/* Indicador de datos locales */}
+      <View style={{backgroundColor: '#f0f8ff', padding: 8, margin: 10, borderRadius: 8, borderWidth: 1, borderColor: '#007AFF'}}>
+        <Text style={{color: '#007AFF', fontSize: 12, textAlign: 'center', fontWeight: 'bold'}}>
+          📊 Datos Locales (Offline)
+        </Text>
+        <Text style={{color: '#007AFF', fontSize: 10, textAlign: 'center', marginTop: 2}}>
+          Sabores: {localDataStatus.sabores} | Rellenos: {localDataStatus.rellenos} | Pedidos: {localDataStatus.pedidos}
+        </Text>
+        {(localDataStatus.sabores === 0 || localDataStatus.rellenos === 0) && (
+          <Text style={{color: 'red', fontSize: 10, textAlign: 'center', marginTop: 4, fontWeight: 'bold'}}>
+            ⚠️ PROBLEMA: Datos no guardados localmente
+          </Text>
+        )}
+      </View>
+
       {/* Contenedor de botones centrados */}
       <View style={styles.buttonsContainer}>
         {renderButtonsByRole()}
       </View>
+
+      {/* Debugger flotante para Android */}
+      <AndroidDebugger />
     </View>
   );
 }

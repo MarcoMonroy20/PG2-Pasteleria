@@ -1,4 +1,4 @@
-package com.pasteleriacocina.marcomonroyumg.app
+package com.pasteleriacocina.marcopolos.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

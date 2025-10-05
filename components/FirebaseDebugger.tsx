@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { FIREBASE_ENABLED, firebaseConfig } from '../firebase.config';
 import hybridDB from '../services/hybrid-db';
+import { HybridDatabase } from '../services/firebase';
 import Colors from '../constants/Colors';
 
 interface FirebaseDiagnostic {
@@ -221,7 +222,6 @@ export default function FirebaseDebugger() {
               // 3. Si hay problemas, intentar reinicializar
               if (!diagnostic?.isConnected || !diagnostic?.hasCredentials) {
                 console.log('🔄 Intentando reinicializar Firebase...');
-                const { HybridDatabase } = await import('../services/firebase');
                 await HybridDatabase.reinitialize();
                 await runDiagnostic();
               }

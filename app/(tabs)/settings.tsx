@@ -361,7 +361,7 @@ export default function SettingsScreen() {
           style={styles.input}
           value={settings.company_name || ''}
           onChangeText={(t) => updateField({ company_name: t })}
-          placeholder="Sweet Cakes"
+          placeholder="Nombre de la empresa"
           placeholderTextColor={Colors.light.inputText}
         />
         <Text style={[styles.label, { marginTop: 12 }]}>Teléfono</Text>
@@ -370,7 +370,7 @@ export default function SettingsScreen() {
           value={settings.phone || ''}
           onChangeText={(t) => updateField({ phone: t.replace(/[^0-9+\s-]/g, '') })}
           keyboardType="phone-pad"
-          placeholder="53597287"
+          placeholder="22222222"
           placeholderTextColor={Colors.light.inputText}
         />
       </View>

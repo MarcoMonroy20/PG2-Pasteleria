@@ -2,6 +2,7 @@
 import { NetInfoStateType, useNetInfo } from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import { HybridDatabase, FirebaseSync } from './firebase';
 
 export interface NetworkStatus {
   isConnected: boolean;
@@ -52,7 +53,7 @@ class NetworkManager {
     // Para React Native, usamos NetInfo
     if (Platform.OS !== 'web') {
       const NetInfo = require('@react-native-community/netinfo');
-      const unsubscribe = NetInfo.addEventListener(state => {
+      const unsubscribe = NetInfo.addEventListener((state: any) => {
         const newStatus: NetworkStatus = {
           isConnected: state.isConnected ?? false,
           type: state.type,
@@ -180,7 +181,6 @@ class NetworkManager {
   }
 
   private async syncItem(item: PendingSyncItem) {
-    const { HybridDatabase } = await import('./firebase');
 
     switch (item.collection) {
       case 'pedidos':
@@ -191,13 +191,13 @@ class NetworkManager {
 
       case 'sabores':
         if (item.operation === 'CREATE') {
-          await HybridDatabase.syncSaboresToFirebase([item.data]);
+          await FirebaseSync.syncSaboresToFirebase([item.data]);
         }
         break;
 
       case 'rellenos':
         if (item.operation === 'CREATE') {
-          await HybridDatabase.syncRellenosToFirebase([item.data]);
+          await FirebaseSync.syncRellenosToFirebase([item.data]);
         }
         break;
 
@@ -233,7 +233,7 @@ class NetworkManager {
   getCurrentStatus(): NetworkStatus {
     return {
       isConnected: this.isOnline,
-      type: this.isOnline ? 'wifi' : 'none',
+      type: this.isOnline ? NetInfoStateType.wifi : NetInfoStateType.none,
       isInternetReachable: this.isOnline
     };
   }
@@ -263,7 +263,7 @@ class NetworkManager {
 export function useNetworkStatus() {
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
     isConnected: true,
-    type: 'wifi',
+    type: NetInfoStateType.wifi,
     isInternetReachable: true
   });
 

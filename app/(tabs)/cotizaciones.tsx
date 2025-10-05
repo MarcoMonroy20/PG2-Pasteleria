@@ -5,6 +5,9 @@ import { useNavigation } from 'expo-router';
 import * as DB from '../../services/db';
 import { Asset } from 'expo-asset';
 import { useAuth } from '../../contexts/AuthContext';
+import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 type ItemCotizacion = {
   id: number;
@@ -277,22 +280,20 @@ export default function CotizacionesScreen() {
         win.print();
         return;
       }
-      const Print = await import('expo-print');
       const { uri } = await Print.printToFileAsync({ html });
       const filename = buildFileName();
 
       if (Platform.OS === 'android') {
         try {
-          const FS = await import('expo-file-system');
-          const permissions = await FS.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
           if (permissions.granted) {
-            const base64 = await FS.readAsStringAsync(uri, { encoding: FS.EncodingType.Base64 });
-            const fileUri = await FS.StorageAccessFramework.createFileAsync(
+            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
               permissions.directoryUri,
               filename,
               'application/pdf'
             );
-            await FS.writeAsStringAsync(fileUri, base64, { encoding: FS.EncodingType.Base64 });
+            await FileSystem.writeAsStringAsync(fileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
             Alert.alert('Éxito', `Guardado como ${filename}`);
             return;
           }
@@ -302,7 +303,6 @@ export default function CotizacionesScreen() {
       }
 
       // Fallback iOS / Android sin SAF: compartir/guardar manualmente
-      const Sharing = await import('expo-sharing');
       const can = await Sharing.isAvailableAsync();
       if (can) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });

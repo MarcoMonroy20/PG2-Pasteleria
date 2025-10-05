@@ -8,6 +8,7 @@ import { HybridDatabase, FirebaseSync } from './firebase';
 import NetworkManager from './network-manager';
 import HybridImageService from './image-service';
 import { FIREBASE_ENABLED } from '../firebase.config';
+import VisualLogger from '../utils/VisualLogger';
 
 // Import existing services based on platform
 let dbService: any;
@@ -17,6 +18,10 @@ let guardarSettingsFn: any;
 let obtenerSaboresFn: any;
 let obtenerRellenosFn: any;
 let obtenerPedidosFn: any;
+let eliminarTodosLosSaboresFn: any;
+let eliminarTodosLosRellenosFn: any;
+let crearSaborFn: any;
+let crearRellenoFn: any;
 
 if (Platform.OS === 'web') {
   const dbWeb = require('./db.web');
@@ -27,6 +32,10 @@ if (Platform.OS === 'web') {
   obtenerSaboresFn = dbWeb.obtenerSabores;
   obtenerRellenosFn = dbWeb.obtenerRellenos;
   obtenerPedidosFn = dbWeb.obtenerPedidos;
+  eliminarTodosLosSaboresFn = dbWeb.eliminarTodosLosSabores;
+  eliminarTodosLosRellenosFn = dbWeb.eliminarTodosLosRellenos;
+  crearSaborFn = dbWeb.crearSabor;
+  crearRellenoFn = dbWeb.crearRelleno;
 } else {
   const dbNative = require('./db');
   dbService = dbNative;
@@ -36,6 +45,10 @@ if (Platform.OS === 'web') {
   obtenerSaboresFn = dbNative.obtenerSabores;
   obtenerRellenosFn = dbNative.obtenerRellenos;
   obtenerPedidosFn = dbNative.obtenerPedidos;
+  eliminarTodosLosSaboresFn = dbNative.eliminarTodosLosSabores;
+  eliminarTodosLosRellenosFn = dbNative.eliminarTodosLosRellenos;
+  crearSaborFn = dbNative.crearSabor;
+  crearRellenoFn = dbNative.crearRelleno;
 }
 
 // Interfaces
@@ -89,7 +102,9 @@ class HybridDBService {
   async initialize(): Promise<void> {
     try {
       // Initialize local database first
+      console.log('🔄 Initializing local database...');
       await initDBFn();
+      console.log('✅ Local database initialized');
 
       // Initialize Network Manager for offline detection
       const networkManager = NetworkManager.getInstance();
@@ -115,6 +130,7 @@ class HybridDBService {
       console.log(`📋 Elementos pendientes: ${networkManager.getPendingSyncCount()}`);
     } catch (error) {
       console.error('❌ Error initializing Hybrid Database:', error);
+      VisualLogger.error(`[ANDROID] Error initializing database: ${error}`);
       // Continue with local database only
       this.firebaseEnabled = false;
     }
@@ -201,8 +217,25 @@ class HybridDBService {
         // Try to get from Firebase first (with local images)
         pedidos = await HybridDatabase.getAllPedidos();
 
-        // If no pedidos from Firebase, fall back to local
-        if (pedidos.length === 0) {
+        // If we got pedidos from Firebase, save them locally for offline use
+        if (pedidos.length > 0) {
+          if (__DEV__) console.log('Guardando pedidos de Firebase en local para offline...');
+          try {
+            // Save each pedido locally (without images for now)
+            for (const pedido of pedidos) {
+              // Check if pedido already exists locally
+              const existingPedido = await dbService.obtenerPedidoPorId(pedido.id!);
+              if (!existingPedido) {
+                await dbService.crearPedido(pedido);
+              }
+            }
+            if (__DEV__) console.log(`✅ ${pedidos.length} pedidos guardados localmente`);
+          } catch (error) {
+            console.error('Error saving Firebase pedidos locally:', error);
+            VisualLogger.error(`[ANDROID] Error guardando pedidos localmente: ${error}`);
+          }
+        } else {
+          // If no pedidos from Firebase, fall back to local
           pedidos = await dbService.obtenerPedidos();
         }
       } else {
@@ -466,26 +499,52 @@ class HybridDBService {
     try {
       let sabores: Sabor[];
 
+      if (__DEV__) {
+        console.log(`obtenerSabores() - Firebase enabled: ${this.firebaseEnabled}`);
+      }
+      
       if (this.firebaseEnabled) {
         // Try to get from Firebase first (source of truth)
+        if (__DEV__) console.log('Intentando obtener sabores desde Firebase...');
         sabores = await HybridDatabase.getAllSabores();
+        if (__DEV__) console.log(`Sabores desde Firebase: ${sabores.length}`);
         
-        // If no sabores from Firebase, fall back to local
-        if (sabores.length === 0) {
-          console.log('📊 No sabores en Firebase, obteniendo desde base de datos local...');
+        // If we got sabores from Firebase, save them locally for offline use
+        if (sabores.length > 0) {
+          if (__DEV__) console.log('Guardando sabores de Firebase en local para offline...');
+          try {
+            // Clear existing sabores and save Firebase data locally
+            await eliminarTodosLosSaboresFn();
+            for (const sabor of sabores) {
+              await crearSaborFn(sabor);
+            }
+            if (__DEV__) console.log(`✅ ${sabores.length} sabores guardados localmente`);
+          } catch (error) {
+            console.error('Error saving Firebase sabores locally:', error);
+            VisualLogger.error(`[ANDROID] Error guardando sabores localmente: ${error}`);
+          }
+        } else {
+          // If no sabores from Firebase, fall back to local
+          if (__DEV__) console.log('No sabores en Firebase, obteniendo desde base de datos local...');
           sabores = await obtenerSaboresFn(tipo);
+          if (__DEV__) console.log(`Sabores desde local: ${sabores.length}`);
         }
       } else {
         // Use local database only
+        if (__DEV__) console.log('Firebase deshabilitado, usando solo base de datos local...');
         sabores = await obtenerSaboresFn(tipo);
+        if (__DEV__) console.log(`Sabores desde local: ${sabores.length}`);
       }
 
       // Filter by type if specified
       if (tipo) {
         sabores = sabores.filter(sabor => sabor.tipo === tipo);
+        if (__DEV__) console.log(`Sabores filtrados por tipo '${tipo}': ${sabores.length}`);
       }
 
-      console.log(`📊 Obtenidos ${sabores.length} sabores (tipo: ${tipo || 'todos'})`);
+      if (__DEV__) {
+        console.log(`Total sabores obtenidos: ${sabores.length} (tipo: ${tipo || 'todos'})`);
+      }
       return sabores;
     } catch (error) {
       console.error('Error getting sabores:', error);
@@ -549,21 +608,46 @@ class HybridDBService {
     try {
       let rellenos: Relleno[];
 
+      if (__DEV__) {
+        console.log(`obtenerRellenos() - Firebase enabled: ${this.firebaseEnabled}`);
+      }
+      
       if (this.firebaseEnabled) {
         // Try to get from Firebase first (source of truth)
+        if (__DEV__) console.log('Intentando obtener rellenos desde Firebase...');
         rellenos = await HybridDatabase.getAllRellenos();
+        if (__DEV__) console.log(`Rellenos desde Firebase: ${rellenos.length}`);
         
-        // If no rellenos from Firebase, fall back to local
-        if (rellenos.length === 0) {
-          console.log('📊 No rellenos en Firebase, obteniendo desde base de datos local...');
+        // If we got rellenos from Firebase, save them locally for offline use
+        if (rellenos.length > 0) {
+          if (__DEV__) console.log('Guardando rellenos de Firebase en local para offline...');
+          try {
+            // Clear existing rellenos and save Firebase data locally
+            await eliminarTodosLosRellenosFn();
+            for (const relleno of rellenos) {
+              await crearRellenoFn(relleno);
+            }
+            if (__DEV__) console.log(`✅ ${rellenos.length} rellenos guardados localmente`);
+          } catch (error) {
+            console.error('Error saving Firebase rellenos locally:', error);
+            VisualLogger.error(`[ANDROID] Error guardando rellenos localmente: ${error}`);
+          }
+        } else {
+          // If no rellenos from Firebase, fall back to local
+          if (__DEV__) console.log('No rellenos en Firebase, obteniendo desde base de datos local...');
           rellenos = await obtenerRellenosFn();
+          if (__DEV__) console.log(`Rellenos desde local: ${rellenos.length}`);
         }
       } else {
         // Use local database only
+        if (__DEV__) console.log('Firebase deshabilitado, usando solo base de datos local...');
         rellenos = await obtenerRellenosFn();
+        if (__DEV__) console.log(`Rellenos desde local: ${rellenos.length}`);
       }
 
-      console.log(`📊 Obtenidos ${rellenos.length} rellenos`);
+      if (__DEV__) {
+        console.log(`Total rellenos obtenidos: ${rellenos.length}`);
+      }
       return rellenos;
     } catch (error) {
       console.error('Error getting rellenos:', error);
@@ -701,6 +785,13 @@ class HybridDBService {
     try {
       console.log('🔄 Updating local storage with Firebase data...');
       
+      // Verify functions are available
+      if (!crearSaborFn || !crearRellenoFn) {
+        VisualLogger.error('[ANDROID] Database functions not available');
+        console.error('❌ Database functions not available:', { crearSaborFn: !!crearSaborFn, crearRellenoFn: !!crearRellenoFn });
+        return;
+      }
+      
       // Update local storage with Firebase data
       if (Platform.OS === 'web') {
         // For web, update localStorage directly
@@ -715,24 +806,38 @@ class HybridDBService {
       } else {
         // For native, update SQLite database
         // Clear existing sabores and rellenos
-        await this.dbService.eliminarTodosLosSabores();
-        await this.dbService.eliminarTodosLosRellenos();
+        console.log('🗑️ Eliminando sabores y rellenos existentes...');
+        await eliminarTodosLosSaboresFn();
+        await eliminarTodosLosRellenosFn();
         
-        // Insert Firebase data
+        // Insert Firebase data using imported functions
+        VisualLogger.log(`[ANDROID] Insertando ${firebaseData.sabores.length} sabores en SQLite...`);
         for (const sabor of firebaseData.sabores) {
           try {
-            await this.dbService.crearSabor(sabor);
+            const saborId = await crearSaborFn(sabor);
+            VisualLogger.success(`[ANDROID] Sabor insertado: ${sabor.nombre} (ID: ${saborId})`);
           } catch (error) {
-            console.error(`❌ Error inserting sabor ${sabor.nombre}:`, error);
+            VisualLogger.error(`[ANDROID] Error inserting sabor ${sabor.nombre}: ${error}`);
           }
         }
         
+        VisualLogger.log(`[ANDROID] Insertando ${firebaseData.rellenos.length} rellenos en SQLite...`);
         for (const relleno of firebaseData.rellenos) {
           try {
-            await this.dbService.crearRelleno(relleno);
+            const rellenoId = await crearRellenoFn(relleno);
+            VisualLogger.success(`[ANDROID] Relleno insertado: ${relleno.nombre} (ID: ${rellenoId})`);
           } catch (error) {
-            console.error(`❌ Error inserting relleno ${relleno.nombre}:`, error);
+            VisualLogger.error(`[ANDROID] Error inserting relleno ${relleno.nombre}: ${error}`);
           }
+        }
+        
+        // Verificar que los datos se guardaron
+        try {
+          const saboresVerificacion = await obtenerSaboresFn();
+          const rellenosVerificacion = await obtenerRellenosFn();
+          VisualLogger.success(`[ANDROID] Verificación: ${saboresVerificacion.length} sabores y ${rellenosVerificacion.length} rellenos en SQLite`);
+        } catch (error) {
+          VisualLogger.error(`[ANDROID] Error verificando datos guardados: ${error}`);
         }
       }
     } catch (error) {
@@ -792,11 +897,21 @@ class HybridDBService {
     try {
       console.log('🔄 Starting full data sync...');
       
+      // Get local data first
+      const localPedidos = await dbService.obtenerPedidos();
+      const localSettings = await obtenerSettingsFn();
+      
       // Sync pedidos (without images)
-      await FirebaseSync.syncPedidos();
+      if (localPedidos.length > 0) {
+        await FirebaseSync.syncPedidosToFirebase(localPedidos);
+        console.log(`📊 Synced ${localPedidos.length} pedidos to Firebase`);
+      }
       
       // Sync settings
-      await FirebaseSync.syncSettings();
+      if (localSettings) {
+        await FirebaseSync.syncSettingsToFirebase(localSettings);
+        console.log('⚙️ Synced settings to Firebase');
+      }
       
       // Sync pending image uploads to Cloudinary
       await HybridImageService.syncPendingUploads();

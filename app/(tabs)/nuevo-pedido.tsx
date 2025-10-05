@@ -74,12 +74,19 @@ export default function NuevoPedidoScreen() {
       try {
         await hybridDB.initialize();
         
-        // Sync with Firebase first (Firebase is source of truth)
+        // Try to sync with Firebase first (optional - won't fail if no connection)
         if (hybridDB.isFirebaseEnabled()) {
-          await hybridDB.syncFromCloud();
+          try {
+            await hybridDB.syncFromCloud();
+            console.log('✅ Sincronización con Firebase exitosa en Nuevo Pedido');
+          } catch (syncError) {
+            console.warn('⚠️ No se pudo sincronizar con Firebase (sin conexión o error):', syncError);
+            // Continue with local data - this is expected behavior offline
+          }
         }
         
         // Read data using hybrid DB functions (works on both web and native)
+        // This will use local data if Firebase is not available
         const [saboresData, rellenosData] = await Promise.all([
           hybridDB.obtenerSabores(),
           hybridDB.obtenerRellenos(),
@@ -90,6 +97,12 @@ export default function NuevoPedidoScreen() {
         setSabores(saboresData);
         setRellenos(rellenosData);
         setSettings(settingsData);
+        
+        if (__DEV__) {
+          console.log('Datos cargados en Nuevo Pedido:');
+          console.log(`Sabores: ${saboresData.length}`, saboresData);
+          console.log(`Rellenos: ${rellenosData.length}`, rellenosData);
+        }
       } catch (error) {
         console.error('❌ Error cargando datos:', error);
       }
@@ -275,8 +288,20 @@ export default function NuevoPedidoScreen() {
       
       setSabores(saboresData);
       setRellenos(rellenosData);
+      
+      if (__DEV__) {
+        console.log('Datos recargados para modal:');
+        console.log(`Sabores: ${saboresData.length}`, saboresData);
+        console.log(`Rellenos: ${rellenosData.length}`, rellenosData);
+      }
     } catch (error) {
       console.error('❌ Error recargando datos para modal:', error);
+    }
+    
+    if (__DEV__) {
+      console.log('Abriendo modal con datos actuales:');
+      console.log(`Sabores en estado: ${sabores.length}`);
+      console.log(`Rellenos en estado: ${rellenos.length}`);
     }
     
     setModalVisible(true);
@@ -684,6 +709,43 @@ export default function NuevoPedidoScreen() {
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Agregar Producto</Text>
             
+            {/* Debug info visual - Siempre visible para Android */}
+            <View style={{backgroundColor: '#f0f0f0', padding: 8, marginBottom: 10, borderRadius: 4}}>
+              <Text style={{color: 'black', fontSize: 12, textAlign: 'center'}}>
+                Debug: Sabores: {sabores.length} | Rellenos: {rellenos.length} | Tipo: {productoTipo}
+              </Text>
+              {sabores.length === 0 && (
+                <Text style={{color: 'red', fontSize: 10, textAlign: 'center', marginTop: 4}}>
+                  ⚠️ No hay sabores cargados
+                </Text>
+              )}
+              {rellenos.length === 0 && (
+                <Text style={{color: 'red', fontSize: 10, textAlign: 'center', marginTop: 4}}>
+                  ⚠️ No hay rellenos cargados
+                </Text>
+              )}
+              <TouchableOpacity 
+                style={{backgroundColor: '#007AFF', padding: 6, borderRadius: 4, marginTop: 8}}
+                onPress={async () => {
+                  try {
+                    await hybridDB.initialize();
+                    const [saboresData, rellenosData] = await Promise.all([
+                      hybridDB.obtenerSabores(),
+                      hybridDB.obtenerRellenos(),
+                    ]);
+                    setSabores(saboresData);
+                    setRellenos(rellenosData);
+                  } catch (error) {
+                    console.error('Error recargando datos:', error);
+                  }
+                }}
+              >
+                <Text style={{color: 'white', fontSize: 10, textAlign: 'center'}}>
+                  🔄 Recargar Datos
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
             <ScrollView style={styles.modalScrollView}>
               
               <View style={styles.buttonRow}>
@@ -758,9 +820,24 @@ export default function NuevoPedidoScreen() {
                         return true;
                       }
                     }).length === 0 && (
-                      <Text style={{color: 'red', fontSize: 12, marginTop: 10}}>
-                        No hay sabores disponibles para {productoTipo}. Ve a "Sabores y Rellenos" para agregar algunos.
-                      </Text>
+                      <View style={{backgroundColor: '#ffebee', padding: 12, borderRadius: 8, marginTop: 10}}>
+                        <Text style={{color: 'red', fontSize: 14, fontWeight: 'bold', textAlign: 'center'}}>
+                          ⚠️ PROBLEMA DE DATOS
+                        </Text>
+                        <Text style={{color: 'red', fontSize: 12, textAlign: 'center', marginTop: 4}}>
+                          Total sabores cargados: {sabores.length}
+                        </Text>
+                        <Text style={{color: 'red', fontSize: 12, textAlign: 'center', marginTop: 2}}>
+                          Sabores para {productoTipo}: {sabores.filter(sabor => {
+                            if (productoTipo === 'pastel') return sabor.tipo === 'pastel';
+                            if (productoTipo === 'cupcakes') return sabor.tipo === 'cupcakes';
+                            return true;
+                          }).length}
+                        </Text>
+                        <Text style={{color: 'red', fontSize: 10, textAlign: 'center', marginTop: 4}}>
+                          Ve a "Sabores y Rellenos" para agregar algunos.
+                        </Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -782,9 +859,17 @@ export default function NuevoPedidoScreen() {
                       </TouchableOpacity>
                     ))}
                     {rellenos.length === 0 && (
-                      <Text style={{color: 'red', fontSize: 12, marginTop: 10}}>
-                        No hay rellenos disponibles. Ve a "Sabores y Rellenos" para agregar algunos.
-                      </Text>
+                      <View style={{backgroundColor: '#ffebee', padding: 12, borderRadius: 8, marginTop: 10}}>
+                        <Text style={{color: 'red', fontSize: 14, fontWeight: 'bold', textAlign: 'center'}}>
+                          ⚠️ PROBLEMA DE DATOS
+                        </Text>
+                        <Text style={{color: 'red', fontSize: 12, textAlign: 'center', marginTop: 4}}>
+                          Total rellenos cargados: {rellenos.length}
+                        </Text>
+                        <Text style={{color: 'red', fontSize: 10, textAlign: 'center', marginTop: 4}}>
+                          Ve a "Sabores y Rellenos" para agregar algunos.
+                        </Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -1050,6 +1135,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 20,
+  },
+  pillButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.light.buttonPrimary,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  pillButtonActive: {
+    backgroundColor: Colors.light.buttonPrimary,
+    borderColor: Colors.light.buttonPrimary,
+  },
+  pillButtonText: {
+    color: Colors.light.buttonPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pillButtonTextActive: {
+    color: 'white',
   },
   buttonGrid: {
     flexDirection: 'row',

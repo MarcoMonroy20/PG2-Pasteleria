@@ -300,11 +300,12 @@ export class FirebaseSync {
 
   // Get pedidos from Firebase
   static async getPedidosFromFirebase(): Promise<any[]> {
-    if (!this.userId) return [];
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return [];
 
     const q = query(
       collection(db, 'pedidos'),
-      where('userId', '==', this.userId),
+      where('userId', '==', userId),
       orderBy('fecha_entrega', 'asc')
     );
 
@@ -340,9 +341,10 @@ export class FirebaseSync {
 
   // Get settings from Firebase
   static async getSettingsFromFirebase(): Promise<any | null> {
-    if (!this.userId) return null;
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return null;
 
-    const docRef = doc(db, 'settings', this.userId);
+    const docRef = doc(db, 'settings', userId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -415,12 +417,13 @@ export class FirebaseSync {
 
   // Get sabores from Firebase
   static async getSaboresFromFirebase(): Promise<any[]> {
-    if (!this.userId) return [];
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return [];
 
     try {
       const q = query(
         collection(db, 'sabores'),
-        where('userId', '==', this.userId)
+        where('userId', '==', userId)
       );
       const querySnapshot = await getDocs(q);
       const sabores = querySnapshot.docs.map(doc => ({
@@ -429,7 +432,7 @@ export class FirebaseSync {
         tipo: doc.data().tipo,
         activo: doc.data().activo
       }));
-      console.log(`📊 Obtenidos ${sabores.length} sabores de Firebase`);
+      console.log(`📊 Obtenidos ${sabores.length} sabores de Firebase (userId: ${userId})`);
       return sabores;
     } catch (error) {
       console.error('❌ Error obteniendo sabores de Firebase:', error);
@@ -439,12 +442,13 @@ export class FirebaseSync {
 
   // Get rellenos from Firebase
   static async getRellenosFromFirebase(): Promise<any[]> {
-    if (!this.userId) return [];
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return [];
 
     try {
       const q = query(
         collection(db, 'rellenos'),
-        where('userId', '==', this.userId)
+        where('userId', '==', userId)
       );
       const querySnapshot = await getDocs(q);
       const rellenos = querySnapshot.docs.map(doc => ({
@@ -453,7 +457,7 @@ export class FirebaseSync {
         tipo: doc.data().tipo,
         activo: doc.data().activo
       }));
-      console.log(`📊 Obtenidos ${rellenos.length} rellenos de Firebase`);
+      console.log(`📊 Obtenidos ${rellenos.length} rellenos de Firebase (userId: ${userId})`);
       return rellenos;
     } catch (error) {
       console.error('❌ Error obteniendo rellenos de Firebase:', error);

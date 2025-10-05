@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Sweet Cakes: Agenda",
-    "slug": "pasteleria-cocina-app-marcomonroyumg",
+    "slug": "pasteleria-cocina-app-marcopolos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -23,7 +23,7 @@
     "ios": {
       "supportsTablet": true,
       "buildNumber": "1.0.0",
-      "bundleIdentifier": "com.pasteleriacocina.marcomonroyumg.app"
+      "bundleIdentifier": "com.pasteleriacocina.marcopolos.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,7 +32,7 @@
         "monochromeImage": "./assets/images/logo2.png"
       },
       "icon": "./assets/images/logo2.png",
-      "package": "com.pasteleriacocina.marcomonroyumg.app",
+      "package": "com.pasteleriacocina.marcopolos.app",
       "versionCode": 1,
       "permissions": [
         "android.permission.INTERNET",
@@ -92,8 +92,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "0b4e6c89-fdc8-47d9-9e71-b54b09d8ac21"
+        "projectId": "34996ae6-db21-4b2b-8968-123944273445"
       }
-    }
+    },
+    "owner": "marcopolos"
   }
 }

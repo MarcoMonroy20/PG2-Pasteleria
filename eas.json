@@ -7,10 +7,25 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "credentialsSource": "remote"
       },
       "env": {
-        "EXPO_USE_NPM_INSTALL": "true"
+        "EXPO_USE_NPM_INSTALL": "true",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCnRuMLopAdNhyaXlIR75d1aj2nWBmizvI",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "pasteleria-cocina-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "pasteleria-cocina-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "pasteleria-cocina-app.appspot.com",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "975279453152",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:975279453152:web:08c52d6d8e6ef7e8bbb185",
+        "EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-1C6CEN1P51",
+        "EXPO_PUBLIC_FIREBASE_VAPID_KEY": "tBMdSxkO_WY4s_wAZKbvvibbCtsEUHNRmaF0X3hz1rE",
+        "EXPO_PUBLIC_FIREBASE_ENABLED": "true",
+        "EXPO_PUBLIC_CLOUDINARY_ENABLED": "true",
+        "EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME": "dfh83zgqi",
+        "EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET": "pasteleria-upload",
+        "EXPO_PUBLIC_CLOUDINARY_API_KEY": "544228462686976",
+        "EXPO_PUBLIC_CLOUDINARY_API_SECRET": "P0dQzg7wNG8DV4kdp_0ZLO5ExiM"
       }
     }
   }
