@@ -41,6 +41,75 @@ export const initDB = () => {
         console.log('📝 notification_days ya existe');
       }
 
+      // Migración: actualizar esquema de sabores para permitir UNIQUE(nombre, tipo)
+      try {
+        console.log('🔄 Verificando esquema de tabla sabores...');
+        
+        // Verificar si la tabla tiene la restricción correcta
+        const indexes = db.getAllSync("PRAGMA index_list(sabores)");
+        const hasCorrectIndex = indexes.some((index: any) => 
+          index.name.includes('sabores_nombre_tipo') || 
+          index.sql?.includes('UNIQUE(nombre, tipo)')
+        );
+        
+        if (!hasCorrectIndex) {
+          console.log('🔄 Migrando esquema de tabla sabores...');
+          
+          // Verificar si hay datos duplicados
+          const duplicates = db.getAllSync(`
+            SELECT nombre, tipo, COUNT(*) as count 
+            FROM sabores 
+            GROUP BY nombre, tipo 
+            HAVING COUNT(*) > 1
+          `);
+          
+          if (duplicates.length > 0) {
+            console.log('⚠️ Eliminando duplicados en sabores...');
+            for (const duplicate of duplicates) {
+              const toDelete = db.getAllSync(
+                'SELECT id FROM sabores WHERE nombre = ? AND tipo = ? ORDER BY id',
+                [duplicate.nombre, duplicate.tipo]
+              );
+              
+              // Eliminar todos excepto el primero
+              for (let i = 1; i < toDelete.length; i++) {
+                db.runSync('DELETE FROM sabores WHERE id = ?', [toDelete[i].id]);
+              }
+            }
+          }
+          
+          // Crear tabla temporal con nuevo esquema
+          db.runSync(`
+            CREATE TABLE sabores_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              nombre TEXT NOT NULL,
+              tipo TEXT NOT NULL,
+              activo INTEGER DEFAULT 1,
+              UNIQUE(nombre, tipo)
+            )
+          `);
+          
+          // Copiar datos existentes
+          const existingSabores = db.getAllSync('SELECT * FROM sabores');
+          for (const sabor of existingSabores) {
+            db.runSync(
+              'INSERT INTO sabores_new (id, nombre, tipo, activo) VALUES (?, ?, ?, ?)',
+              [sabor.id, sabor.nombre, sabor.tipo || 'pastel', sabor.activo]
+            );
+          }
+          
+          // Reemplazar tabla
+          db.runSync('DROP TABLE sabores');
+          db.runSync('ALTER TABLE sabores_new RENAME TO sabores');
+          
+          console.log('✅ Migración de esquema de sabores completada');
+        } else {
+          console.log('📝 Esquema de sabores ya está actualizado');
+        }
+      } catch (error) {
+        console.log('⚠️ Error en migración de sabores:', error);
+      }
+
       // Asegurar fila única de settings
       db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 1)');
 

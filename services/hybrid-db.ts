@@ -627,8 +627,8 @@ class HybridDBService {
       // Get local data for merging
       const [localPedidos, localSabores, localRellenos, localSettings] = await Promise.all([
         dbService.obtenerPedidos(),
-        this.obtenerSabores(),
-        this.obtenerRellenos(),
+        obtenerSaboresFn(),
+        obtenerRellenosFn(),
         obtenerSettingsFn()
       ]);
 
@@ -662,6 +662,8 @@ class HybridDBService {
     try {
       console.log('🔄 Updating local storage with Firebase data...');
       console.log(`📊 Firebase sabores: ${firebaseData.sabores.length}, rellenos: ${firebaseData.rellenos.length}`);
+      console.log('📊 Firebase sabores data:', firebaseData.sabores);
+      console.log('📊 Firebase rellenos data:', firebaseData.rellenos);
       
       // Update local storage with Firebase data
       if (Platform.OS === 'web') {
@@ -679,19 +681,37 @@ class HybridDBService {
         console.log('🔄 Updating native SQLite database with Firebase data...');
         
         // Clear existing sabores and rellenos
+        console.log('🗑️ Clearing existing sabores and rellenos...');
         await this.dbService.eliminarTodosLosSabores();
         await this.dbService.eliminarTodosLosRellenos();
         
         // Insert Firebase data
+        console.log('📝 Inserting Firebase sabores...');
         for (const sabor of firebaseData.sabores) {
-          await this.dbService.crearSabor(sabor);
+          console.log(`📝 Inserting sabor: ${sabor.nombre} (${sabor.tipo})`);
+          try {
+            await this.dbService.crearSabor(sabor);
+          } catch (error) {
+            console.error(`❌ Error inserting sabor ${sabor.nombre}:`, error);
+          }
         }
         
+        console.log('📝 Inserting Firebase rellenos...');
         for (const relleno of firebaseData.rellenos) {
-          await this.dbService.crearRelleno(relleno);
+          console.log(`📝 Inserting relleno: ${relleno.nombre} (${relleno.tipo})`);
+          try {
+            await this.dbService.crearRelleno(relleno);
+          } catch (error) {
+            console.error(`❌ Error inserting relleno ${relleno.nombre}:`, error);
+          }
         }
         
-        console.log(`✅ Native database updated: ${firebaseData.sabores.length} sabores, ${firebaseData.rellenos.length} rellenos`);
+        // Verify the update
+        const verifySabores = await this.dbService.obtenerSabores();
+        const verifyRellenos = await this.dbService.obtenerRellenos();
+        console.log(`✅ Native database updated: ${verifySabores.length} sabores, ${verifyRellenos.length} rellenos`);
+        console.log('📊 Verified sabores:', verifySabores);
+        console.log('📊 Verified rellenos:', verifyRellenos);
       }
     } catch (error) {
       console.error('❌ Error updating local data with Firebase:', error);
