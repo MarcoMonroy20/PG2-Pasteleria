@@ -612,6 +612,40 @@ export class HybridDatabase {
     return await FirebaseSync.getSettingsFromFirebase();
   }
 
+  // Sabores operations
+  static async getAllSabores(): Promise<any[]> {
+    if (!FIREBASE_ENABLED) {
+      console.log('Firebase disabled - returning empty sabores array');
+      return [];
+    }
+
+    try {
+      const sabores = await FirebaseSync.getSaboresFromFirebase();
+      console.log(`📊 HybridDatabase.getAllSabores(): Obtenidos ${sabores.length} sabores de Firebase`);
+      return sabores;
+    } catch (error) {
+      console.error('❌ Error getting sabores from HybridDatabase:', error);
+      return [];
+    }
+  }
+
+  // Rellenos operations
+  static async getAllRellenos(): Promise<any[]> {
+    if (!FIREBASE_ENABLED) {
+      console.log('Firebase disabled - returning empty rellenos array');
+      return [];
+    }
+
+    try {
+      const rellenos = await FirebaseSync.getRellenosFromFirebase();
+      console.log(`📊 HybridDatabase.getAllRellenos(): Obtenidos ${rellenos.length} rellenos de Firebase`);
+      return rellenos;
+    } catch (error) {
+      console.error('❌ Error getting rellenos from HybridDatabase:', error);
+      return [];
+    }
+  }
+
   // Utility methods
   static getImagePath(pedidoId: number): string | null {
     return LocalImageManager.getImagePath(pedidoId);

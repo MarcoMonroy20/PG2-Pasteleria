@@ -464,7 +464,29 @@ class HybridDBService {
   // Sabores operations
   async obtenerSabores(tipo?: 'pastel' | 'cupcakes'): Promise<Sabor[]> {
     try {
-      return await obtenerSaboresFn(tipo);
+      let sabores: Sabor[];
+
+      if (this.firebaseEnabled) {
+        // Try to get from Firebase first (source of truth)
+        sabores = await HybridDatabase.getAllSabores();
+        
+        // If no sabores from Firebase, fall back to local
+        if (sabores.length === 0) {
+          console.log('📊 No sabores en Firebase, obteniendo desde base de datos local...');
+          sabores = await obtenerSaboresFn(tipo);
+        }
+      } else {
+        // Use local database only
+        sabores = await obtenerSaboresFn(tipo);
+      }
+
+      // Filter by type if specified
+      if (tipo) {
+        sabores = sabores.filter(sabor => sabor.tipo === tipo);
+      }
+
+      console.log(`📊 Obtenidos ${sabores.length} sabores (tipo: ${tipo || 'todos'})`);
+      return sabores;
     } catch (error) {
       console.error('Error getting sabores:', error);
       throw error;
@@ -525,7 +547,24 @@ class HybridDBService {
   // Rellenos operations
   async obtenerRellenos(): Promise<Relleno[]> {
     try {
-      return await obtenerRellenosFn();
+      let rellenos: Relleno[];
+
+      if (this.firebaseEnabled) {
+        // Try to get from Firebase first (source of truth)
+        rellenos = await HybridDatabase.getAllRellenos();
+        
+        // If no rellenos from Firebase, fall back to local
+        if (rellenos.length === 0) {
+          console.log('📊 No rellenos en Firebase, obteniendo desde base de datos local...');
+          rellenos = await obtenerRellenosFn();
+        }
+      } else {
+        // Use local database only
+        rellenos = await obtenerRellenosFn();
+      }
+
+      console.log(`📊 Obtenidos ${rellenos.length} rellenos`);
+      return rellenos;
     } catch (error) {
       console.error('Error getting rellenos:', error);
       throw error;
