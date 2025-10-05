@@ -72,29 +72,39 @@ export default function NuevoPedidoScreen() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
+        console.log('🔄 Iniciando carga de datos en Nuevo Pedido...');
         await hybridDB.initialize();
+        console.log('✅ HybridDB inicializado');
         
         // Sync with Firebase first (Firebase is source of truth)
         if (hybridDB.isFirebaseEnabled()) {
           console.log('🔄 Sincronizando con Firebase en Nuevo Pedido (carga inicial)...');
           await hybridDB.syncFromCloud();
+          console.log('✅ Sincronización con Firebase completada');
+        } else {
+          console.log('⚠️ Firebase no está habilitado');
         }
         
         // Read data using hybrid DB functions (works on both web and native)
+        console.log('📖 Leyendo datos locales...');
         const [saboresData, rellenosData] = await Promise.all([
           hybridDB.obtenerSabores(),
           hybridDB.obtenerRellenos(),
         ]);
         
         console.log(`📊 Datos iniciales cargados en Nuevo Pedido: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+        console.log('📊 Sabores cargados:', saboresData);
+        console.log('📊 Rellenos cargados:', rellenosData);
         
         const settingsData = await hybridDB.obtenerSettings();
         
         setSabores(saboresData);
         setRellenos(rellenosData);
         setSettings(settingsData);
+        
+        console.log('✅ Estados actualizados en Nuevo Pedido');
       } catch (error) {
-        console.error('Error cargando datos:', error);
+        console.error('❌ Error cargando datos:', error);
       }
     };
     cargarDatos();
@@ -267,7 +277,30 @@ export default function NuevoPedidoScreen() {
     setter(formateado);
   };
 
-  const abrirModalProducto = () => {
+  const abrirModalProducto = async () => {
+    console.log('🔄 Abriendo modal de producto...');
+    console.log(`📊 Estado actual: ${sabores.length} sabores, ${rellenos.length} rellenos`);
+    
+    // Forzar recarga de datos antes de abrir el modal
+    try {
+      if (hybridDB.isFirebaseEnabled()) {
+        console.log('🔄 Forzando sincronización antes de abrir modal...');
+        await hybridDB.syncFromCloud();
+      }
+      
+      // Recargar datos
+      const [saboresData, rellenosData] = await Promise.all([
+        hybridDB.obtenerSabores(),
+        hybridDB.obtenerRellenos(),
+      ]);
+      
+      console.log(`📊 Datos recargados para modal: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+      setSabores(saboresData);
+      setRellenos(rellenosData);
+    } catch (error) {
+      console.error('❌ Error recargando datos para modal:', error);
+    }
+    
     setModalVisible(true);
     setProductoTipo('pastel');
     setProductoSabor(''); // Limpiar sabor seleccionado
@@ -677,6 +710,12 @@ export default function NuevoPedidoScreen() {
               {/* Debug info */}
               <Text style={{fontSize: 12, color: 'red', marginBottom: 10}}>
                 Debug: Sabores: {sabores.length}, Rellenos: {rellenos.length}
+              </Text>
+              <Text style={{fontSize: 10, color: 'blue', marginBottom: 10}}>
+                Sabores: {JSON.stringify(sabores.slice(0, 3))}
+              </Text>
+              <Text style={{fontSize: 10, color: 'green', marginBottom: 10}}>
+                Rellenos: {JSON.stringify(rellenos.slice(0, 3))}
               </Text>
               
               <View style={styles.buttonRow}>
