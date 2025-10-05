@@ -620,38 +620,98 @@ npm run android:submit        # Submit directo a Play Store
 
 ---
 
-## 🚧 **FASE 2 PENDIENTE - Integración Firebase Real**
+## ✅ **FASE 2 COMPLETADA - Integración Firebase y Cloudinary**
 
-### **📋 Lo que queda por hacer:**
+### **🎉 Logros Completados:**
 
-#### **1. Configuración de Firebase Console**
-- 🔄 Crear proyecto en Firebase Console
-- 🔄 Configurar Firestore Database
-- 🔄 Habilitar Authentication anónima
-- 🔄 Configurar Cloud Messaging (push notifications)
-- 🔄 Generar claves VAPID
+#### **1. Configuración de Firebase Console** ✅
+- ✅ Proyecto creado en Firebase Console
+- ✅ Firestore Database configurado
+- ✅ Authentication anónima habilitada
+- ✅ Cloud Messaging configurado
+- ✅ Claves VAPID generadas
 
-#### **2. Variables de Entorno**
-- 🔄 Crear archivo `.env.local` con credenciales reales
-- 🔄 Configurar todas las variables EXPO_PUBLIC_FIREBASE_*
+#### **2. Variables de Entorno** ✅
+- ✅ Archivo `.env.local` con credenciales reales
+- ✅ Todas las variables EXPO_PUBLIC_FIREBASE_* configuradas
+- ✅ Variables EXPO_PUBLIC_CLOUDINARY_* configuradas
+- ✅ EAS Build configurado con variables de entorno
 
-#### **3. Testing de Sincronización**
-- 🔄 Probar sincronización automática de pedidos
-- 🔄 Verificar backup en la nube
-- 🔄 Testear funcionamiento offline/online
-- 🔄 Validar push notifications
+#### **3. Integración Cloudinary** ✅
+- ✅ Servicio híbrido de imágenes implementado
+- ✅ Upload automático a Cloudinary
+- ✅ Almacenamiento local como fallback
+- ✅ Eliminación automática de imágenes
+- ✅ Compatibilidad cross-platform (Web/Android)
 
-#### **4. Build y Testing Final**
-- 🔄 Build de producción con Firebase habilitado
-- 🔄 Testing en dispositivos físicos Android/iOS
-- 🔄 Verificación de performance con datos reales
-- 🔄 Validación de permisos y funcionalidades
+#### **4. Sincronización Firebase** ✅
+- ✅ Sincronización automática de pedidos
+- ✅ Backup en la nube funcionando
+- ✅ Funcionamiento offline/online verificado
+- ✅ Firebase como fuente de verdad para sabores/rellenos
+- ✅ Migración automática de esquemas de base de datos
 
-### **🎯 Estado Actual:**
-- ✅ **Código preparado** - Toda la lógica de Firebase implementada
-- ✅ **Configuración lista** - Solo necesita credenciales reales
-- ✅ **Documentación completa** - `FIREBASE_SETUP_INSTRUCTIONS.md`
-- ⏳ **Firebase real** - Pendiente de configuración manual
+#### **5. Optimizaciones de Performance** ✅
+- ✅ Logs de debug eliminados para mejor performance
+- ✅ Esquema SQLite optimizado con UNIQUE constraints
+- ✅ Eliminación física en lugar de lógica
+- ✅ Sincronización bidireccional eficiente
+
+#### **6. Testing y Debugging** ✅
+- ✅ Modal "Agregar Producto" funcionando correctamente
+- ✅ Sincronización de sabores y rellenos verificada
+- ✅ Compatibilidad Android confirmada
+- ✅ Interfaz limpia sin elementos de debug
+
+### **📋 Estado Actual:**
+- ✅ **Web**: Completamente funcional con Firebase y Cloudinary
+- ✅ **Android**: Compatible, listo para build
+- ⏳ **APK**: Pendiente (plan EAS Free agotado, se reinicia en 26 días)
+
+### **🚀 Próximos Pasos:**
+- ⏳ Generar APK cuando se reinicie el plan EAS (26 días)
+- ⏳ Testing final en dispositivos Android físicos
+- ⏳ Validación de performance con datos reales
+
+---
+
+## 📅 **BITÁCORA DE DESARROLLO - ÚLTIMA ACTUALIZACIÓN**
+
+### **🗓️ Fecha: 5 de Octubre, 2025**
+
+#### **🎯 Objetivos del Día Completados:**
+- ✅ **Corrección de sincronización Firebase**: Resuelto problema de sabores/rellenos persistentes
+- ✅ **Optimización de performance**: Eliminados logs de debug que ralentizaban Android
+- ✅ **Limpieza de interfaz**: Removidos elementos de debug del modal y configuración
+- ✅ **Verificación de compatibilidad**: Confirmada compatibilidad completa con Android
+- ✅ **Preparación para APK**: Código listo para generación de APK
+
+#### **🔧 Problemas Resueltos:**
+1. **Inconsistencia de claves localStorage**: Corregidas claves `pasteleria_sabores` vs `sabores`
+2. **Sincronización bidireccional**: Firebase establecido como fuente de verdad
+3. **Performance en Android**: Eliminados logs excesivos que causaban lentitud
+4. **Modal "Agregar Producto"**: Funcionando correctamente con datos de Firebase
+5. **Esquema de base de datos**: Migración automática implementada
+
+#### **📊 Estado Final del Proyecto:**
+- ✅ **Web**: 100% funcional con Firebase y Cloudinary
+- ✅ **Android**: Compatible y optimizado
+- ✅ **Base de datos**: Esquema actualizado y migración automática
+- ✅ **Sincronización**: Bidireccional y eficiente
+- ✅ **Imágenes**: Servicio híbrido Cloudinary + local
+- ⏳ **APK**: Pendiente por límite de plan EAS (26 días)
+
+#### **🎉 Logros Destacados:**
+- **Integración completa Firebase + Cloudinary**
+- **Sistema híbrido de almacenamiento funcionando**
+- **Performance optimizada para Android**
+- **Interfaz limpia y profesional**
+- **Código listo para producción**
+
+### **📋 Próxima Sesión:**
+- Generar APK cuando se reinicie plan EAS (26 días)
+- Testing final en dispositivos Android
+- Validación de performance con datos reales
 
 ---
 
@@ -1642,4 +1702,184 @@ La aplicación está **100% lista para generar APK** una vez resuelto el problem
 
 ---
 
-*Bitácora actualizada el 4 de octubre de 2025 - Revisión completa de compatibilidad Android*
+## 📦 **GUÍA DE INSTALACIÓN - DEPENDENCIAS COMPLETAS**
+
+### **🚀 Para clonar y configurar el proyecto desde cero:**
+
+#### **1. Clonar el repositorio:**
+```bash
+git clone https://github.com/MarcoMonroy20/PG2-Pasteleria.git
+cd PG2-Pasteleria
+```
+
+#### **2. Instalar dependencias principales:**
+```bash
+npm install
+```
+
+#### **3. Dependencias específicas requeridas:**
+```bash
+# Dependencias de React Native y Expo
+npm install expo@54.0.12
+npm install react@19.1.0
+npm install react-native@0.81.4
+npm install react-dom@19.1.0
+
+# Navegación
+npm install @react-navigation/native@^7.1.6
+npm install @react-navigation/bottom-tabs@^7.3.10
+npm install @react-navigation/native-stack@^7.3.10
+npm install react-native-screens@~4.16.0
+npm install react-native-safe-area-context@~5.6.0
+
+# Expo Router
+npm install expo-router@~6.0.10
+
+# Base de datos y almacenamiento
+npm install expo-sqlite@~16.0.8
+npm install @react-native-async-storage/async-storage@^1.24.0
+
+# Firebase
+npm install firebase@^10.14.1
+
+# Imágenes y multimedia
+npm install expo-image-picker@~17.0.8
+npm install react-native-image-picker@^8.2.1
+
+# Notificaciones
+npm install expo-notifications@~0.32.12
+
+# Utilidades
+npm install crypto-js@^4.2.0
+npm install @react-native-community/netinfo@^11.4.1
+npm install @react-native-community/datetimepicker@8.4.4
+
+# Gráficos y visualización
+npm install react-native-chart-kit@^6.12.0
+npm install react-native-svg@15.12.1
+
+# Gestos y animaciones
+npm install react-native-gesture-handler@~2.28.0
+npm install react-native-reanimated@~4.1.1
+npm install react-native-worklets@0.5.1
+
+# Iconos y UI
+npm install @expo/vector-icons@^15.0.2
+
+# Utilidades adicionales
+npm install expo-constants@~18.0.9
+npm install expo-font@~14.0.8
+npm install expo-linking@~8.0.8
+npm install expo-print@~15.0.7
+npm install expo-sharing@~14.0.7
+npm install expo-splash-screen@~31.0.10
+npm install expo-status-bar@~3.0.8
+npm install expo-system-ui@~6.0.7
+npm install expo-web-browser@~15.0.8
+
+# Desarrollo
+npm install expo-dev-client@~6.0.13
+npm install @expo/metro-runtime@~6.1.2
+
+# Web support
+npm install react-native-web@^0.21.0
+
+# Variables de entorno
+npm install dotenv@^17.2.3
+```
+
+#### **4. Configurar variables de entorno:**
+```bash
+# Copiar archivo de ejemplo
+cp env.example .env.local
+
+# Editar .env.local con tus credenciales:
+# - Firebase credentials
+# - Cloudinary credentials
+```
+
+#### **5. Configurar EAS Build (opcional):**
+```bash
+# Instalar EAS CLI globalmente
+npm install -g @expo/eas-cli
+
+# Login en Expo
+eas login
+
+# Configurar proyecto
+eas build:configure
+```
+
+#### **6. Scripts disponibles:**
+```bash
+# Desarrollo
+npm start                    # Iniciar servidor de desarrollo
+npm run web                  # Ejecutar en web
+npm run android              # Ejecutar en Android
+npm run ios                  # Ejecutar en iOS
+
+# Build
+npm run build:android        # Build APK con EAS
+npm run build:android:production  # Build AAB para Play Store
+npm run build:ios            # Build para iOS
+
+# Utilidades
+npm run prebuild             # Prebuild nativo
+npm run prebuild:clean       # Prebuild limpio
+npm test                     # Ejecutar tests
+```
+
+#### **7. Requisitos del sistema:**
+- **Node.js**: v18+ recomendado
+- **npm**: v8+ o **yarn**: v1.22+
+- **Expo CLI**: v7.8.6+
+- **Android Studio**: Para desarrollo Android
+- **Xcode**: Para desarrollo iOS (solo macOS)
+
+#### **8. Configuración inicial:**
+```bash
+# Inicializar base de datos
+npx expo start
+# La app inicializará automáticamente la base de datos SQLite
+```
+
+#### **9. Estructura de archivos importantes:**
+```
+PG2-Pasteleria/
+├── app/                     # Expo Router pages
+├── components/              # Componentes reutilizables
+├── services/                # Servicios (DB, Firebase, etc.)
+├── database/                # Esquemas de base de datos
+├── assets/                  # Imágenes y recursos
+├── .env.local              # Variables de entorno (crear)
+├── app.json                # Configuración Expo
+├── eas.json                # Configuración EAS Build
+└── package.json            # Dependencias del proyecto
+```
+
+### **⚠️ Notas importantes:**
+- **Firebase**: Requiere configuración manual en Firebase Console
+- **Cloudinary**: Requiere cuenta y configuración de upload presets
+- **EAS Build**: Requiere cuenta Expo (plan Free disponible)
+- **Android**: Requiere Android Studio para builds locales
+- **iOS**: Requiere macOS y Xcode para desarrollo
+
+### **🔧 Solución de problemas comunes:**
+```bash
+# Limpiar cache
+npm start -- --clear
+
+# Reinstalar dependencias
+rm -rf node_modules package-lock.json
+npm install
+
+# Reset Expo
+npx expo install --fix
+
+# Verificar configuración
+npx expo doctor
+```
+
+---
+
+*Bitácora actualizada el 5 de octubre de 2025 - Guía completa de instalación agregada*
