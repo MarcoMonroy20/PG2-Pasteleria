@@ -8,6 +8,8 @@ import { enhancedNotifications } from '../../services/notifications';
 import { useAuth } from '../../contexts/AuthContext';
 import ServicesStatus from '../../components/ServicesStatus';
 import FirebaseDebugger from '../../components/FirebaseDebugger';
+import ClearDataButton from '../../components/ClearDataButton';
+import ClearFirebaseButton from '../../components/ClearFirebaseButton';
 
 type AppSettings = {
   notifications_enabled: boolean;
@@ -379,6 +381,21 @@ export default function SettingsScreen() {
       {/* Diagnóstico de Firebase - Solo para administradores */}
       {user && (user.role === 'admin' || user.role === 'dueño') && (
         <FirebaseDebugger />
+      )}
+
+      {/* Limpiar Datos Locales - Solo para administradores */}
+      {user && (user.role === 'admin' || user.role === 'dueño') && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Herramientas de Administración</Text>
+          <ClearDataButton onDataCleared={() => {
+            // Recargar la aplicación después de limpiar datos
+            console.log('🔄 Datos limpiados, recargando aplicación...');
+          }} />
+          <ClearFirebaseButton onDataCleared={() => {
+            // Recargar la aplicación después de limpiar Firebase
+            console.log('🔄 Firebase limpiado, recargando aplicación...');
+          }} />
+        </View>
       )}
 
       <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} disabled={saving} onPress={handleSave}>

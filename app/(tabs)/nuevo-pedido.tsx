@@ -72,11 +72,24 @@ export default function NuevoPedidoScreen() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const [saboresData, rellenosData, settingsData] = await Promise.all([
+        await hybridDB.initialize();
+        
+        // Sync with Firebase first (Firebase is source of truth)
+        if (hybridDB.isFirebaseEnabled()) {
+          console.log('🔄 Sincronizando con Firebase en Nuevo Pedido (carga inicial)...');
+          await hybridDB.syncFromCloud();
+        }
+        
+        // Read data using hybrid DB functions (works on both web and native)
+        const [saboresData, rellenosData] = await Promise.all([
           hybridDB.obtenerSabores(),
           hybridDB.obtenerRellenos(),
-          hybridDB.obtenerSettings()
         ]);
+        
+        console.log(`📊 Datos iniciales cargados en Nuevo Pedido: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+        
+        const settingsData = await hybridDB.obtenerSettings();
+        
         setSabores(saboresData);
         setRellenos(rellenosData);
         setSettings(settingsData);
@@ -144,10 +157,20 @@ export default function NuevoPedidoScreen() {
   useEffect(() => {
     const recargarSaboresYRellenos = async () => {
       try {
+        // Sync with Firebase first (Firebase is source of truth)
+        if (hybridDB.isFirebaseEnabled()) {
+          console.log('🔄 Sincronizando con Firebase en Nuevo Pedido...');
+          await hybridDB.syncFromCloud();
+        }
+        
+        // Read data using hybrid DB functions (works on both web and native)
         const [saboresData, rellenosData] = await Promise.all([
           hybridDB.obtenerSabores(),
-          hybridDB.obtenerRellenos()
+          hybridDB.obtenerRellenos(),
         ]);
+        
+        console.log(`📊 Datos cargados en Nuevo Pedido: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+        
         setSabores(saboresData);
         setRellenos(rellenosData);
         console.log('🔄 Sabores y rellenos actualizados en Nuevo Pedido');
@@ -651,6 +674,11 @@ export default function NuevoPedidoScreen() {
             <Text style={styles.modalTitle}>Agregar Producto</Text>
             
             <ScrollView style={styles.modalScrollView}>
+              {/* Debug info */}
+              <Text style={{fontSize: 12, color: 'red', marginBottom: 10}}>
+                Debug: Sabores: {sabores.length}, Rellenos: {rellenos.length}
+              </Text>
+              
               <View style={styles.buttonRow}>
                 <TouchableOpacity
                   style={[styles.pillButton, productoTipo === 'pastel' && styles.pillButtonActive]}
@@ -714,6 +742,19 @@ export default function NuevoPedidoScreen() {
                           </Text>
                         </TouchableOpacity>
                       ))}
+                    {sabores.filter(sabor => {
+                      if (productoTipo === 'pastel') {
+                        return sabor.tipo === 'pastel';
+                      } else if (productoTipo === 'cupcakes') {
+                        return sabor.tipo === 'cupcakes';
+                      } else {
+                        return true;
+                      }
+                    }).length === 0 && (
+                      <Text style={{color: 'red', fontSize: 12, marginTop: 10}}>
+                        No hay sabores disponibles para {productoTipo}. Ve a "Sabores y Rellenos" para agregar algunos.
+                      </Text>
+                    )}
                   </View>
                 </View>
               )}
@@ -733,6 +774,11 @@ export default function NuevoPedidoScreen() {
                         </Text>
                       </TouchableOpacity>
                     ))}
+                    {rellenos.length === 0 && (
+                      <Text style={{color: 'red', fontSize: 12, marginTop: 10}}>
+                        No hay rellenos disponibles. Ve a "Sabores y Rellenos" para agregar algunos.
+                      </Text>
+                    )}
                   </View>
                 </View>
               )}

@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS sabores (
 export const CREATE_RELLENOS_TABLE = `
 CREATE TABLE IF NOT EXISTS rellenos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT NOT NULL UNIQUE,
-  activo INTEGER DEFAULT 1
+  nombre TEXT NOT NULL,
+  tipo TEXT NOT NULL DEFAULT 'pastel',
+  activo INTEGER DEFAULT 1,
+  UNIQUE(nombre, tipo)
 );
 `;
 

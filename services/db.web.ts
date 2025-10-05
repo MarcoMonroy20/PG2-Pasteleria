@@ -33,6 +33,7 @@ export interface Sabor {
 export interface Relleno {
   id?: number;
   nombre: string;
+  tipo: 'pastel' | 'cupcakes';
   activo: boolean;
 }
 
@@ -66,34 +67,17 @@ const getNextId = (): number => {
 
 // Función para inicializar datos por defecto
 const initDefaultData = () => {
-  // Inicializar sabores por defecto
+  // Solo inicializar si no existen datos y Firebase no está habilitado
+  const hasFirebaseData = localStorage.getItem('firebase_enabled') === 'true';
+  
+  // Inicializar sabores vacíos - el usuario los agregará
   if (!localStorage.getItem(STORAGE_KEYS.SABORES)) {
-    const saboresPorDefecto = [
-      { id: 1, nombre: 'Chocolate', tipo: 'pastel' as const, activo: true },
-      { id: 2, nombre: 'Vainilla', tipo: 'pastel' as const, activo: true },
-      { id: 3, nombre: 'Fresa', tipo: 'pastel' as const, activo: true },
-      { id: 4, nombre: 'Limón', tipo: 'pastel' as const, activo: true },
-      { id: 5, nombre: 'Chocolate', tipo: 'cupcakes' as const, activo: true },
-      { id: 6, nombre: 'Vainilla', tipo: 'cupcakes' as const, activo: true },
-      { id: 7, nombre: 'Fresa', tipo: 'cupcakes' as const, activo: true },
-      { id: 8, nombre: 'Limón', tipo: 'cupcakes' as const, activo: true },
-    ];
-    localStorage.setItem(STORAGE_KEYS.SABORES, JSON.stringify(saboresPorDefecto));
+    localStorage.setItem(STORAGE_KEYS.SABORES, JSON.stringify([]));
   }
 
-  // Inicializar rellenos por defecto
+  // Inicializar rellenos vacíos - el usuario los agregará
   if (!localStorage.getItem(STORAGE_KEYS.RELLENOS)) {
-    const rellenosPorDefecto = [
-      { id: 1, nombre: 'Crema de Mantequilla', activo: true },
-      { id: 2, nombre: 'Crema de Vainilla', activo: true },
-      { id: 3, nombre: 'Mermelada de Fresa', activo: true },
-      { id: 4, nombre: 'Mermelada de Durazno', activo: true },
-      { id: 5, nombre: 'Dulce de Leche', activo: true },
-      { id: 6, nombre: 'Chocolate', activo: true },
-      { id: 7, nombre: 'Frutas', activo: true },
-      { id: 8, nombre: 'Sin Relleno', activo: true },
-    ];
-    localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify(rellenosPorDefecto));
+    localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify([]));
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
@@ -262,7 +246,7 @@ export const clearNotificationForPedido = (pedidoId: number): Promise<void> => {
 export const obtenerSabores = (tipo?: 'pastel' | 'cupcakes'): Promise<Sabor[]> => {
   return new Promise((resolve) => {
     let sabores = JSON.parse(localStorage.getItem(STORAGE_KEYS.SABORES) || '[]');
-    sabores = sabores.filter((s: Sabor) => s.activo);
+    // Ya no filtramos por activo porque eliminamos físicamente
     if (tipo) {
       sabores = sabores.filter((s: Sabor) => s.tipo === tipo);
     }
@@ -295,11 +279,17 @@ export const actualizarSabor = (id: number, sabor: Omit<Sabor, 'id'>): Promise<v
 export const eliminarSabor = (id: number): Promise<void> => {
   return new Promise((resolve) => {
     const sabores = JSON.parse(localStorage.getItem(STORAGE_KEYS.SABORES) || '[]');
-    const index = sabores.findIndex((s: Sabor) => s.id === id);
-    if (index !== -1) {
-      sabores[index].activo = false;
-      localStorage.setItem(STORAGE_KEYS.SABORES, JSON.stringify(sabores));
-    }
+    // Eliminación física en lugar de lógica
+    const saboresFiltrados = sabores.filter((s: Sabor) => s.id !== id);
+    localStorage.setItem(STORAGE_KEYS.SABORES, JSON.stringify(saboresFiltrados));
+    resolve();
+  });
+};
+
+export const eliminarTodosLosSabores = (): Promise<void> => {
+  return new Promise((resolve) => {
+    localStorage.setItem(STORAGE_KEYS.SABORES, JSON.stringify([]));
+    console.log('Todos los sabores eliminados del localStorage');
     resolve();
   });
 };
@@ -308,8 +298,21 @@ export const eliminarSabor = (id: number): Promise<void> => {
 export const obtenerRellenos = (): Promise<Relleno[]> => {
   return new Promise((resolve) => {
     const rellenos = JSON.parse(localStorage.getItem(STORAGE_KEYS.RELLENOS) || '[]');
-    const activeRellenos = rellenos.filter((r: Relleno) => r.activo);
-    resolve(activeRellenos.sort((a: Relleno, b: Relleno) => a.nombre.localeCompare(b.nombre)));
+    
+    // Migrar rellenos existentes que no tienen tipo
+    const rellenosMigrados = rellenos.map((relleno: any) => ({
+      ...relleno,
+      tipo: relleno.tipo || 'pastel' // Agregar tipo por defecto si no existe
+    }));
+    
+    // Guardar rellenos migrados si hubo cambios
+    if (rellenosMigrados.some((r: any, index: number) => !rellenos[index]?.tipo)) {
+      localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify(rellenosMigrados));
+      console.log('🔄 Rellenos migrados automáticamente con campo tipo');
+    }
+    
+    // Ya no filtramos por activo porque eliminamos físicamente
+    resolve(rellenosMigrados.sort((a: Relleno, b: Relleno) => a.nombre.localeCompare(b.nombre)));
   });
 };
 
@@ -338,11 +341,17 @@ export const actualizarRelleno = (id: number, relleno: Omit<Relleno, 'id'>): Pro
 export const eliminarRelleno = (id: number): Promise<void> => {
   return new Promise((resolve) => {
     const rellenos = JSON.parse(localStorage.getItem(STORAGE_KEYS.RELLENOS) || '[]');
-    const index = rellenos.findIndex((r: Relleno) => r.id === id);
-    if (index !== -1) {
-      rellenos[index].activo = false;
-      localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify(rellenos));
-    }
+    // Eliminación física en lugar de lógica
+    const rellenosFiltrados = rellenos.filter((r: Relleno) => r.id !== id);
+    localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify(rellenosFiltrados));
+    resolve();
+  });
+};
+
+export const eliminarTodosLosRellenos = (): Promise<void> => {
+  return new Promise((resolve) => {
+    localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify([]));
+    console.log('Todos los rellenos eliminados del localStorage');
     resolve();
   });
 };

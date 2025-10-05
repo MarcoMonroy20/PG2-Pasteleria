@@ -49,10 +49,36 @@ export default function RellenosMasasScreen() {
   const cargarDatos = async () => {
     try {
       await hybridDB.initialize();
-      const [saboresData, rellenosData] = await Promise.all([
-        hybridDB.obtenerSabores(),
-        hybridDB.obtenerRellenos(),
-      ]);
+      
+      // Sync with Firebase first (Firebase is source of truth)
+      if (hybridDB.isFirebaseEnabled()) {
+        console.log('🔄 Sincronizando con Firebase...');
+        await hybridDB.syncFromCloud();
+        
+        // Force reload data after sync
+        console.log('🔄 Recargando datos después de sincronización...');
+      }
+      
+      // Read data directly from localStorage after sync (bypass cache)
+      let saboresData, rellenosData;
+      
+      if (Platform.OS === 'web') {
+        // Read directly from localStorage to ensure we get updated data
+        const saboresJson = localStorage.getItem('sabores') || '[]';
+        const rellenosJson = localStorage.getItem('rellenos') || '[]';
+        
+        saboresData = JSON.parse(saboresJson);
+        rellenosData = JSON.parse(rellenosJson);
+        
+        console.log(`📊 Datos leídos directamente de localStorage: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+      } else {
+        // For native, use the hybrid DB functions
+        [saboresData, rellenosData] = await Promise.all([
+          hybridDB.obtenerSabores(),
+          hybridDB.obtenerRellenos(),
+        ]);
+        console.log(`📊 Datos cargados: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+      }
       setSabores(saboresData);
       setRellenos(rellenosData);
     } catch (error) {
@@ -74,10 +100,11 @@ export default function RellenosMasasScreen() {
   };
 
   const handleEditar = (item: Sabor | Relleno) => {
+    console.log('✏️ Editando elemento:', item);
     setEditingItem(item);
     setFormData({
       nombre: item.nombre,
-      tipo: 'tipo' in item ? item.tipo : 'pastel',
+      tipo: 'tipo' in item ? (item.tipo || 'pastel') : 'pastel',
       activo: item.activo,
     });
     setShowModal(true);
@@ -90,14 +117,18 @@ export default function RellenosMasasScreen() {
     }
 
     try {
+      console.log('💾 Guardando elemento:', { activeTab, editingItem, formData });
+      
       if (activeTab === 'sabores') {
         if (editingItem) {
+          console.log('🔄 Actualizando sabor:', editingItem.id);
           await hybridDB.actualizarSabor(editingItem.id!, {
             nombre: formData.nombre,
             tipo: formData.tipo,
             activo: formData.activo,
           });
         } else {
+          console.log('➕ Creando nuevo sabor');
           await hybridDB.crearSabor({
             nombre: formData.nombre,
             tipo: formData.tipo,
@@ -106,13 +137,17 @@ export default function RellenosMasasScreen() {
         }
       } else {
         if (editingItem) {
+          console.log('🔄 Actualizando relleno:', editingItem.id);
           await hybridDB.actualizarRelleno(editingItem.id!, {
             nombre: formData.nombre,
+            tipo: formData.tipo,
             activo: formData.activo,
           });
         } else {
+          console.log('➕ Creando nuevo relleno');
           await hybridDB.crearRelleno({
             nombre: formData.nombre,
+            tipo: formData.tipo,
             activo: formData.activo,
           });
         }
@@ -125,7 +160,7 @@ export default function RellenosMasasScreen() {
       Alert.alert('Éxito', 'Elemento guardado correctamente');
     } catch (error) {
       Alert.alert('Error', 'No se pudo guardar el elemento');
-      console.error(error);
+      console.error('❌ Error guardando elemento:', error);
     }
   };
 
@@ -212,6 +247,7 @@ export default function RellenosMasasScreen() {
     <View style={styles.itemCard}>
       <View style={styles.itemInfo}>
         <Text style={styles.itemNombre}>{item.nombre}</Text>
+        <Text style={styles.itemTipo}>{(item.tipo || 'pastel').toUpperCase()}</Text>
         <View style={styles.itemStatus}>
           <Text style={styles.statusLabel}>Activo:</Text>
           <Text style={[styles.statusValue, item.activo ? styles.activo : styles.inactivo]}>
@@ -327,30 +363,28 @@ export default function RellenosMasasScreen() {
               />
             </View>
 
-            {activeTab === 'sabores' && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Tipo</Text>
-                <View style={styles.tipoButtons}>
-                  {['pastel', 'cupcakes'].map((tipo) => (
-                    <TouchableOpacity
-                      key={tipo}
-                      style={[
-                        styles.tipoButton,
-                        formData.tipo === tipo && styles.tipoButtonActive
-                      ]}
-                      onPress={() => setFormData({...formData, tipo: tipo as 'pastel' | 'cupcakes'})}
-                    >
-                      <Text style={[
-                        styles.tipoButtonText,
-                        formData.tipo === tipo && styles.tipoButtonTextActive
-                      ]}>
-                        {tipo.toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Tipo</Text>
+              <View style={styles.tipoButtons}>
+                {['pastel', 'cupcakes'].map((tipo) => (
+                  <TouchableOpacity
+                    key={tipo}
+                    style={[
+                      styles.tipoButton,
+                      formData.tipo === tipo && styles.tipoButtonActive
+                    ]}
+                    onPress={() => setFormData({...formData, tipo: tipo as 'pastel' | 'cupcakes'})}
+                  >
+                    <Text style={[
+                      styles.tipoButtonText,
+                      formData.tipo === tipo && styles.tipoButtonTextActive
+                    ]}>
+                      {tipo.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
+            </View>
 
             <View style={styles.inputGroup}>
               <View style={styles.switchContainer}>

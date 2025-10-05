@@ -70,6 +70,7 @@ export interface Sabor {
 export interface Relleno {
   id?: number;
   nombre: string;
+  tipo: 'pastel' | 'cupcakes';
   activo: boolean;
 }
 
@@ -495,6 +496,7 @@ class HybridDBService {
       if (this.firebaseEnabled) {
         const saborWithId = { ...sabor, id };
         await FirebaseSync.syncSaboresToFirebase([saborWithId]);
+        console.log(`🔄 Sabor ${id} actualizado y sincronizado con Firebase`);
       }
     } catch (error) {
       console.error('Error updating sabor:', error);
@@ -504,9 +506,16 @@ class HybridDBService {
 
   async eliminarSabor(id: number): Promise<void> {
     try {
+      // Obtener el sabor antes de eliminarlo para sincronizar con Firebase
+      const sabores = await dbService.obtenerSabores();
+      const saborAEliminar = sabores.find(s => s.id === id);
+      
       await dbService.eliminarSabor(id);
 
-      // Note: Firebase sync for deletion could be implemented if needed
+      // Sync deletion to Firebase if enabled
+      if (this.firebaseEnabled && saborAEliminar) {
+        await FirebaseSync.deleteSaborFromFirebase(saborAEliminar.id!);
+      }
     } catch (error) {
       console.error('Error deleting sabor:', error);
       throw error;
@@ -548,6 +557,7 @@ class HybridDBService {
       if (this.firebaseEnabled) {
         const rellenoWithId = { ...relleno, id };
         await FirebaseSync.syncRellenosToFirebase([rellenoWithId]);
+        console.log(`🔄 Relleno ${id} actualizado y sincronizado con Firebase`);
       }
     } catch (error) {
       console.error('Error updating relleno:', error);
@@ -557,9 +567,16 @@ class HybridDBService {
 
   async eliminarRelleno(id: number): Promise<void> {
     try {
+      // Obtener el relleno antes de eliminarlo para sincronizar con Firebase
+      const rellenos = await dbService.obtenerRellenos();
+      const rellenoAEliminar = rellenos.find(r => r.id === id);
+      
       await dbService.eliminarRelleno(id);
 
-      // Note: Firebase sync for deletion could be implemented if needed
+      // Sync deletion to Firebase if enabled
+      if (this.firebaseEnabled && rellenoAEliminar) {
+        await FirebaseSync.deleteRellenoFromFirebase(rellenoAEliminar.id!);
+      }
     } catch (error) {
       console.error('Error deleting relleno:', error);
       throw error;
@@ -610,29 +627,74 @@ class HybridDBService {
       // Get local data for merging
       const [localPedidos, localSabores, localRellenos, localSettings] = await Promise.all([
         dbService.obtenerPedidos(),
-        obtenerSaboresFn(),
-        obtenerRellenosFn(),
+        this.obtenerSabores(),
+        this.obtenerRellenos(),
         obtenerSettingsFn()
       ]);
 
-      // Perform bidirectional sync
-      // Bidirectional sync completed
-      console.log('🔄 Bidirectional sync completed');
-      const mergedData = {
+      // Perform bidirectional sync with Firebase as source of truth
+      const mergedData = await FirebaseSync.bidirectionalSync({
         pedidos: localPedidos,
         sabores: localSabores,
         rellenos: localRellenos,
         settings: localSettings
-      };
+      });
 
-      // Update local database with merged data
-      // Note: This is a simplified implementation
-      // In a production app, you'd want more sophisticated conflict resolution
+      console.log('🔄 Bidirectional sync completed');
+      console.log(`📊 Firebase data: ${mergedData.sabores.length} sabores, ${mergedData.rellenos.length} rellenos`);
+
+      // Update local database with Firebase data (source of truth)
+      await this.updateLocalDataWithFirebase(mergedData);
 
       console.log('✅ Sync from cloud completed');
     } catch (error) {
       console.error('❌ Error syncing from cloud:', error);
       throw error;
+    }
+  }
+
+  private async updateLocalDataWithFirebase(firebaseData: {
+    pedidos: any[],
+    sabores: any[],
+    rellenos: any[],
+    settings: any
+  }): Promise<void> {
+    try {
+      console.log('🔄 Updating local storage with Firebase data...');
+      console.log(`📊 Firebase sabores: ${firebaseData.sabores.length}, rellenos: ${firebaseData.rellenos.length}`);
+      
+      // Update local storage with Firebase data
+      if (Platform.OS === 'web') {
+        // For web, update localStorage directly
+        localStorage.setItem('sabores', JSON.stringify(firebaseData.sabores));
+        localStorage.setItem('rellenos', JSON.stringify(firebaseData.rellenos));
+        console.log('✅ Local storage updated with Firebase data');
+        
+        // Verify the update
+        const updatedSabores = JSON.parse(localStorage.getItem('sabores') || '[]');
+        const updatedRellenos = JSON.parse(localStorage.getItem('rellenos') || '[]');
+        console.log(`✅ Verification: localStorage now has ${updatedSabores.length} sabores, ${updatedRellenos.length} rellenos`);
+      } else {
+        // For native, update SQLite database
+        console.log('🔄 Updating native SQLite database with Firebase data...');
+        
+        // Clear existing sabores and rellenos
+        await this.dbService.eliminarTodosLosSabores();
+        await this.dbService.eliminarTodosLosRellenos();
+        
+        // Insert Firebase data
+        for (const sabor of firebaseData.sabores) {
+          await this.dbService.crearSabor(sabor);
+        }
+        
+        for (const relleno of firebaseData.rellenos) {
+          await this.dbService.crearRelleno(relleno);
+        }
+        
+        console.log(`✅ Native database updated: ${firebaseData.sabores.length} sabores, ${firebaseData.rellenos.length} rellenos`);
+      }
+    } catch (error) {
+      console.error('❌ Error updating local data with Firebase:', error);
     }
   }
 

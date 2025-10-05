@@ -67,51 +67,13 @@ export const initDB = () => {
 };
 
 const insertarSaboresPorDefecto = () => {
-  const saboresPorDefecto = [
-    { nombre: 'Chocolate', tipo: 'pastel' },
-    { nombre: 'Vainilla', tipo: 'pastel' },
-    { nombre: 'Fresa', tipo: 'pastel' },
-    { nombre: 'Limón', tipo: 'pastel' },
-    { nombre: 'Chocolate', tipo: 'cupcakes' },
-    { nombre: 'Vainilla', tipo: 'cupcakes' },
-    { nombre: 'Fresa', tipo: 'cupcakes' },
-    { nombre: 'Limón', tipo: 'cupcakes' },
-  ];
-
-  saboresPorDefecto.forEach(sabor => {
-    try {
-      db.runSync(
-        'INSERT OR IGNORE INTO sabores (nombre, tipo) VALUES (?, ?)',
-        [sabor.nombre, sabor.tipo]
-      );
-    } catch (error) {
-      // Error silencioso en inserción de sabores por defecto
-    }
-  });
+  // No insertar sabores por defecto - el usuario los agregará
+  // La tabla se crea vacía para que el usuario personalice completamente
 };
 
 const insertarRellenosPorDefecto = () => {
-  const rellenosPorDefecto = [
-    'Crema de Mantequilla',
-    'Crema de Vainilla',
-    'Mermelada de Fresa',
-    'Mermelada de Durazno',
-    'Dulce de Leche',
-    'Chocolate',
-    'Frutas',
-    'Sin Relleno',
-  ];
-
-  rellenosPorDefecto.forEach(relleno => {
-    try {
-      db.runSync(
-        'INSERT OR IGNORE INTO rellenos (nombre) VALUES (?)',
-        [relleno]
-      );
-    } catch (error) {
-      // Error silencioso en inserción de rellenos por defecto
-    }
-  });
+  // No insertar rellenos por defecto - el usuario los agregará
+  // La tabla se crea vacía para que el usuario personalice completamente
 };
 
 // Interfaces para TypeScript
@@ -277,6 +239,7 @@ export interface Sabor {
 export interface Relleno {
   id?: number;
   nombre: string;
+  tipo: 'pastel' | 'cupcakes';
   activo: boolean;
 }
 
@@ -293,14 +256,15 @@ export interface AppSettings {
 export const obtenerSabores = (tipo?: 'pastel' | 'cupcakes'): Promise<Sabor[]> => {
   return new Promise((resolve, reject) => {
     try {
-      let query = 'SELECT * FROM sabores WHERE activo = 1';
+      // Ya no filtramos por activo = 1 porque eliminamos físicamente
+      let query = 'SELECT * FROM sabores';
       let params: any[] = [];
       
       if (tipo) {
-        query += ' AND tipo = ?';
+        query += ' WHERE tipo = ?';
         params.push(tipo);
       }
-      
+
       query += ' ORDER BY nombre ASC';
       
       const result = db.getAllSync(query, params);
@@ -346,9 +310,23 @@ export const actualizarSabor = (id: number, sabor: Omit<Sabor, 'id'>): Promise<v
 export const eliminarSabor = (id: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
-      db.runSync('UPDATE sabores SET activo = 0 WHERE id = ?', [id]);
+      // Eliminación física en lugar de lógica
+      db.runSync('DELETE FROM sabores WHERE id = ?', [id]);
       resolve();
     } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const eliminarTodosLosSabores = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      db.runSync('DELETE FROM sabores');
+      console.log('Todos los sabores eliminados de la base de datos');
+      resolve();
+    } catch (error) {
+      console.error('Error eliminando todos los sabores:', error);
       reject(error);
     }
   });
@@ -358,9 +336,11 @@ export const eliminarSabor = (id: number): Promise<void> => {
 export const obtenerRellenos = (): Promise<Relleno[]> => {
   return new Promise((resolve, reject) => {
     try {
-      const result = db.getAllSync('SELECT * FROM rellenos WHERE activo = 1 ORDER BY nombre ASC');
+      // Ya no filtramos por activo = 1 porque eliminamos físicamente
+      const result = db.getAllSync('SELECT * FROM rellenos ORDER BY nombre ASC');
       const rellenos = result.map((row: any) => ({
         ...row,
+        tipo: row.tipo || 'pastel', // Agregar tipo por defecto si no existe
         activo: Boolean(row.activo)
       }));
       resolve(rellenos);
@@ -374,8 +354,8 @@ export const crearRelleno = (relleno: Omit<Relleno, 'id'>): Promise<number> => {
   return new Promise((resolve, reject) => {
     try {
       const result = db.runSync(
-        'INSERT INTO rellenos (nombre, activo) VALUES (?, ?)',
-        [relleno.nombre, relleno.activo ? 1 : 0]
+        'INSERT INTO rellenos (nombre, tipo, activo) VALUES (?, ?, ?)',
+        [relleno.nombre, relleno.tipo, relleno.activo ? 1 : 0]
       );
       resolve(result.lastInsertRowId as number);
     } catch (error) {
@@ -388,8 +368,8 @@ export const actualizarRelleno = (id: number, relleno: Omit<Relleno, 'id'>): Pro
   return new Promise((resolve, reject) => {
     try {
       db.runSync(
-        'UPDATE rellenos SET nombre = ?, activo = ? WHERE id = ?',
-        [relleno.nombre, relleno.activo ? 1 : 0, id]
+        'UPDATE rellenos SET nombre = ?, tipo = ?, activo = ? WHERE id = ?',
+        [relleno.nombre, relleno.tipo, relleno.activo ? 1 : 0, id]
       );
       resolve();
     } catch (error) {
@@ -401,9 +381,23 @@ export const actualizarRelleno = (id: number, relleno: Omit<Relleno, 'id'>): Pro
 export const eliminarRelleno = (id: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     try {
-      db.runSync('UPDATE rellenos SET activo = 0 WHERE id = ?', [id]);
+      // Eliminación física en lugar de lógica
+      db.runSync('DELETE FROM rellenos WHERE id = ?', [id]);
       resolve();
     } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+export const eliminarTodosLosRellenos = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      db.runSync('DELETE FROM rellenos');
+      console.log('Todos los rellenos eliminados de la base de datos');
+      resolve();
+    } catch (error) {
+      console.error('Error eliminando todos los rellenos:', error);
       reject(error);
     }
   });

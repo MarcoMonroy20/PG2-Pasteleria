@@ -385,7 +385,83 @@ export class FirebaseSync {
     await Promise.all(batchPromises);
   }
 
-  // Bidirectional sync - merge local and remote data
+  // Delete relleno from Firebase
+  static async deleteRellenoFromFirebase(rellenoId: number): Promise<void> {
+    if (!this.userId) return;
+
+    try {
+      const docRef = doc(db, 'rellenos', `${this.userId}_${rellenoId}`);
+      await deleteDoc(docRef);
+      console.log(`🗑️ Relleno ${rellenoId} eliminado de Firebase`);
+    } catch (error) {
+      console.error('❌ Error eliminando relleno de Firebase:', error);
+      throw error;
+    }
+  }
+
+  // Delete sabor from Firebase
+  static async deleteSaborFromFirebase(saborId: number): Promise<void> {
+    if (!this.userId) return;
+
+    try {
+      const docRef = doc(db, 'sabores', `${this.userId}_${saborId}`);
+      await deleteDoc(docRef);
+      console.log(`🗑️ Sabor ${saborId} eliminado de Firebase`);
+    } catch (error) {
+      console.error('❌ Error eliminando sabor de Firebase:', error);
+      throw error;
+    }
+  }
+
+  // Get sabores from Firebase
+  static async getSaboresFromFirebase(): Promise<any[]> {
+    if (!this.userId) return [];
+
+    try {
+      const q = query(
+        collection(db, 'sabores'),
+        where('userId', '==', this.userId)
+      );
+      const querySnapshot = await getDocs(q);
+      const sabores = querySnapshot.docs.map(doc => ({
+        id: doc.data().id,
+        nombre: doc.data().nombre,
+        tipo: doc.data().tipo,
+        activo: doc.data().activo
+      }));
+      console.log(`📊 Obtenidos ${sabores.length} sabores de Firebase`);
+      return sabores;
+    } catch (error) {
+      console.error('❌ Error obteniendo sabores de Firebase:', error);
+      return [];
+    }
+  }
+
+  // Get rellenos from Firebase
+  static async getRellenosFromFirebase(): Promise<any[]> {
+    if (!this.userId) return [];
+
+    try {
+      const q = query(
+        collection(db, 'rellenos'),
+        where('userId', '==', this.userId)
+      );
+      const querySnapshot = await getDocs(q);
+      const rellenos = querySnapshot.docs.map(doc => ({
+        id: doc.data().id,
+        nombre: doc.data().nombre,
+        tipo: doc.data().tipo,
+        activo: doc.data().activo
+      }));
+      console.log(`📊 Obtenidos ${rellenos.length} rellenos de Firebase`);
+      return rellenos;
+    } catch (error) {
+      console.error('❌ Error obteniendo rellenos de Firebase:', error);
+      return [];
+    }
+  }
+
+  // Bidirectional sync - Firebase is the source of truth
   static async bidirectionalSync(localData: {
     pedidos: any[],
     sabores: any[],
@@ -398,24 +474,30 @@ export class FirebaseSync {
     settings: any
   }> {
     try {
-      // Get remote data
+      // Get remote data from Firebase (source of truth)
       const remotePedidos = await this.getPedidosFromFirebase();
+      const remoteSabores = await this.getSaboresFromFirebase();
+      const remoteRellenos = await this.getRellenosFromFirebase();
       const remoteSettings = await this.getSettingsFromFirebase();
 
-      // Merge logic: local data takes precedence for conflicts
+      // Firebase is the source of truth - use remote data
       const mergedPedidos = this.mergePedidos(localData.pedidos, remotePedidos);
       const mergedSettings = remoteSettings || localData.settings;
 
-      // Sync local data to Firebase
-      await this.syncPedidosToFirebase(localData.pedidos);
-      await this.syncSaboresToFirebase(localData.sabores);
-      await this.syncRellenosToFirebase(localData.rellenos);
-      await this.syncSettingsToFirebase(localData.settings);
+      // DON'T sync local data to Firebase - Firebase is the source of truth
+      // Only sync pedidos if they have local changes (not sabores/rellenos)
+      if (localData.pedidos.length > 0) {
+        await this.syncPedidosToFirebase(localData.pedidos);
+      }
+      // Skip syncing sabores and rellenos - Firebase is source of truth
+
+      console.log('🔄 Firebase sync: Using Firebase as source of truth');
+      console.log(`📊 Remote sabores: ${remoteSabores.length}, Remote rellenos: ${remoteRellenos.length}`);
 
       return {
         pedidos: mergedPedidos,
-        sabores: localData.sabores, // Keep local for now
-        rellenos: localData.rellenos, // Keep local for now
+        sabores: remoteSabores, // Use Firebase data
+        rellenos: remoteRellenos, // Use Firebase data
         settings: mergedSettings
       };
     } catch (error) {

@@ -109,8 +109,18 @@ export default function ProximosPedidosScreen() {
 
   const cargarSaboresYRellenos = async () => {
     try {
+      // Sync with Firebase first (Firebase is source of truth)
+      if (hybridDB.isFirebaseEnabled()) {
+        console.log('🔄 Sincronizando con Firebase en Próximos Pedidos...');
+        await hybridDB.syncFromCloud();
+      }
+      
+      // Read data using hybrid DB functions (works on both web and native)
       const saboresData = await hybridDB.obtenerSabores();
       const rellenosData = await hybridDB.obtenerRellenos();
+      
+      console.log(`📊 Datos cargados en Próximos Pedidos: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
+      
       setSabores(saboresData);
       setRellenos(rellenosData);
     } catch (error) {
