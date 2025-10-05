@@ -546,7 +546,7 @@ export default function ProximosPedidosScreen() {
           <Text style={styles.pedidoFecha}>{formatearFecha(item.fecha_entrega)}</Text>
         </View>
         <View style={styles.pedidoAcciones}>
-          {hasPermission('edit_pedido') && (
+          {hasPermission('edit_pedidos') && (
             <TouchableOpacity
               style={styles.editarBtn}
               onPress={() => handleEditarPedido(item)}
@@ -554,7 +554,7 @@ export default function ProximosPedidosScreen() {
               <Text style={styles.editarBtnText}>✏️</Text>
             </TouchableOpacity>
           )}
-          {hasPermission('delete_pedido') && (
+          {hasPermission('delete_pedidos') && (
             <TouchableOpacity
               style={styles.eliminarBtn}
               onPress={() => handleEliminarPedido(item)}
@@ -612,7 +612,7 @@ export default function ProximosPedidosScreen() {
         <Image source={{ uri: item.imagen }} style={styles.imagenPedido} />
       )}
 
-      {hasPermission('edit_pedido') && (
+      {hasPermission('edit_pedidos') && (
         <View style={styles.abonarContainer}>
           <TouchableOpacity style={styles.abonarBtn} onPress={() => handleAbonar(item)}>
             <Text style={styles.abonarBtnText}>Abonar</Text>

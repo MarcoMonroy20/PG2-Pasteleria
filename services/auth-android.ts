@@ -22,7 +22,7 @@ export interface AuthResult {
   error?: string;
 }
 
-// Default users with different passwords
+// Default users with correct passwords for Android
 const DEFAULT_USERS: User[] = [
   { 
     id: 1, 
@@ -35,26 +35,17 @@ const DEFAULT_USERS: User[] = [
   },
   { 
     id: 2, 
-    username: 'dueño', 
-    password: '2110', 
+    username: 'dueno', 
+    password: 'dueno2024', 
     role: 'dueño',
-    nombre: 'Raquel Alejandra',
+           nombre: 'Administrador',
     activo: true,
     created_at: new Date().toISOString()
   },
   { 
     id: 3, 
-    username: 'dueno2024', 
-    password: 'dueno2024', 
-    role: 'dueño',
-    nombre: 'Raquel Alejandra',
-    activo: true,
-    created_at: new Date().toISOString()
-  },
-  { 
-    id: 4, 
     username: 'repostero', 
-    password: '2110', 
+    password: 'repostero2024', 
     role: 'repostero',
     nombre: 'Repostero',
     activo: true,

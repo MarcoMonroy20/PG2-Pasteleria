@@ -4,12 +4,10 @@ import { useNavigation } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import Colors from '../../constants/Colors';
 import hybridDB from '../../services/hybrid-db';
-import SyncButton from '../../components/SyncButton';
-import FirebaseStatus from '../../components/FirebaseStatus';
-import NotificationDebugger from '../../components/NotificationDebugger';
-import FirebaseDebugger from '../../components/FirebaseDebugger';
 import { enhancedNotifications } from '../../services/notifications';
 import { useAuth } from '../../contexts/AuthContext';
+import ServicesStatus from '../../components/ServicesStatus';
+import FirebaseDebugger from '../../components/FirebaseDebugger';
 
 type AppSettings = {
   notifications_enabled: boolean;
@@ -28,14 +26,14 @@ export default function SettingsScreen() {
   console.log('⚙️ SettingsScreen - Usuario actual:', user);
   console.log('⚙️ SettingsScreen - Rol del usuario:', user?.role);
   console.log('⚙️ SettingsScreen - Tiene permiso manage_settings:', hasPermission('manage_settings'));
-  const [settings, setSettings] = useState<AppSettings>({ 
-    notifications_enabled: false, 
-    days_before: 0, 
-    notification_days: [0], // Por defecto solo el mismo día
-    contact_name: 'Ejemplo Contacto', 
-    company_name: 'Pasteleria Cocina', 
-    phone: '12345678' 
-  });
+         const [settings, setSettings] = useState<AppSettings>({ 
+           notifications_enabled: false, 
+           days_before: 0, 
+           notification_days: [0], // Por defecto solo el mismo día
+           contact_name: '', 
+           company_name: '', 
+           phone: '' 
+         });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
@@ -375,29 +373,13 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <View style={[styles.card, { marginTop: 16 }]}>
-        <Text style={styles.sectionTitle}>Sincronización con la Nube</Text>
+      {/* Estado de Servicios (Firebase + Cloudinary) */}
+      <ServicesStatus />
 
-        <View style={styles.rowBetween}>
-          <Text style={styles.label}>Estado de conexión</Text>
-          <FirebaseStatus showText={true} />
-        </View>
-
-        <Text style={[styles.helper, { marginTop: 8 }]}>
-          Las imágenes se guardan localmente para optimizar el rendimiento.
-          Otros datos se sincronizan automáticamente con Firebase.
-        </Text>
-
-        <View style={{ marginTop: 16, alignItems: 'center' }}>
-          <SyncButton showText={true} />
-        </View>
-      </View>
-
-      {/* Debugger de Notificaciones - Solo en desarrollo */}
-      <NotificationDebugger />
-
-      {/* Debugger de Firebase - Diagnóstico de sincronización */}
-      <FirebaseDebugger />
+      {/* Diagnóstico de Firebase - Solo para administradores */}
+      {user && (user.role === 'admin' || user.role === 'dueño') && (
+        <FirebaseDebugger />
+      )}
 
       <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} disabled={saving} onPress={handleSave}>
         <Text style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar cambios'}</Text>

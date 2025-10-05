@@ -47,7 +47,7 @@ export const initDB = () => {
       // Establecer valores por defecto de contacto
       db.runSync(
         'UPDATE settings SET contact_name = COALESCE(contact_name, ?), company_name = COALESCE(company_name, ?), phone = COALESCE(phone, ?) WHERE id = 1',
-        ['Raquel Alejandra Rousselin Pellecer', 'Sweet Cakes', '53597287']
+        ['', '', '']
       );
 
       console.log('Tablas creadas, creando datos por defecto...');
@@ -431,9 +431,9 @@ export const obtenerSettings = (): Promise<AppSettings> => {
         notifications_enabled: Boolean(row?.notifications_enabled ?? 0),
         days_before: Number(row?.days_before ?? 0),
         notification_days: notification_days,
-        contact_name: row?.contact_name ?? 'Raquel Alejandra Rousselin Pellecer',
-        company_name: row?.company_name ?? 'Sweet Cakes',
-        phone: row?.phone ?? '53597287',
+        contact_name: row?.contact_name ?? '',
+        company_name: row?.company_name ?? '',
+        phone: row?.phone ?? '',
       });
     } catch (error) {
       reject(error);
@@ -665,7 +665,7 @@ export const resetDatabase = (): Promise<void> => {
       db.runSync('INSERT OR IGNORE INTO settings (id, notifications_enabled, days_before) VALUES (1, 0, 1)');
       db.runSync(
         'UPDATE settings SET contact_name = ?, company_name = ?, phone = ? WHERE id = 1',
-        ['Raquel Alejandra Rousselin Pellecer', 'Sweet Cakes', '53597287']
+        ['', '', '']
       );
 
       console.log('Base de datos reseteada correctamente');

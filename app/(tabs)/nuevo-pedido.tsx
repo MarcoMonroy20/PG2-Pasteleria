@@ -9,7 +9,9 @@ import {
   Alert,
   Platform,
   Modal,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from 'expo-router';
 import { useDataRefresh } from '../../contexts/DataContext';
@@ -41,6 +43,7 @@ export default function NuevoPedidoScreen() {
   const [descripcion, setDescripcion] = useState('');
   const [direccionEntrega, setDireccionEntrega] = useState('');
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [imagen, setImagen] = useState<string | null>(null);
   
   // Estados del modal
   const [modalVisible, setModalVisible] = useState(false);
@@ -83,6 +86,59 @@ export default function NuevoPedidoScreen() {
     };
     cargarDatos();
   }, []);
+
+  // Funciones para manejo de imágenes
+  const pickImage = async () => {
+    try {
+      // Solicitar permisos
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permisos', 'Se necesitan permisos para acceder a la galería');
+        return;
+      }
+
+      // Abrir directamente el selector de imágenes (galería)
+      pickFromGallery();
+    } catch (error) {
+      console.error('Error requesting permissions:', error);
+      Alert.alert('Error', 'No se pudieron solicitar los permisos: ' + (error as Error).message);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setImagen(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image from gallery:', error);
+      if (Platform.OS === 'web') {
+        alert('Error: No se pudo seleccionar la imagen');
+      } else {
+        Alert.alert('Error', 'No se pudo seleccionar la imagen');
+      }
+    }
+  };
+
+
+  const removeImage = () => {
+    Alert.alert(
+      'Eliminar Imagen',
+      '¿Estás seguro de que quieres eliminar la imagen?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => setImagen(null) }
+      ]
+    );
+  };
 
   // Recargar sabores y rellenos cuando cambie el refreshTrigger
   useEffect(() => {
@@ -354,7 +410,8 @@ export default function NuevoPedidoScreen() {
         monto_abonado: parseFloat(montoAbonado) || 0,
         descripcion: descripcion,
         direccion_entrega: direccionEntrega,
-        productos: productos
+        productos: productos,
+        imagen: imagen || undefined // Opcional: solo incluir si hay imagen
       };
 
       console.log('📝 Guardando pedido:', nuevoPedido);
@@ -377,6 +434,7 @@ export default function NuevoPedidoScreen() {
       setDescripcion('');
       setDireccionEntrega('');
       setProductos([]);
+      setImagen(null);
 
       // Notificar a otros componentes
       triggerRefresh();
@@ -523,6 +581,29 @@ export default function NuevoPedidoScreen() {
               multiline
               numberOfLines={2}
             />
+          </View>
+
+          {/* Campo de Imagen - Opcional */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Imagen de Referencia (Opcional)</Text>
+            <View style={styles.imageContainer}>
+              {imagen ? (
+                <View style={styles.imagePreview}>
+                  <Image source={{ uri: imagen }} style={styles.previewImage} />
+                  <TouchableOpacity style={styles.removeImageBtn} onPress={removeImage}>
+                    <Text style={styles.removeImageText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.addImageBtn, { backgroundColor: '#E75480' }]} 
+                  onPress={pickImage}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.addImageText, { color: 'white' }]}>📁 Seleccionar Imagen</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -1009,5 +1090,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.light.text,
     textAlign: 'left',
+  },
+  // Estilos para el campo de imagen
+  imageContainer: {
+    marginTop: 8,
+  },
+  addImageBtn: {
+    padding: 20,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    backgroundColor: Colors.light.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageText: {
+    fontSize: 16,
+    color: Colors.light.buttonPrimary,
+    fontWeight: '500',
+  },
+  imagePreview: {
+    position: 'relative',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeImageText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

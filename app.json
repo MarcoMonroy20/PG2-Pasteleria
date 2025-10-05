@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Pasteleria Cocina: Agenda",
+    "name": "Sweet Cakes: Agenda",
     "slug": "pasteleria-cocina-app-marcomonroyumg",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
       "icon": "./assets/images/logo.png",
       "color": "#E75480",
       "androidMode": "default",
-      "androidCollapsedTitle": "Pastelería Cocina"
+      "androidCollapsedTitle": "Sweet Cakes"
     },
     "ios": {
       "supportsTablet": true,
@@ -27,11 +27,11 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
+        "foregroundImage": "./assets/images/logo2.png",
         "backgroundColor": "#FDC8E3",
-        "monochromeImage": "./assets/images/logo.png"
+        "monochromeImage": "./assets/images/logo2.png"
       },
-      "icon": "./assets/images/logo.png",
+      "icon": "./assets/images/logo2.png",
       "package": "com.pasteleriacocina.marcomonroyumg.app",
       "versionCode": 1,
       "permissions": [
@@ -90,7 +90,10 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "0b4e6c89-fdc8-47d9-9e71-b54b09d8ac21"
+      }
     }
   }
 }

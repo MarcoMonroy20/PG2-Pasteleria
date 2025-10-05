@@ -200,56 +200,47 @@ export default function FirebaseDebugger() {
         <Text style={styles.configText}>Storage Bucket: {firebaseConfig.storageBucket || 'No configurado'}</Text>
       </View>
 
-      {/* Botones de Acción */}
+      {/* Botón de Diagnóstico Automático */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={[styles.button, styles.primaryButton]} 
-          onPress={runDiagnostic}
-          disabled={loading}
-        >
-          <Ionicons name="refresh" size={20} color="white" />
-          <Text style={styles.buttonText}>
-            {loading ? 'Diagnosticando...' : 'Ejecutar Diagnóstico'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.successButton]} 
-          onPress={testConnection}
-          disabled={testing || !diagnostic.isConnected}
-        >
-          <Ionicons name="cloud-done" size={20} color="white" />
-          <Text style={styles.buttonText}>
-            {testing ? 'Probando...' : 'Probar Conexión'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, styles.warningButton]} 
-          onPress={testCreatePedido}
-          disabled={!diagnostic.isConnected}
-        >
-          <Ionicons name="add-circle" size={20} color="white" />
-          <Text style={styles.buttonText}>Crear Pedido de Prueba</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: '#9C27B0' }]} 
           onPress={async () => {
+            setLoading(true);
+            setTesting(true);
             try {
-              console.log('🔄 Reinicializando Firebase desde debugger...');
-              const { HybridDatabase } = await import('../services/firebase');
-              await HybridDatabase.reinitialize();
-              Alert.alert('✅ Éxito', 'Firebase reinicializado. Ejecuta diagnóstico nuevamente.');
-              runDiagnostic();
+              console.log('🔍 Iniciando diagnóstico completo automático...');
+              
+              // 1. Ejecutar diagnóstico básico
+              await runDiagnostic();
+              
+              // 2. Si está conectado, probar conexión
+              if (diagnostic?.isConnected) {
+                await testConnection();
+              }
+              
+              // 3. Si hay problemas, intentar reinicializar
+              if (!diagnostic?.isConnected || !diagnostic?.hasCredentials) {
+                console.log('🔄 Intentando reinicializar Firebase...');
+                const { HybridDatabase } = await import('../services/firebase');
+                await HybridDatabase.reinitialize();
+                await runDiagnostic();
+              }
+              
+              Alert.alert('✅ Diagnóstico Completado', 'Se ha ejecutado un diagnóstico completo del sistema Firebase. Revisa los resultados arriba.');
             } catch (error) {
-              console.error('❌ Error reinicializando Firebase:', error);
-              Alert.alert('❌ Error', `Error reinicializando: ${error}`);
+              console.error('❌ Error en diagnóstico automático:', error);
+              Alert.alert('❌ Error', `Error durante el diagnóstico: ${error}`);
+            } finally {
+              setLoading(false);
+              setTesting(false);
             }
           }}
+          disabled={loading || testing}
         >
-          <Ionicons name="refresh-circle" size={20} color="white" />
-          <Text style={styles.buttonText}>Reinicializar Firebase</Text>
+          <Ionicons name="search" size={20} color="white" />
+          <Text style={styles.buttonText}>
+            {loading || testing ? 'Identificando Fallos...' : 'Identificar Fallos'}
+          </Text>
         </TouchableOpacity>
       </View>
 

@@ -92,14 +92,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
       
-      const authenticatedUser = await authenticateUser(username, password) as User | null;
-      console.log('👤 Usuario autenticado:', authenticatedUser);
+      const authResult = await authenticateUser(username, password);
+      console.log('👤 Resultado de autenticación:', authResult);
       
-      if (authenticatedUser) {
-        setUser(authenticatedUser);
-        console.log('✅ Login exitoso');
+      // Handle different return types based on platform
+      if (Platform.OS === 'android' && authResult && typeof authResult === 'object' && 'success' in authResult) {
+        // Android returns AuthResult
+        if (authResult.success && authResult.user) {
+          setUser(authResult.user);
+          console.log('✅ Login exitoso (Android)');
+          return true;
+        } else {
+          console.log('❌ Login fallido (Android):', authResult.error);
+          return false;
+        }
+      } else if (authResult && typeof authResult === 'object' && 'id' in authResult) {
+        // Web/Native returns User directly
+        setUser(authResult as User);
+        console.log('✅ Login exitoso (Web/Native)');
         return true;
       }
+      
       console.log('❌ Login fallido - credenciales incorrectas');
       return false;
     } catch (error) {
@@ -118,27 +131,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     }
 
-    console.log('🔐 hasPermission:', {
+    console.log('🔐 hasPermission (Android Debug):', {
       permission,
       userRole: user.role,
-      username: user.username
+      username: user.username,
+      platform: Platform.OS,
+      userObject: user
     });
 
-    // Lógica simplificada: Solo repostero tiene restricciones
+    // Repostero: Solo puede ver calendario, pedidos y productos (solo lectura)
     if (user.role === 'repostero') {
-      console.log('⚠️ Usuario repostero - permisos limitados');
-      return false; // Repostero no tiene permisos especiales
+      const readOnlyPermissions = [
+        'view_calendario',
+        'view_pedidos', 
+        'view_productos',
+        'view_proximos_productos',
+        'view_cotizaciones',
+        'view_estadisticas'
+      ];
+      
+      if (readOnlyPermissions.includes(permission)) {
+        console.log('✅ Repostero: Permiso de lectura concedido');
+        return true;
+      } else {
+        console.log('❌ Repostero: Permiso denegado - solo lectura');
+        return false;
+      }
     }
 
-    // Admin y dueño tienen todos los permisos
+    // Admin y dueño: Acceso completo a todo
     if (user.role === 'admin' || user.role === 'dueño') {
       console.log('✅ Usuario admin/dueño - acceso completo');
       return true;
     }
 
-    // Por defecto, dar acceso (fallback)
-    console.log('⚠️ Rol desconocido, dando acceso por defecto');
-    return true;
+    // Por defecto, denegar acceso (seguridad)
+    console.log('❌ Rol desconocido, acceso denegado por seguridad');
+    return false;
   };
 
   return (

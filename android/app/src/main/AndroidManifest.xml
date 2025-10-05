@@ -40,12 +40,11 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="pasteleriacocinaapp"/>
-        <data android:scheme="exp+pasteleria-cocina-app"/>
+        <data android:scheme="exp+pasteleria-cocina-app-marcomonroyumg"/>
       </intent-filter>
       <intent-filter data-generated="true">
         <action android:name="android.intent.action.VIEW"/>
         <data android:scheme="https" android:host="pasteleriacocina.app"/>
-        <data android:scheme="exp+pasteleria-cocina-app"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>

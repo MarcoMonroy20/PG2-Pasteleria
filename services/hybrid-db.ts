@@ -6,6 +6,7 @@
 import { Platform } from 'react-native';
 import { HybridDatabase, FirebaseSync } from './firebase';
 import NetworkManager from './network-manager';
+import HybridImageService from './image-service';
 import { FIREBASE_ENABLED } from '../firebase.config';
 
 // Import existing services based on platform
@@ -95,9 +96,15 @@ class HybridDBService {
 
       // Initialize Firebase for sync only if enabled
       if (FIREBASE_ENABLED) {
-        await FirebaseSync.initialize();
-        this.firebaseEnabled = true;
-        console.log('✅ Hybrid Database initialized successfully');
+        try {
+          await FirebaseSync.initialize();
+          this.firebaseEnabled = true;
+          console.log('✅ Hybrid Database initialized successfully with Firebase');
+        } catch (firebaseError) {
+          console.error('❌ Firebase initialization failed:', firebaseError);
+          this.firebaseEnabled = false;
+          console.log('⚠️ Continuing with local database only');
+        }
       } else {
         this.firebaseEnabled = false;
         console.log('✅ Local Database initialized (Firebase disabled)');
@@ -112,18 +119,27 @@ class HybridDBService {
     }
   }
 
-  // Image handling - stays completely local
-  getImagePath(pedidoId: number): string | null {
+  // Image handling - hybrid (Cloudinary + local)
+  async getImagePath(pedidoId: number): Promise<string | null> {
+    // Try to get from hybrid image service first
+    const imageUrl = await HybridImageService.getImageUrl(pedidoId);
+    if (imageUrl) {
+      return imageUrl;
+    }
+    
+    // Fallback to local database
     return HybridDatabase.getImagePath(pedidoId);
   }
 
-  saveImageReference(pedidoId: number, imagePath: string): void {
-    // Image reference saved locally
+  async saveImageReference(pedidoId: number, imagePath: string): Promise<void> {
+    // Save using hybrid image service (Cloudinary + local)
+    await HybridImageService.saveImageReference(pedidoId, imagePath);
     console.log(`💾 Image reference saved for pedido ${pedidoId}: ${imagePath}`);
   }
 
-  deleteImageReference(pedidoId: number): void {
-    // Image reference deletion (simplified for now)
+  async deleteImageReference(pedidoId: number): Promise<void> {
+    // Delete using hybrid image service (including Cloudinary deletion)
+    await HybridImageService.deleteImageReference(pedidoId, true);
     console.log(`🗑️ Image reference deleted for pedido ${pedidoId}`);
   }
 
@@ -133,16 +149,14 @@ class HybridDBService {
       // Create in local database first (always works offline)
       const pedidoId = await dbService.crearPedido(pedido);
 
-      // Save image locally if exists
+      // Save image using hybrid service if exists
       if (pedido.imagen) {
-        this.saveImageReference(pedidoId, pedido.imagen);
+        await this.saveImageReference(pedidoId, pedido.imagen);
       }
 
       // Sync to Firebase if enabled and online
-      console.log('🔍 Debug: firebaseEnabled =', this.firebaseEnabled);
       if (this.firebaseEnabled) {
         const networkManager = NetworkManager.getInstance();
-        console.log('🔍 Debug: isOnline =', networkManager.isOnlineStatus());
 
         if (networkManager.isOnlineStatus()) {
           // Online: sync immediately
@@ -195,11 +209,37 @@ class HybridDBService {
         pedidos = await dbService.obtenerPedidos();
       }
 
+      // Update image URLs with Cloudinary URLs if available
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          const imageUrl = await HybridImageService.getImageUrl(pedido.id);
+          if (imageUrl) {
+            pedido.imagen = imageUrl;
+          }
+        }
+      }
+
       return pedidos;
     } catch (error) {
       console.error('Error getting pedidos:', error);
       // Fall back to local database
-      return await dbService.obtenerPedidos();
+      const pedidos = await dbService.obtenerPedidos();
+      
+      // Update image URLs with Cloudinary URLs if available
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          try {
+            const imageUrl = await HybridImageService.getImageUrl(pedido.id);
+            if (imageUrl) {
+              pedido.imagen = imageUrl;
+            }
+          } catch (imageError) {
+            console.warn(`Error getting image for pedido ${pedido.id}:`, imageError);
+          }
+        }
+      }
+      
+      return pedidos;
     }
   }
 
@@ -217,11 +257,37 @@ class HybridDBService {
         pedido = await dbService.obtenerPedidoPorId(id);
       }
 
+      // Update image URL with Cloudinary URL if available
+      if (pedido) {
+        try {
+          const imageUrl = await HybridImageService.getImageUrl(id);
+          if (imageUrl) {
+            pedido.imagen = imageUrl;
+          }
+        } catch (imageError) {
+          console.warn(`Error getting image for pedido ${id}:`, imageError);
+        }
+      }
+
       return pedido;
     } catch (error) {
       console.error('Error getting pedido by ID:', error);
       // Fall back to local database
-      return await dbService.obtenerPedidoPorId(id);
+      const pedido = await dbService.obtenerPedidoPorId(id);
+      
+      // Update image URL with Cloudinary URL if available
+      if (pedido) {
+        try {
+          const imageUrl = await HybridImageService.getImageUrl(id);
+          if (imageUrl) {
+            pedido.imagen = imageUrl;
+          }
+        } catch (imageError) {
+          console.warn(`Error getting image for pedido ${id}:`, imageError);
+        }
+      }
+      
+      return pedido;
     }
   }
 
@@ -233,10 +299,10 @@ class HybridDBService {
       await dbService.actualizarPedido(id, pedido);
       console.log('📝 Pedido actualizado en dbService');
 
-      // Save image locally if exists
+      // Save image using hybrid service if exists
       if (pedido.imagen) {
         console.log('📝 Guardando referencia de imagen...');
-        this.saveImageReference(id, pedido.imagen);
+        await this.saveImageReference(id, pedido.imagen);
       }
 
       // Sync to Firebase if enabled
@@ -266,9 +332,9 @@ class HybridDBService {
       await dbService.eliminarPedido(id);
       console.log('🗑️ Pedido eliminado de dbService');
 
-      // Delete local image reference
+      // Delete image reference using hybrid service
       console.log('🗑️ Eliminando referencia de imagen...');
-      this.deleteImageReference(id);
+      await this.deleteImageReference(id);
       console.log('🗑️ Referencia de imagen eliminada');
 
       // Delete from Firebase if enabled
@@ -292,15 +358,49 @@ class HybridDBService {
 
   async obtenerPedidosPorFecha(fechaInicio: string, fechaFin: string): Promise<Pedido[]> {
     try {
+      let pedidos: Pedido[];
+      
       if (this.firebaseEnabled) {
         // Get from local database for date filtering (Firebase doesn't support complex queries easily)
-        return await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
+        pedidos = await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
       } else {
-        return await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
+        pedidos = await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
       }
+
+      // Update image URLs with Cloudinary URLs if available
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          try {
+            const imageUrl = await HybridImageService.getImageUrl(pedido.id);
+            if (imageUrl) {
+              pedido.imagen = imageUrl;
+            }
+          } catch (imageError) {
+            console.warn(`Error getting image for pedido ${pedido.id}:`, imageError);
+          }
+        }
+      }
+
+      return pedidos;
     } catch (error) {
       console.error('Error getting pedidos by date:', error);
-      return await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
+      const pedidos = await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
+      
+      // Update image URLs with Cloudinary URLs if available
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          try {
+            const imageUrl = await HybridImageService.getImageUrl(pedido.id);
+            if (imageUrl) {
+              pedido.imagen = imageUrl;
+            }
+          } catch (imageError) {
+            console.warn(`Error getting image for pedido ${pedido.id}:`, imageError);
+          }
+        }
+      }
+      
+      return pedidos;
     }
   }
 
@@ -570,6 +670,42 @@ class HybridDBService {
   getNetworkStatus() {
     const networkManager = NetworkManager.getInstance();
     return networkManager.getCurrentStatus();
+  }
+
+  // Sync all data when connection is restored (including images)
+  async syncAllData(): Promise<void> {
+    const networkManager = NetworkManager.getInstance();
+    if (!networkManager.isOnlineStatus()) {
+      console.log('📱 No internet connection, skipping sync');
+      return;
+    }
+
+    if (!FIREBASE_ENABLED) {
+      console.log('🔥 Firebase disabled, skipping sync');
+      return;
+    }
+
+    try {
+      console.log('🔄 Starting full data sync...');
+      
+      // Sync pedidos (without images)
+      await FirebaseSync.syncPedidos();
+      
+      // Sync settings
+      await FirebaseSync.syncSettings();
+      
+      // Sync pending image uploads to Cloudinary
+      await HybridImageService.syncPendingUploads();
+      
+      console.log('✅ Full data sync completed');
+    } catch (error) {
+      console.error('❌ Error in full data sync:', error);
+    }
+  }
+
+  // Get image sync status
+  async getImageSyncStatus() {
+    return await HybridImageService.getSyncStatus();
   }
 }
 

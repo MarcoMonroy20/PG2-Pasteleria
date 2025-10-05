@@ -415,7 +415,7 @@ export default function CalendarioScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDayModal(null)}>
                 <Text style={styles.cancelBtnText}>Cerrar</Text>
               </TouchableOpacity>
-              {hasPermission('create_pedido') && (
+              {hasPermission('create_pedidos') && (
                 <TouchableOpacity style={styles.confirmBtn} onPress={() => {
                   console.log('Enviando fecha al nuevo pedido:', dayModal.date);
                   setDayModal(null);

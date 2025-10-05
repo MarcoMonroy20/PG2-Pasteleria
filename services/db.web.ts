@@ -97,7 +97,13 @@ const initDefaultData = () => {
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
-    const defaultSettings: AppSettings = { notifications_enabled: false, days_before: 0, contact_name: 'Raquel Alejandra Rousselin Pellecer', company_name: 'Sweet Cakes', phone: '53597287' };
+    const defaultSettings: AppSettings = { 
+      notifications_enabled: false, 
+      days_before: 0, 
+      contact_name: '', 
+      company_name: '', 
+      phone: '' 
+    };
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(defaultSettings));
   }
   if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
@@ -191,9 +197,9 @@ export const obtenerSettings = (): Promise<AppSettings> => {
       "notifications_enabled": false,
       "days_before": 0,
       "notification_days": [0],
-      "contact_name": "Raquel Alejandra Rousselin Pellecer",
-      "company_name": "Sweet Cakes",
-      "phone": "53597287"
+      "contact_name": "",
+      "company_name": "",
+      "phone": ""
     };
     
     const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);

@@ -17,7 +17,7 @@ import { DataProvider } from '../../contexts/DataContext';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const insets = useSafeAreaInsets();
 
   // Aplicar fixes para web después de que el componente se monte
@@ -43,10 +43,11 @@ export default function TabLayout() {
           headerShown: false, // Ocultar header blanco en todas las pantallas
           tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
           tabBarStyle: Platform.OS === 'android' ? {
-            height: 100 + insets.bottom, // Altura base + safe area bottom
-            paddingBottom: Math.max(40, insets.bottom + 20), // Al menos 40px o safe area + 20px
-            paddingTop: 12,
+            height: 60 + insets.bottom, // Altura base + safe area bottom
+            paddingBottom: Math.max(8, insets.bottom), // Padding mínimo o safe area
+            paddingTop: 8,
             backgroundColor: Colors[colorScheme ?? 'light'].background,
+            elevation: 8, // Sombra para Android
           } : {
             height: 60,
             paddingBottom: 8,
@@ -54,14 +55,17 @@ export default function TabLayout() {
             backgroundColor: Colors[colorScheme ?? 'light'].background,
           },
           tabBarLabelStyle: {
-            fontSize: 10, // Reducido de 12 a 10 para que quepan más caracteres
+            fontSize: 9, // Reducido para mejor ajuste
             fontWeight: '500',
             textAlign: 'center',
+            marginTop: 2,
           },
           tabBarItemStyle: {
-            paddingVertical: 2, // Reducido de 4 a 2
-            paddingHorizontal: 2, // Agregado padding horizontal
-            minWidth: 50, // Ancho mínimo para cada elemento
+            paddingVertical: 4, // Ajustado para la nueva altura
+            paddingHorizontal: 2,
+            minWidth: 50,
+            justifyContent: 'center',
+            alignItems: 'center',
           },
         }}
       >
@@ -100,13 +104,15 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <FontAwesome size={20} name="dollar" color={color} />,
           }}
         />
-        <Tabs.Screen
-          name="two"
-          options={{
-            title: 'Estad.',
-            tabBarIcon: ({ color }) => <FontAwesome size={20} name="bar-chart" color={color} />,
-          }}
-        />
+        {hasPermission('view_estadisticas') && (
+          <Tabs.Screen
+            name="two"
+            options={{
+              title: 'Estad.',
+              tabBarIcon: ({ color }) => <FontAwesome size={20} name="bar-chart" color={color} />,
+            }}
+          />
+        )}
         <Tabs.Screen
           name="nuevo-pedido"
           options={{

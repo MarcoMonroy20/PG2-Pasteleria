@@ -11,6 +11,7 @@ Una aplicación móvil desarrollada con React Native y Expo para la gestión de 
 - **Soporte Offline**: Funciona sin conexión a internet
 - **Roles de Usuario**: Admin, Dueño, Repostero con permisos diferenciados
 - **Multiplataforma**: Android, iOS y Web
+- **Almacenamiento Híbrido**: Imágenes en Cloudinary + datos locales
 
 ## 🛠️ Tecnologías
 
@@ -18,6 +19,7 @@ Una aplicación móvil desarrollada con React Native y Expo para la gestión de 
 - **TypeScript** para tipado estático
 - **Firebase** (Firestore, Authentication, Cloud Messaging)
 - **SQLite** para almacenamiento local
+- **Cloudinary** para almacenamiento de imágenes (opcional)
 - **React Navigation** para navegación
 - **Expo Notifications** para push notifications
 

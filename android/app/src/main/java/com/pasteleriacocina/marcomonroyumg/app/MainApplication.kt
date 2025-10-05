@@ -1,4 +1,4 @@
-package com.pasteleriacocina.app
+package com.pasteleriacocina.marcomonroyumg.app
 
 import android.app.Application
 import android.content.res.Configuration
