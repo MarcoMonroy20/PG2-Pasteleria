@@ -246,19 +246,14 @@ export const clearNotificationForPedido = (pedidoId: number): Promise<void> => {
 export const obtenerSabores = (tipo?: 'pastel' | 'cupcakes'): Promise<Sabor[]> => {
   return new Promise((resolve) => {
     const saboresJson = localStorage.getItem(STORAGE_KEYS.SABORES);
-    console.log(`🔍 db.web.ts - obtenerSabores: Raw localStorage item for SABORES: ${saboresJson ? saboresJson.substring(0, 100) + '...' : 'null/undefined'}`);
     let sabores = saboresJson ? JSON.parse(saboresJson) : [];
-    console.log(`📊 db.web.ts - obtenerSabores: Parsed ${sabores.length} sabores.`);
-    console.log(`📊 db.web.ts - obtenerSabores: First 3 sabores:`, sabores.slice(0, 3));
     
     // Ya no filtramos por activo porque eliminamos físicamente
     if (tipo) {
       sabores = sabores.filter((s: Sabor) => s.tipo === tipo);
-      console.log(`📊 db.web.ts - obtenerSabores: After filtering by tipo '${tipo}': ${sabores.length} sabores`);
     }
     
     const sortedSabores = sabores.sort((a: Sabor, b: Sabor) => a.nombre.localeCompare(b.nombre));
-    console.log(`📊 db.web.ts - obtenerSabores: Returning ${sortedSabores.length} sorted sabores`);
     resolve(sortedSabores);
   });
 };
@@ -307,10 +302,7 @@ export const eliminarTodosLosSabores = (): Promise<void> => {
 export const obtenerRellenos = (): Promise<Relleno[]> => {
   return new Promise((resolve) => {
     const rellenosJson = localStorage.getItem(STORAGE_KEYS.RELLENOS);
-    console.log(`🔍 db.web.ts - obtenerRellenos: Raw localStorage item for RELLENOS: ${rellenosJson ? rellenosJson.substring(0, 100) + '...' : 'null/undefined'}`);
     const rellenos = rellenosJson ? JSON.parse(rellenosJson) : [];
-    console.log(`📊 db.web.ts - obtenerRellenos: Parsed ${rellenos.length} rellenos.`);
-    console.log(`📊 db.web.ts - obtenerRellenos: First 3 rellenos:`, rellenos.slice(0, 3));
     
     // Migrar rellenos existentes que no tienen tipo
     const rellenosMigrados = rellenos.map((relleno: any) => ({
@@ -321,12 +313,10 @@ export const obtenerRellenos = (): Promise<Relleno[]> => {
     // Guardar rellenos migrados si hubo cambios
     if (rellenosMigrados.some((r: any, index: number) => !rellenos[index]?.tipo)) {
       localStorage.setItem(STORAGE_KEYS.RELLENOS, JSON.stringify(rellenosMigrados));
-      console.log('🔄 Rellenos migrados automáticamente con campo tipo');
     }
     
     // Ya no filtramos por activo porque eliminamos físicamente
     const sortedRellenos = rellenosMigrados.sort((a: Relleno, b: Relleno) => a.nombre.localeCompare(b.nombre));
-    console.log(`📊 db.web.ts - obtenerRellenos: Returning ${sortedRellenos.length} sorted rellenos`);
     resolve(sortedRellenos);
   });
 };

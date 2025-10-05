@@ -50,34 +50,28 @@ export default function RellenosMasasScreen() {
     try {
       await hybridDB.initialize();
       
-      // Sync with Firebase first (Firebase is source of truth)
-      if (hybridDB.isFirebaseEnabled()) {
-        console.log('🔄 Sincronizando con Firebase...');
-        await hybridDB.syncFromCloud();
-        
-        // Force reload data after sync
-        console.log('🔄 Recargando datos después de sincronización...');
-      }
+        // Sync with Firebase first (Firebase is source of truth)
+        if (hybridDB.isFirebaseEnabled()) {
+          await hybridDB.syncFromCloud();
+        }
       
       // Read data directly from localStorage after sync (bypass cache)
       let saboresData, rellenosData;
       
       if (Platform.OS === 'web') {
         // Read directly from localStorage to ensure we get updated data
-        const saboresJson = localStorage.getItem('sabores') || '[]';
-        const rellenosJson = localStorage.getItem('rellenos') || '[]';
+        const saboresJson = localStorage.getItem('pasteleria_sabores') || '[]';
+        const rellenosJson = localStorage.getItem('pasteleria_rellenos') || '[]';
         
         saboresData = JSON.parse(saboresJson);
         rellenosData = JSON.parse(rellenosJson);
         
-        console.log(`📊 Datos leídos directamente de localStorage: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
       } else {
         // For native, use the hybrid DB functions
         [saboresData, rellenosData] = await Promise.all([
           hybridDB.obtenerSabores(),
           hybridDB.obtenerRellenos(),
         ]);
-        console.log(`📊 Datos cargados: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
       }
       setSabores(saboresData);
       setRellenos(rellenosData);

@@ -383,20 +383,6 @@ export default function SettingsScreen() {
         <FirebaseDebugger />
       )}
 
-      {/* Limpiar Datos Locales - Solo para administradores */}
-      {user && (user.role === 'admin' || user.role === 'dueño') && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Herramientas de Administración</Text>
-          <ClearDataButton onDataCleared={() => {
-            // Recargar la aplicación después de limpiar datos
-            console.log('🔄 Datos limpiados, recargando aplicación...');
-          }} />
-          <ClearFirebaseButton onDataCleared={() => {
-            // Recargar la aplicación después de limpiar Firebase
-            console.log('🔄 Firebase limpiado, recargando aplicación...');
-          }} />
-        </View>
-      )}
 
       <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} disabled={saving} onPress={handleSave}>
         <Text style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar cambios'}</Text>
