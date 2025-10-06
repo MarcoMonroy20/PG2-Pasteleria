@@ -12,4 +12,14 @@ export const cancelNotificationById = async (_notificationId: string | null | un
   return;
 };
 
+export const scheduleMultiplePedidoNotifications = async (
+  _pedidoId: number, 
+  _pedidoNombre: string, 
+  _fechaEntrega: string, 
+  _notificationDays: number[]
+): Promise<string[]> => {
+  console.log('⚠️ Web platform: multiple notifications not supported');
+  return [];
+};
+
 

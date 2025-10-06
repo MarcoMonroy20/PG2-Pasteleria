@@ -156,6 +156,60 @@ export const schedulePedidoNotification = async (pedidoId: number, title: string
   }
 };
 
+// 🔔 Función para programar múltiples notificaciones para un pedido
+export const scheduleMultiplePedidoNotifications = async (
+  pedidoId: number, 
+  pedidoNombre: string, 
+  fechaEntrega: string, 
+  notificationDays: number[]
+): Promise<string[]> => {
+  const scheduledIds: string[] = [];
+  
+  try {
+    if (Platform.OS === 'web') {
+      return [];
+    }
+
+    // Solicitar permisos una sola vez
+    const permissions = await Notifications.requestPermissionsAsync();
+    if (!(permissions as any).granted) {
+      return [];
+    }
+
+    const fechaEntregaDate = new Date(fechaEntrega);
+    
+    for (const daysBefore of notificationDays) {
+      const triggerDate = new Date(fechaEntregaDate);
+      triggerDate.setDate(triggerDate.getDate() - daysBefore);
+      triggerDate.setHours(9, 0, 0, 0); // 9:00 AM
+      
+      // Solo programar si la fecha no es en el pasado
+      if (triggerDate.getTime() > Date.now()) {
+        const body = daysBefore === 0 
+          ? `¡${pedidoNombre} es hoy! ¡No olvides prepararlo!`
+          : `${pedidoNombre} está programado para ${fechaEntrega} (en ${daysBefore} día${daysBefore > 1 ? 's' : ''})`;
+        
+        const notificationId = await schedulePedidoNotification(
+          pedidoId,
+          'Recordatorio de pedido',
+          body,
+          triggerDate
+        );
+        
+        if (notificationId) {
+          scheduledIds.push(notificationId);
+        }
+      }
+    }
+    
+    return scheduledIds;
+    
+  } catch (error) {
+    console.error('❌ Error programando múltiples notificaciones:', error);
+    return scheduledIds;
+  }
+};
+
 export const cancelNotificationById = async (notificationId: string | null | undefined): Promise<void> => {
   if (!notificationId || Platform.OS === 'web') {
     console.log('⚠️ No notification ID provided or web platform, skipping cancellation');

@@ -19,7 +19,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import Animated from 'react-native-reanimated';
 import hybridDB from '../../services/hybrid-db';
 import { Pedido, Producto, getNotificationIdForPedido, setNotificationIdForPedido, clearNotificationForPedido } from '../../services/db';
-import { schedulePedidoNotification, cancelNotificationById } from '../../services/notifications';
+import { scheduleMultiplePedidoNotifications, cancelNotificationById } from '../../services/notifications';
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -342,17 +342,21 @@ export default function ProximosPedidosScreen() {
           await clearNotificationForPedido(pedidoEditando.id!);
         }
         if (settings.notifications_enabled) {
-          const trigger = new Date(pedidoActualizado.fecha_entrega);
-          trigger.setDate(trigger.getDate() - (settings.days_before || 0));
-          trigger.setHours(9, 0, 0, 0);
-          const notifId = await schedulePedidoNotification(
+          // 🔔 Programar múltiples notificaciones según configuración
+          const notificationDays = settings.notification_days || [settings.days_before || 0];
+          
+          // Programar múltiples notificaciones usando la nueva función
+          const scheduledIds = await scheduleMultiplePedidoNotifications(
             pedidoEditando.id!,
-            'Recordatorio de pedido',
-            `${pedidoActualizado.nombre} para ${pedidoActualizado.fecha_entrega}`,
-            trigger
+            pedidoActualizado.nombre,
+            pedidoActualizado.fecha_entrega,
+            notificationDays
           );
-          if (notifId) {
-            await setNotificationIdForPedido(pedidoEditando.id!, notifId);
+          
+          // Guardar el ID de la primera notificación (para compatibilidad)
+          if (scheduledIds.length > 0) {
+            await setNotificationIdForPedido(pedidoEditando.id!, scheduledIds[0]);
+            console.log(`✅ ${scheduledIds.length} notificaciones reprogramadas para el pedido`);
           }
         }
       } catch (e) {

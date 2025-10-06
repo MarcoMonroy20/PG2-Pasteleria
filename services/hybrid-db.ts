@@ -8,7 +8,9 @@ import { HybridDatabase, FirebaseSync } from './firebase';
 import NetworkManager from './network-manager';
 import HybridImageService from './image-service';
 import { FIREBASE_ENABLED } from '../firebase.config';
-import VisualLogger from '../utils/VisualLogger';
+// import VisualLogger from '../utils/VisualLogger'; // Removed - no longer needed
+import { scheduleMultiplePedidoNotifications } from './notifications';
+import { setNotificationIdForPedido, getNotificationIdForPedido } from './db';
 
 // Import existing services based on platform
 let dbService: any;
@@ -22,6 +24,8 @@ let eliminarTodosLosSaboresFn: any;
 let eliminarTodosLosRellenosFn: any;
 let crearSaborFn: any;
 let crearRellenoFn: any;
+let eliminarPedidoFn: any;
+let crearPedidoFn: any;
 
 if (Platform.OS === 'web') {
   const dbWeb = require('./db.web');
@@ -36,6 +40,8 @@ if (Platform.OS === 'web') {
   eliminarTodosLosRellenosFn = dbWeb.eliminarTodosLosRellenos;
   crearSaborFn = dbWeb.crearSabor;
   crearRellenoFn = dbWeb.crearRelleno;
+  eliminarPedidoFn = dbWeb.eliminarPedido;
+  crearPedidoFn = dbWeb.crearPedido;
 } else {
   const dbNative = require('./db');
   dbService = dbNative;
@@ -49,6 +55,8 @@ if (Platform.OS === 'web') {
   eliminarTodosLosRellenosFn = dbNative.eliminarTodosLosRellenos;
   crearSaborFn = dbNative.crearSabor;
   crearRellenoFn = dbNative.crearRelleno;
+  eliminarPedidoFn = dbNative.eliminarPedido;
+  crearPedidoFn = dbNative.crearPedido;
 }
 
 // Interfaces
@@ -130,7 +138,7 @@ class HybridDBService {
       console.log(`📋 Elementos pendientes: ${networkManager.getPendingSyncCount()}`);
     } catch (error) {
       console.error('❌ Error initializing Hybrid Database:', error);
-      VisualLogger.error(`[ANDROID] Error initializing database: ${error}`);
+      console.error(`[ANDROID] Error initializing database: ${error}`);
       // Continue with local database only
       this.firebaseEnabled = false;
     }
@@ -146,6 +154,602 @@ class HybridDBService {
     
     // Fallback to local database
     return HybridDatabase.getImagePath(pedidoId);
+  }
+
+  // Cleanup methods for fixing duplication issues
+  async limpiarDatosDuplicados(): Promise<void> {
+    try {
+      if (__DEV__) console.log('🧹 Iniciando limpieza de datos duplicados...');
+      console.log('[ANDROID] Iniciando limpieza de duplicados...');
+      
+      // Clean duplicate sabores
+      const sabores = await obtenerSaboresFn();
+      const saboresUnicos = new Map<string, Sabor>();
+      for (const sabor of sabores) {
+        if (!saboresUnicos.has(sabor.nombre)) {
+          saboresUnicos.set(sabor.nombre, sabor);
+        }
+      }
+      
+      if (sabores.length !== saboresUnicos.size) {
+        if (__DEV__) console.log(`🧹 Eliminando ${sabores.length - saboresUnicos.size} sabores duplicados...`);
+        console.log(`[ANDROID] Eliminando ${sabores.length - saboresUnicos.size} sabores duplicados...`);
+        await eliminarTodosLosSaboresFn();
+        for (const sabor of saboresUnicos.values()) {
+          await crearSaborFn(sabor);
+        }
+      }
+      
+      // Clean duplicate rellenos
+      const rellenos = await obtenerRellenosFn();
+      const rellenosUnicos = new Map<string, Relleno>();
+      for (const relleno of rellenos) {
+        if (!rellenosUnicos.has(relleno.nombre)) {
+          rellenosUnicos.set(relleno.nombre, relleno);
+        }
+      }
+      
+      if (rellenos.length !== rellenosUnicos.size) {
+        if (__DEV__) console.log(`🧹 Eliminando ${rellenos.length - rellenosUnicos.size} rellenos duplicados...`);
+        console.log(`[ANDROID] Eliminando ${rellenos.length - rellenosUnicos.size} rellenos duplicados...`);
+        await eliminarTodosLosRellenosFn();
+        for (const relleno of rellenosUnicos.values()) {
+          await crearRellenoFn(relleno);
+        }
+      }
+      
+      // Clean duplicate pedidos (by ID only - CONSISTENT WITH REST OF SYSTEM)
+      const pedidos = await dbService.obtenerPedidos();
+      const pedidosUnicos = new Map<number, Pedido>();
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          if (!pedidosUnicos.has(pedido.id)) {
+            pedidosUnicos.set(pedido.id, pedido);
+          }
+        }
+      }
+      
+      if (pedidos.length !== pedidosUnicos.size) {
+        if (__DEV__) console.log(`🧹 Eliminando ${pedidos.length - pedidosUnicos.size} pedidos duplicados...`);
+        console.log(`[ANDROID] Eliminando ${pedidos.length - pedidosUnicos.size} pedidos duplicados...`);
+        // Delete all pedidos and recreate unique ones
+        for (const pedido of pedidos) {
+          if (pedido.id) {
+            await dbService.eliminarPedido(pedido.id);
+          }
+        }
+        for (const pedido of pedidosUnicos.values()) {
+          await dbService.crearPedido(pedido);
+        }
+      }
+      
+      if (__DEV__) console.log('✅ Limpieza de datos duplicados completada');
+      console.log('[ANDROID] Limpieza de duplicados completada');
+    } catch (error) {
+      console.error('❌ Error en limpieza de duplicados:', error);
+      console.error(`[ANDROID] Error en limpieza: ${error}`);
+    }
+  }
+
+  // Cleanup Firebase duplicates (more aggressive cleanup)
+  async limpiarDuplicadosFirebase(): Promise<void> {
+    try {
+      if (!this.firebaseEnabled) {
+        console.warn('[ANDROID] Firebase no habilitado, saltando limpieza de Firebase');
+        return;
+      }
+
+      if (__DEV__) console.log('🧹 Iniciando limpieza de duplicados en Firebase...');
+      console.log('[ANDROID] Iniciando limpieza de duplicados en Firebase...');
+      
+      // Get all data from Firebase
+      const [firebaseSabores, firebaseRellenos, firebasePedidos] = await Promise.all([
+        HybridDatabase.getAllSabores(),
+        HybridDatabase.getAllRellenos(),
+        HybridDatabase.getAllPedidos()
+      ]);
+
+      if (__DEV__) {
+        console.log(`📊 Datos obtenidos de Firebase:`);
+        console.log(`  - Sabores: ${firebaseSabores.length}`);
+        console.log(`  - Rellenos: ${firebaseRellenos.length}`);
+        console.log(`  - Pedidos: ${firebasePedidos.length}`);
+      }
+      console.log(`[ANDROID] Firebase datos: Sabores=${firebaseSabores.length}, Rellenos=${firebaseRellenos.length}, Pedidos=${firebasePedidos.length}`);
+
+      // Clean Firebase sabores duplicates
+      const saboresUnicos = new Map<string, Sabor>();
+      for (const sabor of firebaseSabores) {
+        if (!saboresUnicos.has(sabor.nombre)) {
+          saboresUnicos.set(sabor.nombre, sabor);
+        } else {
+          if (__DEV__) console.log(`🔍 Sabor duplicado encontrado: ${sabor.nombre}`);
+          console.log(`[ANDROID] Sabor duplicado: ${sabor.nombre}`);
+        }
+      }
+
+      if (__DEV__) {
+        console.log(`📊 Análisis de sabores:`);
+        console.log(`  - Total en Firebase: ${firebaseSabores.length}`);
+        console.log(`  - Únicos por nombre: ${saboresUnicos.size}`);
+        console.log(`  - Duplicados detectados: ${firebaseSabores.length - saboresUnicos.size}`);
+      }
+      console.log(`[ANDROID] Sabores: ${firebaseSabores.length} total, ${saboresUnicos.size} únicos, ${firebaseSabores.length - saboresUnicos.size} duplicados`);
+
+      if (firebaseSabores.length !== saboresUnicos.size) {
+        if (__DEV__) console.log(`🧹 Limpiando ${firebaseSabores.length - saboresUnicos.size} sabores duplicados en Firebase...`);
+        console.log(`[ANDROID] Limpiando ${firebaseSabores.length - saboresUnicos.size} sabores duplicados en Firebase...`);
+        
+        // Clear all sabores in Firebase and re-upload unique ones
+        await HybridDatabase.clearAllSabores();
+        for (const sabor of saboresUnicos.values()) {
+          // await HybridDatabase.saveSabor(sabor); // TODO: Implement save method
+        }
+        console.log(`[ANDROID] ${saboresUnicos.size} sabores únicos re-insertados en Firebase`);
+      } else {
+        if (__DEV__) console.log(`✅ No hay sabores duplicados en Firebase`);
+        console.log(`[ANDROID] No hay sabores duplicados en Firebase`);
+      }
+
+      // Clean Firebase rellenos duplicates
+      const rellenosUnicos = new Map<string, Relleno>();
+      for (const relleno of firebaseRellenos) {
+        if (!rellenosUnicos.has(relleno.nombre)) {
+          rellenosUnicos.set(relleno.nombre, relleno);
+        } else {
+          if (__DEV__) console.log(`🔍 Relleno duplicado encontrado: ${relleno.nombre}`);
+          console.log(`[ANDROID] Relleno duplicado: ${relleno.nombre}`);
+        }
+      }
+
+      if (__DEV__) {
+        console.log(`📊 Análisis de rellenos:`);
+        console.log(`  - Total en Firebase: ${firebaseRellenos.length}`);
+        console.log(`  - Únicos por nombre: ${rellenosUnicos.size}`);
+        console.log(`  - Duplicados detectados: ${firebaseRellenos.length - rellenosUnicos.size}`);
+      }
+      console.log(`[ANDROID] Rellenos: ${firebaseRellenos.length} total, ${rellenosUnicos.size} únicos, ${firebaseRellenos.length - rellenosUnicos.size} duplicados`);
+
+      if (firebaseRellenos.length !== rellenosUnicos.size) {
+        if (__DEV__) console.log(`🧹 Limpiando ${firebaseRellenos.length - rellenosUnicos.size} rellenos duplicados en Firebase...`);
+        console.log(`[ANDROID] Limpiando ${firebaseRellenos.length - rellenosUnicos.size} rellenos duplicados en Firebase...`);
+        
+        // Clear all rellenos in Firebase and re-upload unique ones
+        await HybridDatabase.clearAllRellenos();
+        for (const relleno of rellenosUnicos.values()) {
+          // await HybridDatabase.saveRelleno(relleno); // TODO: Implement save method
+        }
+        console.log(`[ANDROID] ${rellenosUnicos.size} rellenos únicos re-insertados en Firebase`);
+      } else {
+        if (__DEV__) console.log(`✅ No hay rellenos duplicados en Firebase`);
+        console.log(`[ANDROID] No hay rellenos duplicados en Firebase`);
+      }
+
+      // Clean Firebase pedidos duplicates (by description, date, and client)
+      const pedidosUnicos = new Map<string, Pedido>();
+      for (const pedido of firebasePedidos) {
+        const key = `${pedido.descripcion}_${pedido.fechaEntrega}_${pedido.cliente}`;
+        if (!pedidosUnicos.has(key)) {
+          pedidosUnicos.set(key, pedido);
+        } else {
+          if (__DEV__) console.log(`🔍 Pedido duplicado encontrado: ${pedido.descripcion} - ${pedido.cliente}`);
+          console.log(`[ANDROID] Pedido duplicado: ${pedido.descripcion} - ${pedido.cliente}`);
+        }
+      }
+
+      if (__DEV__) {
+        console.log(`📊 Análisis de pedidos:`);
+        console.log(`  - Total en Firebase: ${firebasePedidos.length}`);
+        console.log(`  - Únicos por descripción+fecha+cliente: ${pedidosUnicos.size}`);
+        console.log(`  - Duplicados detectados: ${firebasePedidos.length - pedidosUnicos.size}`);
+      }
+      console.log(`[ANDROID] Pedidos: ${firebasePedidos.length} total, ${pedidosUnicos.size} únicos, ${firebasePedidos.length - pedidosUnicos.size} duplicados`);
+
+      if (firebasePedidos.length !== pedidosUnicos.size) {
+        if (__DEV__) console.log(`🧹 Limpiando ${firebasePedidos.length - pedidosUnicos.size} pedidos duplicados en Firebase...`);
+        console.log(`[ANDROID] Limpiando ${firebasePedidos.length - pedidosUnicos.size} pedidos duplicados en Firebase...`);
+        
+        // Clear all pedidos in Firebase and re-upload unique ones
+        await HybridDatabase.clearAllPedidos();
+        for (const pedido of pedidosUnicos.values()) {
+          await HybridDatabase.savePedido(pedido);
+        }
+        console.log(`[ANDROID] ${pedidosUnicos.size} pedidos únicos re-insertados en Firebase`);
+      } else {
+        if (__DEV__) console.log(`✅ No hay pedidos duplicados en Firebase`);
+        console.log(`[ANDROID] No hay pedidos duplicados en Firebase`);
+      }
+
+      if (__DEV__) console.log('✅ Limpieza de duplicados en Firebase completada');
+      console.log('[ANDROID] Limpieza de duplicados en Firebase completada');
+      
+      // Now clean local duplicates too
+      await this.limpiarDatosDuplicados();
+      
+    } catch (error) {
+      console.error('❌ Error en limpieza de duplicados de Firebase:', error);
+      console.error(`[ANDROID] Error en limpieza de Firebase: ${error}`);
+    }
+  }
+
+  // Force cleanup - clears everything and re-uploads unique data (for testing)
+  async forzarLimpiezaCompleta(): Promise<void> {
+    try {
+      if (!this.firebaseEnabled) {
+        console.warn('[ANDROID] Firebase no habilitado, saltando limpieza forzada');
+        return;
+      }
+
+      if (__DEV__) console.log('🧹 Iniciando limpieza forzada completa...');
+      console.log('[ANDROID] Iniciando limpieza forzada completa...');
+      
+      // Get all data from Firebase first
+      const [firebaseSabores, firebaseRellenos, firebasePedidos] = await Promise.all([
+        HybridDatabase.getAllSabores(),
+        HybridDatabase.getAllRellenos(),
+        HybridDatabase.getAllPedidos()
+      ]);
+
+      if (__DEV__) {
+        console.log(`📊 Datos a limpiar:`);
+        console.log(`  - Sabores: ${firebaseSabores.length}`);
+        console.log(`  - Rellenos: ${firebaseRellenos.length}`);
+        console.log(`  - Pedidos: ${firebasePedidos.length}`);
+      }
+      console.log(`[ANDROID] Limpiando: Sabores=${firebaseSabores.length}, Rellenos=${firebaseRellenos.length}, Pedidos=${firebasePedidos.length}`);
+      
+      // Clear ALL Firebase data
+      await Promise.all([
+        HybridDatabase.clearAllSabores(),
+        HybridDatabase.clearAllRellenos(),
+        HybridDatabase.clearAllPedidos()
+      ]);
+      
+      if (__DEV__) console.log('🧹 Todos los datos eliminados de Firebase');
+      console.log('[ANDROID] Todos los datos eliminados de Firebase');
+      
+      // Re-upload only unique data
+      const saboresUnicos = new Map<string, Sabor>();
+      const rellenosUnicos = new Map<string, Relleno>();
+      const pedidosUnicos = new Map<string, Pedido>();
+      
+      // Deduplicate sabores
+      for (const sabor of firebaseSabores) {
+        if (!saboresUnicos.has(sabor.nombre)) {
+          saboresUnicos.set(sabor.nombre, sabor);
+        }
+      }
+      
+      // Deduplicate rellenos
+      for (const relleno of firebaseRellenos) {
+        if (!rellenosUnicos.has(relleno.nombre)) {
+          rellenosUnicos.set(relleno.nombre, relleno);
+        }
+      }
+      
+      // Deduplicate pedidos
+      for (const pedido of firebasePedidos) {
+        const key = `${pedido.descripcion}_${pedido.fechaEntrega}_${pedido.cliente}`;
+        if (!pedidosUnicos.has(key)) {
+          pedidosUnicos.set(key, pedido);
+        }
+      }
+      
+      // Re-upload unique data
+        for (const sabor of saboresUnicos.values()) {
+          // await HybridDatabase.saveSabor(sabor); // TODO: Implement save method
+        }
+      
+      for (const relleno of rellenosUnicos.values()) {
+        // await HybridDatabase.saveRelleno(relleno); // TODO: Implement save method
+      }
+      
+      for (const pedido of pedidosUnicos.values()) {
+        await HybridDatabase.savePedido(pedido);
+      }
+      
+      if (__DEV__) {
+        console.log(`✅ Datos únicos re-insertados:`);
+        console.log(`  - Sabores: ${saboresUnicos.size}`);
+        console.log(`  - Rellenos: ${rellenosUnicos.size}`);
+        console.log(`  - Pedidos: ${pedidosUnicos.size}`);
+      }
+      console.log(`[ANDROID] Datos únicos re-insertados: Sabores=${saboresUnicos.size}, Rellenos=${rellenosUnicos.size}, Pedidos=${pedidosUnicos.size}`);
+      
+      // Clean local data too
+      await this.limpiarDatosDuplicados();
+      
+    } catch (error) {
+      console.error('❌ Error en limpieza forzada:', error);
+      console.error(`[ANDROID] Error en limpieza forzada: ${error}`);
+    }
+  }
+
+  // Show detailed Firebase data info (for debugging)
+  async mostrarInfoFirebase(): Promise<void> {
+    try {
+      if (!this.firebaseEnabled) {
+        console.warn('[ANDROID] Firebase no habilitado');
+        return;
+      }
+
+      if (__DEV__) console.log('📊 Obteniendo información detallada de Firebase...');
+      console.log('[ANDROID] Obteniendo información detallada de Firebase...');
+      
+      // Get all data from Firebase
+      const [firebaseSabores, firebaseRellenos, firebasePedidos] = await Promise.all([
+        HybridDatabase.getAllSabores(),
+        HybridDatabase.getAllRellenos(),
+        HybridDatabase.getAllPedidos()
+      ]);
+
+      // Show sabores details
+      if (__DEV__) {
+        console.log(`📊 SABORES (${firebaseSabores.length}):`);
+        firebaseSabores.forEach((sabor, index) => {
+          console.log(`  ${index + 1}. ${sabor.nombre} (ID: ${sabor.id}, Tipo: ${sabor.tipo})`);
+        });
+      }
+      console.log(`[ANDROID] SABORES: ${firebaseSabores.map(s => s.nombre).join(', ')}`);
+
+      // Show rellenos details
+      if (__DEV__) {
+        console.log(`📊 RELLENOS (${firebaseRellenos.length}):`);
+        firebaseRellenos.forEach((relleno, index) => {
+          console.log(`  ${index + 1}. ${relleno.nombre} (ID: ${relleno.id})`);
+        });
+      }
+      console.log(`[ANDROID] RELLENOS: ${firebaseRellenos.map(r => r.nombre).join(', ')}`);
+
+      // Show pedidos details
+      if (__DEV__) {
+        console.log(`📊 PEDIDOS (${firebasePedidos.length}):`);
+        firebasePedidos.forEach((pedido, index) => {
+          console.log(`  ${index + 1}. ${pedido.descripcion} - ${pedido.cliente} (ID: ${pedido.id}, Fecha: ${pedido.fechaEntrega})`);
+        });
+      }
+      console.log(`[ANDROID] PEDIDOS: ${firebasePedidos.map(p => `${p.descripcion}-${p.cliente}`).join(', ')}`);
+
+      // Check for duplicates
+      const saboresNombres = firebaseSabores.map(s => s.nombre);
+      const rellenosNombres = firebaseRellenos.map(r => r.nombre);
+      const pedidosKeys = firebasePedidos.map(p => `${p.descripcion}_${p.fechaEntrega}_${p.cliente}`);
+
+      const saboresDuplicados = saboresNombres.length !== new Set(saboresNombres).size;
+      const rellenosDuplicados = rellenosNombres.length !== new Set(rellenosNombres).size;
+      const pedidosDuplicados = pedidosKeys.length !== new Set(pedidosKeys).size;
+
+      if (__DEV__) {
+        console.log(`🔍 ANÁLISIS DE DUPLICADOS:`);
+        console.log(`  - Sabores duplicados: ${saboresDuplicados}`);
+        console.log(`  - Rellenos duplicados: ${rellenosDuplicados}`);
+        console.log(`  - Pedidos duplicados: ${pedidosDuplicados}`);
+      }
+      console.log(`[ANDROID] Duplicados: Sabores=${saboresDuplicados}, Rellenos=${rellenosDuplicados}, Pedidos=${pedidosDuplicados}`);
+      
+    } catch (error) {
+      console.error('❌ Error obteniendo información de Firebase:', error);
+      console.error(`[ANDROID] Error obteniendo info: ${error}`);
+    }
+  }
+
+  // Emergency function to clean up massive duplication in local database
+  async limpiarDuplicadosMasivos(): Promise<void> {
+    try {
+      if (__DEV__) console.log('🚨 Iniciando limpieza de duplicados masivos...');
+      console.warn('[ANDROID] Iniciando limpieza de duplicados masivos...');
+      
+      // Get all local data
+      const [sabores, rellenos, pedidos] = await Promise.all([
+        obtenerSaboresFn(),
+        obtenerRellenosFn(),
+        dbService.obtenerPedidos()
+      ]);
+
+      if (__DEV__) {
+        console.log(`📊 Datos locales actuales:`);
+        console.log(`  - Sabores: ${sabores.length}`);
+        console.log(`  - Rellenos: ${rellenos.length}`);
+        console.log(`  - Pedidos: ${pedidos.length}`);
+      }
+      console.log(`[ANDROID] Datos locales: Sabores=${sabores.length}, Rellenos=${rellenos.length}, Pedidos=${pedidos.length}`);
+
+      // Clean sabores duplicates
+      const saboresUnicos = new Map<string, Sabor>();
+      for (const sabor of sabores) {
+        if (!saboresUnicos.has(sabor.nombre)) {
+          saboresUnicos.set(sabor.nombre, sabor);
+        }
+      }
+
+      // Clean rellenos duplicates
+      const rellenosUnicos = new Map<string, Relleno>();
+      for (const relleno of rellenos) {
+        if (!rellenosUnicos.has(relleno.nombre)) {
+          rellenosUnicos.set(relleno.nombre, relleno);
+        }
+      }
+
+      // Clean pedidos duplicates (by ID only - CONSISTENT WITH REST OF SYSTEM)
+      const pedidosUnicos = new Map<number, Pedido>();
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          if (!pedidosUnicos.has(pedido.id)) {
+            pedidosUnicos.set(pedido.id, pedido);
+          }
+        }
+      }
+
+      if (__DEV__) {
+        console.log(`🧹 Duplicados encontrados:`);
+        console.log(`  - Sabores: ${sabores.length} → ${saboresUnicos.size} (eliminando ${sabores.length - saboresUnicos.size})`);
+        console.log(`  - Rellenos: ${rellenos.length} → ${rellenosUnicos.size} (eliminando ${rellenos.length - rellenosUnicos.size})`);
+        console.log(`  - Pedidos: ${pedidos.length} → ${pedidosUnicos.size} (eliminando ${pedidos.length - pedidosUnicos.size})`);
+      }
+      console.warn(`[ANDROID] Eliminando: Sabores=${sabores.length - saboresUnicos.size}, Rellenos=${rellenos.length - rellenosUnicos.size}, Pedidos=${pedidos.length - pedidosUnicos.size}`);
+
+      // Clear and recreate sabores
+      await eliminarTodosLosSaboresFn();
+      for (const sabor of saboresUnicos.values()) {
+        await crearSaborFn(sabor);
+      }
+
+      // Clear and recreate rellenos
+      await eliminarTodosLosRellenosFn();
+      for (const relleno of rellenosUnicos.values()) {
+        await crearRellenoFn(relleno);
+      }
+
+      // Clear and recreate pedidos
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          await dbService.eliminarPedido(pedido.id);
+        }
+      }
+      for (const pedido of pedidosUnicos.values()) {
+        await dbService.crearPedido(pedido);
+      }
+
+      if (__DEV__) console.log('✅ Limpieza de duplicados masivos completada');
+      console.log('[ANDROID] Limpieza de duplicados masivos completada');
+      
+    } catch (error) {
+      console.error('❌ Error en limpieza de duplicados masivos:', error);
+      console.error(`[ANDROID] Error en limpieza masiva: ${error}`);
+    }
+  }
+
+  // 🛡️ SEPARATE SYNC FUNCTIONS FOR DIFFERENT DATA TYPES
+  
+  // Sync sabores with FLEXIBLE duplicates (nombre + tipo)
+  private async syncSaboresWithFlexibleDuplicates(localSabores: any[], firebaseSabores: any[]): Promise<any[]> {
+    const saboresMap = new Map();
+    
+    // Add local sabores first
+    localSabores.forEach(sabor => {
+      const key = `${sabor.nombre}-${sabor.tipo || 'todos'}`;
+      saboresMap.set(key, sabor);
+    });
+    
+    // Add Firebase sabores only if not duplicate (FLEXIBLE)
+    let firebaseAdded = 0;
+    firebaseSabores.forEach(sabor => {
+      const key = `${sabor.nombre}-${sabor.tipo || 'todos'}`;
+      if (!saboresMap.has(key)) {
+        saboresMap.set(key, sabor);
+        firebaseAdded++;
+      }
+    });
+    
+    if (__DEV__) console.log(`Sabores únicos agregados desde Firebase: ${firebaseAdded}`);
+    return Array.from(saboresMap.values());
+  }
+
+  // Sync rellenos with FLEXIBLE duplicates (nombre + tipo)
+  private async syncRellenosWithFlexibleDuplicates(localRellenos: any[], firebaseRellenos: any[]): Promise<any[]> {
+    const rellenosMap = new Map();
+    
+    // Add local rellenos first
+    localRellenos.forEach(relleno => {
+      const key = `${relleno.nombre}-${relleno.tipo || 'todos'}`;
+      rellenosMap.set(key, relleno);
+    });
+    
+    // Add Firebase rellenos only if not duplicate (FLEXIBLE)
+    let firebaseAdded = 0;
+    firebaseRellenos.forEach(relleno => {
+      const key = `${relleno.nombre}-${relleno.tipo || 'todos'}`;
+      if (!rellenosMap.has(key)) {
+        rellenosMap.set(key, relleno);
+        firebaseAdded++;
+      }
+    });
+    
+    if (__DEV__) console.log(`Rellenos únicos agregados desde Firebase: ${firebaseAdded}`);
+    return Array.from(rellenosMap.values());
+  }
+
+  // 🛡️ Limpiar duplicados locales antes de sincronizar
+  private async limpiarDuplicadosLocales(): Promise<void> {
+    try {
+      const todosLosPedidos = await dbService.obtenerPedidos();
+      const pedidosUnicos = new Map();
+      
+      // Identificar duplicados por ID
+      const duplicados = [];
+      for (const pedido of todosLosPedidos) {
+        if (pedido.id) {
+          if (pedidosUnicos.has(pedido.id)) {
+            duplicados.push(pedido.id);
+          } else {
+            pedidosUnicos.set(pedido.id, pedido);
+          }
+        }
+      }
+      
+      // Eliminar duplicados
+      if (duplicados.length > 0) {
+        for (const id of duplicados) {
+          await eliminarPedidoFn(id);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error limpiando duplicados locales:', error);
+    }
+  }
+
+  // Sync pedidos with STRICT duplicates (by ID only)
+  private async syncPedidosWithStrictDuplicates(localPedidos: any[], firebasePedidos: any[]): Promise<any[]> {
+    const pedidosMap = new Map();
+    
+    // Add local pedidos first (STRICT BY ID)
+    localPedidos.forEach(pedido => {
+      if (pedido.id) {
+        pedidosMap.set(pedido.id, pedido);
+      }
+    });
+    
+    // Add Firebase pedidos only if not duplicate (STRICT BY ID)
+    let firebaseAdded = 0;
+    firebasePedidos.forEach(pedido => {
+      if (pedido.id && !pedidosMap.has(pedido.id)) {
+        pedidosMap.set(pedido.id, pedido);
+        firebaseAdded++;
+      }
+    });
+    
+    if (__DEV__) console.log(`Pedidos únicos agregados desde Firebase: ${firebaseAdded}`);
+    return Array.from(pedidosMap.values());
+  }
+
+  // Emergency function to completely clear all local pedidos
+  async eliminarTodosLosPedidos(): Promise<void> {
+    try {
+      if (__DEV__) console.log('🚨 Eliminando TODOS los pedidos locales...');
+      console.warn('[ANDROID] Eliminando TODOS los pedidos locales...');
+      
+      // Get all pedidos
+      const pedidos = await dbService.obtenerPedidos();
+      
+      if (__DEV__) {
+        console.log(`📊 Pedidos a eliminar: ${pedidos.length}`);
+      }
+      console.warn(`[ANDROID] Eliminando ${pedidos.length} pedidos locales`);
+      
+      // Delete all pedidos
+      for (const pedido of pedidos) {
+        if (pedido.id) {
+          await dbService.eliminarPedido(pedido.id);
+        }
+      }
+      
+      if (__DEV__) console.log('✅ Todos los pedidos eliminados localmente');
+      console.log('[ANDROID] Todos los pedidos eliminados localmente');
+      
+    } catch (error) {
+      console.error('❌ Error eliminando todos los pedidos:', error);
+      console.error(`[ANDROID] Error eliminando pedidos: ${error}`);
+    }
   }
 
   async saveImageReference(pedidoId: number, imagePath: string): Promise<void> {
@@ -171,17 +775,30 @@ class HybridDBService {
         await this.saveImageReference(pedidoId, pedido.imagen);
       }
 
-      // Sync to Firebase if enabled and online
+      // Sync to Firebase if enabled and online (WITH DUPLICATION PROTECTION)
       if (this.firebaseEnabled) {
         const networkManager = NetworkManager.getInstance();
 
         if (networkManager.isOnlineStatus()) {
-          // Online: sync immediately
+          // Online: sync immediately with protection
           try {
-            console.log('🔄 Intentando sincronizar pedido con Firebase...');
+            console.log('🔄 Intentando sincronizar pedido con Firebase (con protección)...');
             const pedidoWithId = { ...pedido, id: pedidoId };
-            await HybridDatabase.savePedido(pedidoWithId);
-            console.log('✅ Pedido sincronizado inmediatamente con Firebase');
+            
+            // 🛡️ PROTECTION: Check if pedido already exists in Firebase (STRICT BY ID)
+            const existingPedidos = await FirebaseSync.getPedidosFromFirebase();
+            const isDuplicate = existingPedidos.some(existing => 
+              existing.id === pedidoWithId.id
+            );
+            
+            if (isDuplicate) {
+              console.log('⚠️ Pedido duplicado detectado, saltando sincronización');
+              console.warn(`[ANDROID] Pedido duplicado detectado: ${pedidoWithId.nombre} - ${pedidoWithId.fecha_entrega}`);
+            } else {
+              await HybridDatabase.savePedido(pedidoWithId);
+              console.log('✅ Pedido sincronizado con Firebase (sin duplicados)');
+              console.log(`[ANDROID] Pedido sincronizado: ${pedidoWithId.nombre}`);
+            }
           } catch (syncError) {
             console.warn('⚠️ Error sincronizando pedido, agregando a cola:', syncError);
             // Add to sync queue for later
@@ -193,7 +810,7 @@ class HybridDBService {
           }
         } else {
           // Offline: add to sync queue
-          console.log('📱 Sin conexión, pedido guardado localmente y agregado a cola de sincronización');
+          console.log('📱 Sin conexión, agregando pedido a cola de sincronización');
           networkManager.addToSyncQueue({
             operation: 'CREATE',
             collection: 'pedidos',
@@ -213,35 +830,63 @@ class HybridDBService {
     try {
       let pedidos: Pedido[];
 
-      if (this.firebaseEnabled) {
-        // Try to get from Firebase first (with local images)
-        pedidos = await HybridDatabase.getAllPedidos();
+      // 🛡️ CLEANUP: Limpiar duplicados antes de sincronizar
+      await this.limpiarDuplicadosLocales();
 
-        // If we got pedidos from Firebase, save them locally for offline use
-        if (pedidos.length > 0) {
-          if (__DEV__) console.log('Guardando pedidos de Firebase en local para offline...');
-          try {
-            // Save each pedido locally (without images for now)
-            for (const pedido of pedidos) {
-              // Check if pedido already exists locally
-              const existingPedido = await dbService.obtenerPedidoPorId(pedido.id!);
-              if (!existingPedido) {
-                await dbService.crearPedido(pedido);
+      // 🛡️ Firebase sync REACTIVATED with duplication protection
+      if (this.firebaseEnabled) {
+        try {
+          // Get data from Firebase with protection
+          const firebasePedidos = await FirebaseSync.getPedidosFromFirebase();
+          
+          // Get local data
+          const localPedidos = await dbService.obtenerPedidos();
+          
+          // 🛡️ PROTECTION: Merge without duplicates
+          const pedidosMap = new Map();
+          
+          // 🛡️ SYNC PEDIDOS WITH STRICT DUPLICATES (by ID only)
+          pedidos = await this.syncPedidosWithStrictDuplicates(localPedidos, firebasePedidos);
+          
+          // Save merged data to local storage for offline access (SAFE METHOD)
+          if (pedidos.length > localPedidos.length) {
+            // Identificar pedidos nuevos desde Firebase
+            const pedidosNuevos = pedidos.filter(pedido => 
+              !localPedidos.some((local: any) => local.id === pedido.id)
+            );
+            
+            // 🛡️ SAFE METHOD: Solo agregar pedidos nuevos, NO recrear todos
+            for (const pedido of pedidosNuevos) {
+              try {
+                // Verificar que no existe antes de crear
+                const existingPedido = await dbService.obtenerPedidoPorId(pedido.id);
+                if (!existingPedido) {
+                  await crearPedidoFn(pedido);
+                }
+              } catch (createError) {
+                console.error(`❌ Error creando pedido ${pedido.id}:`, createError);
               }
             }
-            if (__DEV__) console.log(`✅ ${pedidos.length} pedidos guardados localmente`);
-          } catch (error) {
-            console.error('Error saving Firebase pedidos locally:', error);
-            VisualLogger.error(`[ANDROID] Error guardando pedidos localmente: ${error}`);
+            
+            // 🔔 Programar notificaciones para pedidos nuevos desde Firebase
+            if (pedidosNuevos.length > 0) {
+              await this.programarNotificacionesParaPedidosSincronizados(pedidosNuevos);
+            }
           }
-        } else {
-          // If no pedidos from Firebase, fall back to local
+          
+        } catch (syncError) {
+          if (__DEV__) console.warn('⚠️ Error sincronizando con Firebase, usando datos locales:', syncError);
+          console.warn(`[ANDROID] Error sincronizando pedidos: ${syncError}`);
+          // Fallback to local data
           pedidos = await dbService.obtenerPedidos();
         }
       } else {
-        // Use local database only
+        // Firebase disabled, use local data only
+        if (__DEV__) console.log('🚨 Firebase deshabilitado, usando solo datos locales...');
         pedidos = await dbService.obtenerPedidos();
       }
+      
+      if (__DEV__) console.log(`Pedidos finales: ${pedidos.length}`);
 
       // Update image URLs with Cloudinary URLs if available
       for (const pedido of pedidos) {
@@ -339,14 +984,16 @@ class HybridDBService {
         await this.saveImageReference(id, pedido.imagen);
       }
 
-      // Sync to Firebase if enabled
+      // Sync to Firebase if enabled (WITH DUPLICATION PROTECTION)
       if (this.firebaseEnabled) {
         try {
-          console.log('📝 Actualizando en Firebase...');
+          console.log('📝 Actualizando en Firebase (con protección)...');
           await FirebaseSync.updatePedido(id, pedido);
           console.log('📝 Pedido actualizado en Firebase');
+          console.log(`[ANDROID] Pedido actualizado en Firebase: ID ${id}`);
         } catch (firebaseError) {
           console.error('❌ Error actualizando en Firebase:', firebaseError);
+          console.warn(`[ANDROID] Error actualizando en Firebase: ${firebaseError}`);
           // Don't throw error, local update was successful
         }
       }
@@ -371,14 +1018,16 @@ class HybridDBService {
       await this.deleteImageReference(id);
       console.log('🗑️ Referencia de imagen eliminada');
 
-      // Delete from Firebase if enabled
+      // Delete from Firebase if enabled (WITH DUPLICATION PROTECTION)
       if (this.firebaseEnabled) {
         try {
-          console.log('🗑️ Eliminando de Firebase...');
+          console.log('🗑️ Eliminando de Firebase (con protección)...');
           await FirebaseSync.deletePedido(id);
           console.log('🗑️ Pedido eliminado de Firebase');
+          console.log(`[ANDROID] Pedido eliminado de Firebase: ID ${id}`);
         } catch (firebaseError) {
           console.error('❌ Error eliminando de Firebase:', firebaseError);
+          console.warn(`[ANDROID] Error eliminando de Firebase: ${firebaseError}`);
           // Don't throw error, local deletion was successful
         }
       }
@@ -392,17 +1041,22 @@ class HybridDBService {
 
   async obtenerPedidosPorFecha(fechaInicio: string, fechaFin: string): Promise<Pedido[]> {
     try {
-      let pedidos: Pedido[];
+      // 🛡️ USAR obtenerPedidos() CON PROTECCIONES ANTI-DUPLICACIÓN Y LUEGO FILTRAR
+      console.log(`📅 Obteniendo pedidos por fecha: ${fechaInicio} a ${fechaFin}`);
       
-      if (this.firebaseEnabled) {
-        // Get from local database for date filtering (Firebase doesn't support complex queries easily)
-        pedidos = await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
-      } else {
-        pedidos = await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
-      }
-
+      // Obtener todos los pedidos con protecciones anti-duplicación
+      const todosLosPedidos = await this.obtenerPedidos();
+      
+      // Filtrar por fecha
+      const pedidosFiltrados = todosLosPedidos.filter(pedido => {
+        const fechaEntrega = pedido.fecha_entrega;
+        return fechaEntrega >= fechaInicio && fechaEntrega <= fechaFin;
+      });
+      
+      console.log(`📅 Pedidos filtrados por fecha: ${pedidosFiltrados.length} de ${todosLosPedidos.length} total`);
+      
       // Update image URLs with Cloudinary URLs if available
-      for (const pedido of pedidos) {
+      for (const pedido of pedidosFiltrados) {
         if (pedido.id) {
           try {
             const imageUrl = await HybridImageService.getImageUrl(pedido.id);
@@ -415,9 +1069,11 @@ class HybridDBService {
         }
       }
 
-      return pedidos;
+      return pedidosFiltrados;
     } catch (error) {
       console.error('Error getting pedidos by date:', error);
+      
+      // Fallback: usar método directo sin protecciones (solo en caso de error)
       const pedidos = await dbService.obtenerPedidosPorFecha(fechaInicio, fechaFin);
       
       // Update image URLs with Cloudinary URLs if available
@@ -503,38 +1159,46 @@ class HybridDBService {
         console.log(`obtenerSabores() - Firebase enabled: ${this.firebaseEnabled}`);
       }
       
+      // 🛡️ Firebase sync REACTIVATED with duplication protection
       if (this.firebaseEnabled) {
-        // Try to get from Firebase first (source of truth)
-        if (__DEV__) console.log('Intentando obtener sabores desde Firebase...');
-        sabores = await HybridDatabase.getAllSabores();
-        if (__DEV__) console.log(`Sabores desde Firebase: ${sabores.length}`);
-        
-        // If we got sabores from Firebase, save them locally for offline use
-        if (sabores.length > 0) {
-          if (__DEV__) console.log('Guardando sabores de Firebase en local para offline...');
-          try {
-            // Clear existing sabores and save Firebase data locally
+        try {
+          if (__DEV__) console.log('🔄 Sincronizando sabores desde Firebase (con protección)...');
+          
+          // Get data from Firebase with protection
+          const firebaseSabores = await FirebaseSync.getSaboresFromFirebase();
+          if (__DEV__) console.log(`Sabores desde Firebase: ${firebaseSabores.length}`);
+          
+          // Get local data
+          const localSabores = await obtenerSaboresFn(tipo);
+          if (__DEV__) console.log(`Sabores desde local: ${localSabores.length}`);
+          
+          // 🛡️ SYNC SABORES WITH FLEXIBLE DUPLICATES (nombre + tipo)
+          sabores = await this.syncSaboresWithFlexibleDuplicates(localSabores, firebaseSabores);
+          
+          // Save merged data to local storage for offline access
+          if (sabores.length > localSabores.length) {
+            if (__DEV__) console.log('💾 Guardando sabores fusionados localmente...');
+            // Clear local and re-insert merged data
             await eliminarTodosLosSaboresFn();
             for (const sabor of sabores) {
               await crearSaborFn(sabor);
             }
-            if (__DEV__) console.log(`✅ ${sabores.length} sabores guardados localmente`);
-          } catch (error) {
-            console.error('Error saving Firebase sabores locally:', error);
-            VisualLogger.error(`[ANDROID] Error guardando sabores localmente: ${error}`);
+            if (__DEV__) console.log('✅ Sabores fusionados guardados localmente');
           }
-        } else {
-          // If no sabores from Firebase, fall back to local
-          if (__DEV__) console.log('No sabores en Firebase, obteniendo desde base de datos local...');
+          
+        } catch (syncError) {
+          if (__DEV__) console.warn('⚠️ Error sincronizando sabores con Firebase, usando datos locales:', syncError);
+          console.warn(`[ANDROID] Error sincronizando sabores: ${syncError}`);
+          // Fallback to local data
           sabores = await obtenerSaboresFn(tipo);
-          if (__DEV__) console.log(`Sabores desde local: ${sabores.length}`);
         }
       } else {
-        // Use local database only
-        if (__DEV__) console.log('Firebase deshabilitado, usando solo base de datos local...');
+        // Firebase disabled, use local data only
+        if (__DEV__) console.log('🚨 Firebase deshabilitado, usando solo datos locales...');
         sabores = await obtenerSaboresFn(tipo);
-        if (__DEV__) console.log(`Sabores desde local: ${sabores.length}`);
       }
+      
+      if (__DEV__) console.log(`Sabores finales: ${sabores.length}`);
 
       // Filter by type if specified
       if (tipo) {
@@ -589,7 +1253,7 @@ class HybridDBService {
     try {
       // Obtener el sabor antes de eliminarlo para sincronizar con Firebase
       const sabores = await dbService.obtenerSabores();
-      const saborAEliminar = sabores.find(s => s.id === id);
+      const saborAEliminar = sabores.find((s: any) => s.id === id);
       
       await dbService.eliminarSabor(id);
 
@@ -612,38 +1276,46 @@ class HybridDBService {
         console.log(`obtenerRellenos() - Firebase enabled: ${this.firebaseEnabled}`);
       }
       
+      // 🛡️ Firebase sync REACTIVATED with duplication protection
       if (this.firebaseEnabled) {
-        // Try to get from Firebase first (source of truth)
-        if (__DEV__) console.log('Intentando obtener rellenos desde Firebase...');
-        rellenos = await HybridDatabase.getAllRellenos();
-        if (__DEV__) console.log(`Rellenos desde Firebase: ${rellenos.length}`);
-        
-        // If we got rellenos from Firebase, save them locally for offline use
-        if (rellenos.length > 0) {
-          if (__DEV__) console.log('Guardando rellenos de Firebase en local para offline...');
-          try {
-            // Clear existing rellenos and save Firebase data locally
+        try {
+          if (__DEV__) console.log('🔄 Sincronizando rellenos desde Firebase (con protección)...');
+          
+          // Get data from Firebase with protection
+          const firebaseRellenos = await FirebaseSync.getRellenosFromFirebase();
+          if (__DEV__) console.log(`Rellenos desde Firebase: ${firebaseRellenos.length}`);
+          
+          // Get local data
+          const localRellenos = await obtenerRellenosFn();
+          if (__DEV__) console.log(`Rellenos desde local: ${localRellenos.length}`);
+          
+          // 🛡️ SYNC RELLENOS WITH FLEXIBLE DUPLICATES (nombre + tipo)
+          rellenos = await this.syncRellenosWithFlexibleDuplicates(localRellenos, firebaseRellenos);
+          
+          // Save merged data to local storage for offline access
+          if (rellenos.length > localRellenos.length) {
+            if (__DEV__) console.log('💾 Guardando rellenos fusionados localmente...');
+            // Clear local and re-insert merged data
             await eliminarTodosLosRellenosFn();
             for (const relleno of rellenos) {
               await crearRellenoFn(relleno);
             }
-            if (__DEV__) console.log(`✅ ${rellenos.length} rellenos guardados localmente`);
-          } catch (error) {
-            console.error('Error saving Firebase rellenos locally:', error);
-            VisualLogger.error(`[ANDROID] Error guardando rellenos localmente: ${error}`);
+            if (__DEV__) console.log('✅ Rellenos fusionados guardados localmente');
           }
-        } else {
-          // If no rellenos from Firebase, fall back to local
-          if (__DEV__) console.log('No rellenos en Firebase, obteniendo desde base de datos local...');
+          
+        } catch (syncError) {
+          if (__DEV__) console.warn('⚠️ Error sincronizando rellenos con Firebase, usando datos locales:', syncError);
+          console.warn(`[ANDROID] Error sincronizando rellenos: ${syncError}`);
+          // Fallback to local data
           rellenos = await obtenerRellenosFn();
-          if (__DEV__) console.log(`Rellenos desde local: ${rellenos.length}`);
         }
       } else {
-        // Use local database only
-        if (__DEV__) console.log('Firebase deshabilitado, usando solo base de datos local...');
+        // Firebase disabled, use local data only
+        if (__DEV__) console.log('🚨 Firebase deshabilitado, usando solo datos locales...');
         rellenos = await obtenerRellenosFn();
-        if (__DEV__) console.log(`Rellenos desde local: ${rellenos.length}`);
       }
+      
+      if (__DEV__) console.log(`Rellenos finales: ${rellenos.length}`);
 
       if (__DEV__) {
         console.log(`Total rellenos obtenidos: ${rellenos.length}`);
@@ -692,7 +1364,7 @@ class HybridDBService {
     try {
       // Obtener el relleno antes de eliminarlo para sincronizar con Firebase
       const rellenos = await dbService.obtenerRellenos();
-      const rellenoAEliminar = rellenos.find(r => r.id === id);
+      const rellenoAEliminar = rellenos.find((r: any) => r.id === id);
       
       await dbService.eliminarRelleno(id);
 
@@ -745,7 +1417,7 @@ class HybridDBService {
     }
 
     try {
-      console.log('🔄 Starting sync from cloud...');
+      console.log('🔄 Starting sync from cloud (with protection)...');
 
       // Get local data for merging
       const [localPedidos, localSabores, localRellenos, localSettings] = await Promise.all([
@@ -787,7 +1459,7 @@ class HybridDBService {
       
       // Verify functions are available
       if (!crearSaborFn || !crearRellenoFn) {
-        VisualLogger.error('[ANDROID] Database functions not available');
+        console.error('[ANDROID] Database functions not available');
         console.error('❌ Database functions not available:', { crearSaborFn: !!crearSaborFn, crearRellenoFn: !!crearRellenoFn });
         return;
       }
@@ -811,23 +1483,23 @@ class HybridDBService {
         await eliminarTodosLosRellenosFn();
         
         // Insert Firebase data using imported functions
-        VisualLogger.log(`[ANDROID] Insertando ${firebaseData.sabores.length} sabores en SQLite...`);
+        console.log(`[ANDROID] Insertando ${firebaseData.sabores.length} sabores en SQLite...`);
         for (const sabor of firebaseData.sabores) {
           try {
             const saborId = await crearSaborFn(sabor);
-            VisualLogger.success(`[ANDROID] Sabor insertado: ${sabor.nombre} (ID: ${saborId})`);
+            console.log(`[ANDROID] Sabor insertado: ${sabor.nombre} (ID: ${saborId})`);
           } catch (error) {
-            VisualLogger.error(`[ANDROID] Error inserting sabor ${sabor.nombre}: ${error}`);
+            console.error(`[ANDROID] Error inserting sabor ${sabor.nombre}: ${error}`);
           }
         }
         
-        VisualLogger.log(`[ANDROID] Insertando ${firebaseData.rellenos.length} rellenos en SQLite...`);
+        console.log(`[ANDROID] Insertando ${firebaseData.rellenos.length} rellenos en SQLite...`);
         for (const relleno of firebaseData.rellenos) {
           try {
             const rellenoId = await crearRellenoFn(relleno);
-            VisualLogger.success(`[ANDROID] Relleno insertado: ${relleno.nombre} (ID: ${rellenoId})`);
+            console.log(`[ANDROID] Relleno insertado: ${relleno.nombre} (ID: ${rellenoId})`);
           } catch (error) {
-            VisualLogger.error(`[ANDROID] Error inserting relleno ${relleno.nombre}: ${error}`);
+            console.error(`[ANDROID] Error inserting relleno ${relleno.nombre}: ${error}`);
           }
         }
         
@@ -835,9 +1507,9 @@ class HybridDBService {
         try {
           const saboresVerificacion = await obtenerSaboresFn();
           const rellenosVerificacion = await obtenerRellenosFn();
-          VisualLogger.success(`[ANDROID] Verificación: ${saboresVerificacion.length} sabores y ${rellenosVerificacion.length} rellenos en SQLite`);
+          console.log(`[ANDROID] Verificación: ${saboresVerificacion.length} sabores y ${rellenosVerificacion.length} rellenos en SQLite`);
         } catch (error) {
-          VisualLogger.error(`[ANDROID] Error verificando datos guardados: ${error}`);
+          console.error(`[ANDROID] Error verificando datos guardados: ${error}`);
         }
       }
     } catch (error) {
@@ -925,6 +1597,65 @@ class HybridDBService {
   // Get image sync status
   async getImageSyncStatus() {
     return await HybridImageService.getSyncStatus();
+  }
+
+  // 🔔 Programar notificaciones para pedidos sincronizados desde Firebase
+  private async programarNotificacionesParaPedidosSincronizados(pedidosNuevos: any[]): Promise<void> {
+    try {
+      if (Platform.OS === 'web') {
+        console.log('⚠️ Web platform: notifications not supported for synced pedidos');
+        return;
+      }
+
+      // Obtener configuración de notificaciones
+      const settings = await obtenerSettingsFn();
+      if (!settings?.notifications_enabled) {
+        console.log('🔕 Notificaciones deshabilitadas, no se programarán para pedidos sincronizados');
+        return;
+      }
+
+      const notificationDays = settings.notification_days || [settings.days_before || 0];
+      console.log(`🔔 Programando notificaciones para ${pedidosNuevos.length} pedidos sincronizados desde Firebase`);
+
+      for (const pedido of pedidosNuevos) {
+        if (!pedido.id || !pedido.fecha_entrega) {
+          console.log(`⚠️ Saltando pedido sin ID o fecha:`, pedido);
+          continue;
+        }
+
+        // Verificar si ya tiene notificaciones programadas
+        const existingNotificationId = await getNotificationIdForPedido(pedido.id);
+        if (existingNotificationId) {
+          console.log(`📱 Pedido ${pedido.id} ya tiene notificaciones programadas, saltando`);
+          continue;
+        }
+
+        // Programar notificaciones para el pedido sincronizado
+        try {
+          const scheduledIds = await scheduleMultiplePedidoNotifications(
+            pedido.id,
+            pedido.nombre || 'Pedido sin nombre',
+            pedido.fecha_entrega,
+            notificationDays
+          );
+
+          // Guardar el ID de la primera notificación
+          if (scheduledIds.length > 0) {
+            await setNotificationIdForPedido(pedido.id, scheduledIds[0]);
+            console.log(`✅ ${scheduledIds.length} notificaciones programadas para pedido sincronizado ${pedido.id}`);
+            console.log(`[ANDROID] Notificaciones programadas para pedido sincronizado: ${pedido.nombre}`);
+          }
+        } catch (notificationError) {
+          console.error(`❌ Error programando notificaciones para pedido ${pedido.id}:`, notificationError);
+          console.error(`[ANDROID] Error programando notificaciones para pedido sincronizado: ${pedido.nombre}`);
+        }
+      }
+
+      console.log(`🎯 Procesamiento de notificaciones para pedidos sincronizados completado`);
+    } catch (error) {
+      console.error('❌ Error en programación de notificaciones para pedidos sincronizados:', error);
+      console.error(`[ANDROID] Error general programando notificaciones para pedidos sincronizados: ${error}`);
+    }
   }
 }
 

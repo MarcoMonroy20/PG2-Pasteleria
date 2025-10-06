@@ -23,6 +23,7 @@ type AppSettings = {
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const { user, hasPermission } = useAuth();
+  const [localDataStatus, setLocalDataStatus] = useState({ sabores: 0, rellenos: 0, pedidos: 0 });
 
   // Debug logs
   console.log('⚙️ SettingsScreen - Usuario actual:', user);
@@ -81,6 +82,18 @@ export default function SettingsScreen() {
         if (s) {
           setSettings(s);
         }
+
+        // Cargar estado de datos locales
+        const [sabores, rellenos, pedidos] = await Promise.all([
+          hybridDB.obtenerSabores(),
+          hybridDB.obtenerRellenos(),
+          hybridDB.obtenerPedidos(),
+        ]);
+        setLocalDataStatus({
+          sabores: sabores.length,
+          rellenos: rellenos.length,
+          pedidos: pedidos.length,
+        });
 
         // Check push notifications status
         if (Platform.OS === 'web') {
@@ -383,6 +396,23 @@ export default function SettingsScreen() {
         <FirebaseDebugger />
       )}
 
+      {/* Indicador de datos locales - Solo para administradores */}
+      {user && (user.role === 'admin' || user.role === 'dueño') && (
+        <View style={styles.localDataIndicator}>
+          <Text style={styles.localDataTitle}>
+            📊 Datos Locales (Offline)
+          </Text>
+          <Text style={styles.localDataDetails}>
+            Sabores: {localDataStatus.sabores} | Rellenos: {localDataStatus.rellenos} | Pedidos: {localDataStatus.pedidos}
+          </Text>
+          {(localDataStatus.sabores === 0 || localDataStatus.rellenos === 0) && (
+            <Text style={styles.localDataWarning}>
+              ⚠️ PROBLEMA: Datos no guardados localmente
+            </Text>
+          )}
+        </View>
+      )}
+
 
       <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.7 }]} disabled={saving} onPress={handleSave}>
         <Text style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar cambios'}</Text>
@@ -502,6 +532,33 @@ const styles = StyleSheet.create({
   backToHomeButtonText: {
     color: Colors.light.buttonText,
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  localDataIndicator: {
+    backgroundColor: '#f0f8ff',
+    padding: 12,
+    margin: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  localDataTitle: {
+    color: '#007AFF',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  localDataDetails: {
+    color: '#007AFF',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  localDataWarning: {
+    color: 'red',
+    fontSize: 11,
+    textAlign: 'center',
     fontWeight: 'bold',
   },
 }); 

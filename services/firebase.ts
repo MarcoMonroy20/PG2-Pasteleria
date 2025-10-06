@@ -707,6 +707,72 @@ export class HybridDatabase {
       return false;
     }
   }
+
+  // Clear all sabores from Firebase (for cleanup)
+  static async clearAllSabores(): Promise<void> {
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return;
+
+    try {
+      const q = query(
+        collection(db, 'sabores'),
+        where('userId', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      console.log(`🧹 Eliminados ${querySnapshot.docs.length} sabores de Firebase`);
+    } catch (error) {
+      console.error('❌ Error limpiando sabores de Firebase:', error);
+      throw error;
+    }
+  }
+
+  // Clear all rellenos from Firebase (for cleanup)
+  static async clearAllRellenos(): Promise<void> {
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return;
+
+    try {
+      const q = query(
+        collection(db, 'rellenos'),
+        where('userId', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      console.log(`🧹 Eliminados ${querySnapshot.docs.length} rellenos de Firebase`);
+    } catch (error) {
+      console.error('❌ Error limpiando rellenos de Firebase:', error);
+      throw error;
+    }
+  }
+
+  // Clear all pedidos from Firebase (for cleanup)
+  static async clearAllPedidos(): Promise<void> {
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return;
+
+    try {
+      const q = query(
+        collection(db, 'pedidos'),
+        where('userId', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      console.log(`🧹 Eliminados ${querySnapshot.docs.length} pedidos de Firebase`);
+    } catch (error) {
+      console.error('❌ Error limpiando pedidos de Firebase:', error);
+      throw error;
+    }
+  }
 }
 
 export default HybridDatabase;
