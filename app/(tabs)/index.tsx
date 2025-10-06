@@ -11,10 +11,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const { user, hasPermission, logout } = useAuth();
 
-  // Debug logs
-  console.log('🏠 HomeScreen - Usuario actual:', user);
-  console.log('🏠 HomeScreen - Rol del usuario:', user?.role);
-  console.log('🏠 HomeScreen - Tiene permiso manage_settings:', hasPermission('manage_settings'));
+  // Debug logs removidos para performance
 
   const getWelcomeMessage = (user: any) => {
     // Para usuarios por defecto, usar el mensaje específico
@@ -28,7 +25,6 @@ export default function HomeScreen() {
   const renderButtonsByRole = () => {
     // Fallback: Si no hay usuario o rol, mostrar botones básicos
     if (!user || !user.role) {
-      console.log('⚠️ Usuario sin rol, mostrando botones por defecto');
       return (
         <>
           <TouchableOpacity style={styles.mainButton} onPress={() => navigation.navigate('nuevo-pedido' as never)}>

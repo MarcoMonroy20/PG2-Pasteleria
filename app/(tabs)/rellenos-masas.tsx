@@ -54,7 +54,7 @@ export default function RellenosMasasScreen() {
       if (hybridDB.isFirebaseEnabled()) {
         try {
           await hybridDB.syncFromCloud();
-          console.log('✅ Sincronización con Firebase exitosa');
+          
         } catch (syncError) {
           console.warn('⚠️ No se pudo sincronizar con Firebase (sin conexión o error):', syncError);
           // Continue with local data - this is expected behavior offline
@@ -88,7 +88,6 @@ export default function RellenosMasasScreen() {
   };
 
   const handleEditar = (item: Sabor | Relleno) => {
-    console.log('✏️ Editando elemento:', item);
     setEditingItem(item);
     setFormData({
       nombre: item.nombre,
@@ -105,18 +104,14 @@ export default function RellenosMasasScreen() {
     }
 
     try {
-      console.log('💾 Guardando elemento:', { activeTab, editingItem, formData });
-      
       if (activeTab === 'sabores') {
         if (editingItem) {
-          console.log('🔄 Actualizando sabor:', editingItem.id);
           await hybridDB.actualizarSabor(editingItem.id!, {
             nombre: formData.nombre,
             tipo: formData.tipo,
             activo: formData.activo,
           });
         } else {
-          console.log('➕ Creando nuevo sabor');
           await hybridDB.crearSabor({
             nombre: formData.nombre,
             tipo: formData.tipo,
@@ -125,14 +120,12 @@ export default function RellenosMasasScreen() {
         }
       } else {
         if (editingItem) {
-          console.log('🔄 Actualizando relleno:', editingItem.id);
           await hybridDB.actualizarRelleno(editingItem.id!, {
             nombre: formData.nombre,
             tipo: formData.tipo,
             activo: formData.activo,
           });
         } else {
-          console.log('➕ Creando nuevo relleno');
           await hybridDB.crearRelleno({
             nombre: formData.nombre,
             tipo: formData.tipo,

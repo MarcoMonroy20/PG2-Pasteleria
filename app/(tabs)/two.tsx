@@ -40,7 +40,6 @@ export default function EstadisticasScreen() {
     try {
       await initDB();
       const data = await obtenerPedidos();
-      console.log('📊 Estadísticas: pedidos cargados:', data.length);
       setPedidos(data);
     } catch (e) {
       console.error('❌ Error cargando estadísticas:', e);

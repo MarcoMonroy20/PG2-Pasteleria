@@ -103,7 +103,6 @@ export default function ProximosPedidosScreen() {
   useEffect(() => {
     if (refreshTrigger > 0) {
       cargarPedidosPorRango();
-      console.log('🔄 Pedidos actualizados en Próximos Pedidos');
     }
   }, [refreshTrigger]);
 
@@ -112,9 +111,7 @@ export default function ProximosPedidosScreen() {
       // Try to sync with Firebase first (optional - won't fail if no connection)
       if (hybridDB.isFirebaseEnabled()) {
         try {
-          console.log('🔄 Sincronizando con Firebase en Próximos Pedidos...');
           await hybridDB.syncFromCloud();
-          console.log('✅ Sincronización con Firebase exitosa en Próximos Pedidos');
         } catch (syncError) {
           console.warn('⚠️ No se pudo sincronizar con Firebase (sin conexión o error):', syncError);
           // Continue with local data - this is expected behavior offline
@@ -125,8 +122,6 @@ export default function ProximosPedidosScreen() {
       // This will use local data if Firebase is not available
       const saboresData = await hybridDB.obtenerSabores();
       const rellenosData = await hybridDB.obtenerRellenos();
-      
-      console.log(`📊 Datos cargados en Próximos Pedidos: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
       
       setSabores(saboresData);
       setRellenos(rellenosData);
@@ -156,7 +151,6 @@ export default function ProximosPedidosScreen() {
 
 
   const cargarPedidosPorRango = async () => {
-    console.log('📋 cargarPedidosPorRango iniciado');
     try {
       await hybridDB.initialize();
       let base: Pedido[];
@@ -172,7 +166,6 @@ export default function ProximosPedidosScreen() {
         if (!dateStart && !dateEnd && !searchText.trim()) {
           const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
           base = base.filter(p => p.fecha_entrega >= hoy);
-          console.log(`📅 Filtrando pedidos futuros desde ${hoy} (sin búsqueda activa)`);
         } else {
           // Aplicar filtros de fecha si existen
           if (dateStart) base = base.filter(p => p.fecha_entrega >= dateStart);
@@ -180,18 +173,15 @@ export default function ProximosPedidosScreen() {
         }
       }
       
-      console.log('📋 Pedidos cargados:', base.length);
       setAllPedidos(base);
       // Aplicar solo filtro de texto
       const pedidosFinales = aplicarFiltroTexto(base, searchText);
-      console.log('📋 Pedidos después de filtro de texto:', pedidosFinales.length);
       setPedidos(pedidosFinales);
     } catch (error) {
       console.error('❌ Error cargando pedidos:', error);
       Alert.alert('Error', 'No se pudieron cargar los pedidos');
     } finally {
       setLoading(false);
-      console.log('📋 cargarPedidosPorRango completado');
 
       // Trigger animations when data is loaded
       setTimeout(() => {
@@ -214,7 +204,6 @@ export default function ProximosPedidosScreen() {
     if (!dateStart && !dateEnd && !searchText.trim()) {
       const hoy = new Date().toISOString().split('T')[0];
       base = allPedidos.filter(p => p.fecha_entrega >= hoy);
-      console.log(`📅 Aplicando filtro de fecha futura desde ${hoy} (sin búsqueda activa)`);
     }
     
     // Aplicar filtro de texto

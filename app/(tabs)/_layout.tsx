@@ -29,7 +29,7 @@ export default function TabLayout() {
           applyWebTabBarFix();
           observeTabBarChanges();
         } catch (error) {
-          console.log('Web tab bar fix no disponible:', error);
+          
         }
       }, 100);
       return () => clearTimeout(timer);

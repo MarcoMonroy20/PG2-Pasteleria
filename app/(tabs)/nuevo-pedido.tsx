@@ -99,8 +99,6 @@ export default function NuevoPedidoScreen() {
       setSabores(saboresData);
       setRellenos(rellenosData);
       setSettings(settingsData);
-      
-      console.log(`✅ Datos cargados: ${saboresData.length} sabores, ${rellenosData.length} rellenos`);
     } catch (error) {
       console.error('❌ Error cargando datos:', error);
     }
@@ -136,19 +134,10 @@ export default function NuevoPedidoScreen() {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    console.log('📅 handleDateChange llamado');
-    console.log('📅 event:', event);
-    console.log('📅 selectedDate:', selectedDate);
-    
     setShowDatePicker(false);
-    
     if (selectedDate) {
-      console.log('📅 Fecha seleccionada:', selectedDate);
       setFechaEntregaDate(selectedDate);
       setFechaEntrega(selectedDate.toISOString().split('T')[0]);
-      console.log('📅 Fecha actualizada a:', selectedDate.toISOString().split('T')[0]);
-    } else {
-      console.log('📅 No se seleccionó fecha');
     }
   };
 
@@ -223,8 +212,6 @@ export default function NuevoPedidoScreen() {
     }
 
     try {
-      console.log('🔄 Guardando pedido...');
-      
       const pedidoData = {
         nombre: nombrePedido,
         precio_total: parseFloat(precioTotal) || 0,
@@ -240,12 +227,10 @@ export default function NuevoPedidoScreen() {
       };
 
       const pedidoId = await hybridDB.crearPedido(pedidoData);
-      console.log(`✅ Pedido guardado con ID: ${pedidoId}`);
 
       // 🔔 Programar notificaciones según configuración
       try {
         if (settings?.notifications_enabled) {
-          console.log('🔔 Configurando notificaciones para pedido:', pedidoId);
           const notificationDays = settings.notification_days || [0];
           
           // Programar múltiples notificaciones usando la nueva función
@@ -259,10 +244,7 @@ export default function NuevoPedidoScreen() {
           // Guardar el ID de la primera notificación (para compatibilidad)
           if (scheduledIds.length > 0) {
             await setNotificationIdForPedido(pedidoId, scheduledIds[0]);
-            console.log(`✅ ${scheduledIds.length} notificaciones programadas para el pedido`);
           }
-        } else {
-          console.log('🔕 Notificaciones deshabilitadas, no se programaron recordatorios');
         }
       } catch (notificationError) {
         console.error('❌ Error programando notificaciones:', notificationError);

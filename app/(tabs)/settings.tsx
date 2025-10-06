@@ -25,10 +25,7 @@ export default function SettingsScreen() {
   const { user, hasPermission } = useAuth();
   const [localDataStatus, setLocalDataStatus] = useState({ sabores: 0, rellenos: 0, pedidos: 0 });
 
-  // Debug logs
-  console.log('⚙️ SettingsScreen - Usuario actual:', user);
-  console.log('⚙️ SettingsScreen - Rol del usuario:', user?.role);
-  console.log('⚙️ SettingsScreen - Tiene permiso manage_settings:', hasPermission('manage_settings'));
+  // Debug logs removidos para performance
          const [settings, setSettings] = useState<AppSettings>({ 
            notifications_enabled: false, 
            days_before: 0, 
@@ -156,7 +153,7 @@ export default function SettingsScreen() {
   const testPushNotification = async () => {
     try {
       // Solicitar permisos primero en todas las plataformas
-      console.log('🔔 Testing notification...');
+      
       
       if (Platform.OS === 'web') {
         // Para web, usar notificaciones del navegador
@@ -183,7 +180,7 @@ export default function SettingsScreen() {
         
       } else {
         // Para móvil (Android/iOS)
-        console.log('📱 Testing mobile notification...');
+        
         
         // Solicitar permisos primero
         const permissions = await Notifications.requestPermissionsAsync();
@@ -193,7 +190,7 @@ export default function SettingsScreen() {
           return;
         }
 
-        console.log('✅ Permisos concedidos, enviando notificación...');
+        
 
         // Mostrar notificación de prueba
         await Notifications.scheduleNotificationAsync({
@@ -205,7 +202,7 @@ export default function SettingsScreen() {
           trigger: null,
         });
         
-        console.log('✅ Notificación enviada exitosamente');
+        
         Alert.alert('✅ Éxito', 'Notificación local enviada correctamente');
       }
       

@@ -58,7 +58,6 @@ export default function CalendarioScreen() {
   useEffect(() => {
     if (refreshTrigger > 0) {
       cargarPedidos();
-      console.log('📅 Calendario actualizado');
     }
   }, [refreshTrigger]);
 
@@ -417,7 +416,7 @@ export default function CalendarioScreen() {
               </TouchableOpacity>
               {hasPermission('create_pedidos') && (
                 <TouchableOpacity style={styles.confirmBtn} onPress={() => {
-                  console.log('Enviando fecha al nuevo pedido:', dayModal.date);
+                  
                   setDayModal(null);
                   router.push({
                     pathname: '/(tabs)/nuevo-pedido',
