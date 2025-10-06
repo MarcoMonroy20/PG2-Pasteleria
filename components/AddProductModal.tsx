@@ -109,6 +109,8 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
       animationType="slide"
       transparent={true}
       onRequestClose={onClose}
+      statusBarTranslucent={Platform.OS === 'android'}
+      hardwareAccelerated={true}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
@@ -118,23 +120,16 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
-          
-          
-          <ScrollView 
-            style={styles.modalScrollView}
-            showsVerticalScrollIndicator={false}
-            nestedScrollEnabled={true}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {/* DEBUG: Indicador de carga */}
-            <View style={styles.debugContainer}>
-              <Text style={styles.debugText}>
-                Debug: Sabores: {sabores.length} | Rellenos: {rellenos.length} | Tipo: {productoTipo}
-              </Text>
-              <TouchableOpacity style={styles.reloadButton} onPress={cargarDatos}>
-                <Text style={styles.reloadButtonText}>🔄 Recargar</Text>
-              </TouchableOpacity>
-            </View>
+
+          <View style={styles.modalBody}>
+            <ScrollView 
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}
+            >
+
 
             {/* 1. TIPO DE PRODUCTO */}
             <View style={styles.sectionContainer}>
@@ -318,7 +313,8 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
                 numberOfLines={3}
               />
             </View>
-          </ScrollView>
+            </ScrollView>
+          </View>
 
           <View style={styles.modalButtons}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
@@ -337,37 +333,36 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(94, 51, 111, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Platform.OS === 'android' ? 10 : 0,
-    paddingVertical: Platform.OS === 'android' ? 20 : 0,
+    padding: 16,
   },
   modalContainer: {
-    backgroundColor: Colors.light.cardBackground,
-    borderRadius: 20,
-    padding: 20,
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
     width: '95%',
-    maxHeight: Platform.OS === 'android' ? '90%' : '85%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 10,
+    maxWidth: 500,
     alignSelf: 'center',
-    marginVertical: Platform.OS === 'android' ? 20 : 0,
+    overflow: 'hidden',
+    maxHeight: '90%',
+  },
+  modalBody: {
+    minHeight: 1,
+    flexGrow: 1,
+    flexShrink: 1,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: Colors.light.cardBackground,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: Colors.light.text,
   },
@@ -385,37 +380,11 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     flex: 1,
-    marginBottom: 15,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 10,
-  },
-  debugContainer: {
-    backgroundColor: '#f0f8ff',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  debugText: {
-    color: '#007AFF',
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  reloadButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 5,
-    alignSelf: 'center',
-  },
-  reloadButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    backgroundColor: Colors.light.cardBackground,
   },
   sectionContainer: {
     marginBottom: 20,
@@ -458,6 +427,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
+    paddingBottom: 4,
   },
   optionButton: {
     margin: 4,
@@ -522,7 +492,10 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 15,
+    marginTop: 10,
+    padding: 20,
+    paddingTop: 10,
+    backgroundColor: Colors.light.cardBackground,
   },
   cancelButton: {
     flex: 1,

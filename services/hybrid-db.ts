@@ -26,6 +26,7 @@ let crearSaborFn: any;
 let crearRellenoFn: any;
 let eliminarPedidoFn: any;
 let crearPedidoFn: any;
+let upsertPedidoWithIdFn: any;
 
 if (Platform.OS === 'web') {
   const dbWeb = require('./db.web');
@@ -42,6 +43,7 @@ if (Platform.OS === 'web') {
   crearRellenoFn = dbWeb.crearRelleno;
   eliminarPedidoFn = dbWeb.eliminarPedido;
   crearPedidoFn = dbWeb.crearPedido;
+  upsertPedidoWithIdFn = dbWeb.upsertPedidoWithId;
 } else {
   const dbNative = require('./db');
   dbService = dbNative;
@@ -57,6 +59,7 @@ if (Platform.OS === 'web') {
   crearRellenoFn = dbNative.crearRelleno;
   eliminarPedidoFn = dbNative.eliminarPedido;
   crearPedidoFn = dbNative.crearPedido;
+  upsertPedidoWithIdFn = dbNative.upsertPedidoWithId;
 }
 
 // Interfaces
@@ -219,7 +222,7 @@ class HybridDBService {
           }
         }
         for (const pedido of pedidosUnicos.values()) {
-          await dbService.crearPedido(pedido);
+          await upsertPedidoWithIdFn(pedido);
         }
       }
       
@@ -228,6 +231,40 @@ class HybridDBService {
     } catch (error) {
       console.error('❌ Error en limpieza de duplicados:', error);
       console.error(`[ANDROID] Error en limpieza: ${error}`);
+    }
+  }
+
+  // Limpia duplicados locales de pedidos por contenido (nombre+fecha+precio)
+  private async limpiarDuplicadosPorContenido(): Promise<void> {
+    try {
+      const pedidos: any[] = await dbService.obtenerPedidos();
+      if (!pedidos || pedidos.length <= 1) return;
+
+      const keyFor = (p: any) => `${p.nombre}|${p.fecha_entrega}|${p.precio_final}`;
+      const groups = new Map<string, any[]>();
+      for (const p of pedidos) {
+        const k = keyFor(p);
+        const arr = groups.get(k) || [];
+        arr.push(p);
+        groups.set(k, arr);
+      }
+
+      for (const [, arr] of groups.entries()) {
+        if (arr.length > 1) {
+          // Mantener el de menor id para estabilidad
+          arr.sort((a, b) => (a.id ?? Infinity) - (b.id ?? Infinity));
+          const toKeep = arr[0];
+          const toDelete = arr.slice(1);
+          for (const d of toDelete) {
+            if (d.id != null) {
+              await eliminarPedidoFn(d.id);
+            }
+          }
+          console.warn(`[ANDROID] Duplicados por contenido eliminados: kept ${toKeep.id}, removed ${toDelete.length}`);
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Error limpiando duplicados por contenido:', e);
     }
   }
 
@@ -607,7 +644,7 @@ class HybridDBService {
         }
       }
       for (const pedido of pedidosUnicos.values()) {
-        await dbService.crearPedido(pedido);
+        await upsertPedidoWithIdFn(pedido);
       }
 
       if (__DEV__) console.log('✅ Limpieza de duplicados masivos completada');
@@ -709,12 +746,26 @@ class HybridDBService {
       }
     });
     
-    // Add Firebase pedidos only if not duplicate (STRICT BY ID)
+    // Add Firebase pedidos only if not duplicate (STRICT BY ID). Si algún
+    // remoto no tiene id válido, generamos clave de contenido para evitar
+    // repetir el mismo pedido con distintos ids.
     let firebaseAdded = 0;
+    const contentKey = (p: any) => `${p.nombre}|${p.fecha_entrega}|${p.precio_final}`;
+    const contentKeys = new Set(Array.from(pedidosMap.values()).map(contentKey));
     firebasePedidos.forEach(pedido => {
       if (pedido.id && !pedidosMap.has(pedido.id)) {
         pedidosMap.set(pedido.id, pedido);
         firebaseAdded++;
+        contentKeys.add(contentKey(pedido));
+      } else if (!pedido.id) {
+        const key = contentKey(pedido);
+        if (!contentKeys.has(key)) {
+          // Guardamos con clave compuesta para no perderlo visualmente, el
+          // upsert local lo normaliza por id cuando exista.
+          pedidosMap.set(key, pedido);
+          contentKeys.add(key);
+          firebaseAdded++;
+        }
       }
     });
     
@@ -830,13 +881,18 @@ class HybridDBService {
     try {
       let pedidos: Pedido[];
 
-      // 🛡️ CLEANUP: Limpiar duplicados antes de sincronizar
+      // 🛡️ CLEANUP: Limpiar duplicados por contenido e ID antes de sincronizar
+      await this.limpiarDuplicadosPorContenido();
       await this.limpiarDuplicadosLocales();
 
       // 🛡️ Firebase sync REACTIVATED with duplication protection
       if (this.firebaseEnabled) {
         try {
-          // Get data from Firebase with protection
+          // Limpieza de duplicados remotos antes de leer
+          try {
+            await FirebaseSync.cleanupRemotePedidoDuplicates();
+          } catch {}
+          // Obtener datos ya limpiados desde Firebase
           const firebasePedidos = await FirebaseSync.getPedidosFromFirebase();
           
           // Get local data
@@ -855,14 +911,10 @@ class HybridDBService {
               !localPedidos.some((local: any) => local.id === pedido.id)
             );
             
-            // 🛡️ SAFE METHOD: Solo agregar pedidos nuevos, NO recrear todos
+          // 🛡️ SAFE METHOD: Upsert por ID para evitar duplicación
             for (const pedido of pedidosNuevos) {
               try {
-                // Verificar que no existe antes de crear
-                const existingPedido = await dbService.obtenerPedidoPorId(pedido.id);
-                if (!existingPedido) {
-                  await crearPedidoFn(pedido);
-                }
+                await upsertPedidoWithIdFn(pedido);
               } catch (createError) {
                 console.error(`❌ Error creando pedido ${pedido.id}:`, createError);
               }
@@ -1503,6 +1555,23 @@ class HybridDBService {
           }
         }
         
+        // Upsert pedidos por id/contenido para borrar clones locales
+        try {
+          const keyFor = (p: any) => `${p.nombre}|${p.fecha_entrega}|${p.precio_final}`;
+          const vistos = new Set<string>();
+          for (const p of firebaseData.pedidos || []) {
+            const k = keyFor(p);
+            if (!vistos.has(k)) {
+              vistos.add(k);
+              if (p.id != null) {
+                await upsertPedidoWithIdFn(p);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[ANDROID] Upsert de pedidos al actualizar datos locales falló:', e);
+        }
+
         // Verificar que los datos se guardaron
         try {
           const saboresVerificacion = await obtenerSaboresFn();

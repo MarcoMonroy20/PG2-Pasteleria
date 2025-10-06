@@ -1702,7 +1702,7 @@ La aplicación está **100% lista para generar APK** una vez resuelto el problem
 
 ---
 
-## 🔧 **BITÁCORA DE TRABAJO — 2025-01-06**
+## 🔧 **BITÁCORA DE TRABAJO — 2025-10-04**
 
 ### **🚨 CORRECCIONES CRÍTICAS PARA ANDROID**
 
@@ -1979,4 +1979,101 @@ npx expo doctor
 
 ---
 
-*Bitácora actualizada el 5 de octubre de 2025 - Guía completa de instalación agregada*
+## 🔧 **BITÁCORA DE TRABAJO — 2025-10-05**
+
+### **🚨 CORRECCIONES CRÍTICAS PARA ANDROID**
+
+#### **Problemas identificados y resueltos:**
+
+**1. ❌ Error: `TypeError: Cannot read property 'crearRelleno' of undefined`**
+- **Causa**: Las funciones `crearSabor` y `crearRelleno` no se importaban correctamente
+- **Solución**: Agregadas importaciones directas `crearSaborFn` y `crearRellenoFn`
+- **Archivos modificados**: `services/hybrid-db.ts`
+
+**2. ❌ Error: `TypeError: Cannot read property 'crearSabor' of undefined`**
+- **Causa**: Mismo problema de importaciones
+- **Solución**: Corregidas las llamadas para usar funciones importadas
+- **Resultado**: Datos de Firebase ahora se guardan correctamente en SQLite
+
+**3. ❌ Persistencia offline no funcionaba**
+- **Causa**: Datos de Firebase se obtenían pero NO se guardaban localmente
+- **Solución**: Agregada lógica para guardar automáticamente datos de Firebase en SQLite
+- **Archivos modificados**: `services/hybrid-db.ts` - métodos `obtenerSabores()`, `obtenerRellenos()`, `obtenerPedidos()`
+
+**4. ❌ Botones de tipo de producto no aparecían en modal "Agregar Producto"**
+- **Causa**: Estilos CSS faltantes (`pillButton`, `pillButtonActive`, etc.)
+- **Solución**: Agregados todos los estilos faltantes para los botones
+- **Archivos modificados**: `app/(tabs)/nuevo-pedido.tsx`
+
+**5. ❌ Cloudinary aparecía como "deshabilitado" en Android**
+- **Causa**: EAS Build no lee `.env.local` automáticamente
+- **Solución**: Agregadas todas las variables de entorno directamente en `eas.json`
+- **Archivos modificados**: `eas.json`
+
+#### **Nuevas funcionalidades implementadas:**
+
+**🔍 Sistema de Debug Visual para Android:**
+- **Componente**: `AndroidDebugger.tsx` - Botón flotante 🐛
+- **Utilidad**: `VisualLogger.ts` - Reemplaza console.log para Android
+- **Funcionalidad**: Modal con información de datos locales, estado de Firebase, logs recientes
+- **Acciones**: Actualizar, Sincronizar, Ver Logs, Limpiar Datos
+
+**📱 Mejoras en persistencia híbrida:**
+- **Online**: Datos se cargan de Firebase Y se guardan en SQLite automáticamente
+- **Offline**: Datos se cargan desde SQLite local
+- **Sincronización**: Bidireccional con Firebase como fuente de verdad
+- **Verificación**: Logs de confirmación de datos guardados localmente
+
+#### **Archivos modificados en esta sesión:**
+
+1. **`services/hybrid-db.ts`**:
+   - Agregadas importaciones `crearSaborFn` y `crearRellenoFn`
+   - Corregido método `updateLocalDataWithFirebase`
+   - Agregada persistencia automática en `obtenerSabores()`, `obtenerRellenos()`, `obtenerPedidos()`
+   - Agregados logs de debug y verificación
+
+2. **`app/(tabs)/nuevo-pedido.tsx`**:
+   - Agregados estilos faltantes: `pillButton`, `pillButtonActive`, `pillButtonText`, `pillButtonTextActive`
+   - Corregido renderizado de botones de tipo de producto
+
+3. **`eas.json`**:
+   - Agregadas todas las variables de entorno de Firebase y Cloudinary
+   - Configuración completa para EAS Build
+
+4. **`components/AndroidDebugger.tsx`** (NUEVO):
+   - Sistema de debug visual para Android
+   - Modal con información de datos locales y estado de servicios
+
+5. **`utils/VisualLogger.ts`** (NUEVO):
+   - Sistema de logging visual para Android
+   - Reemplaza console.log con alertas visuales
+
+6. **`app/(tabs)/index.tsx`**:
+   - Integrado AndroidDebugger en pantalla principal
+   - Indicador visual de datos locales
+
+#### **Resultado esperado:**
+
+**✅ Funcionalidades corregidas:**
+- Modal "Agregar Producto" muestra botones Pastel | Cupcakes | Otros
+- Datos de Firebase se guardan automáticamente en SQLite
+- Persistencia offline completa y funcional
+- Cloudinary habilitado y configurado
+- Sistema de debug visual para monitoreo en Android
+
+**✅ Logs esperados en Android:**
+- `[SUCCESS] X sabores guardados localmente`
+- `[SUCCESS] Y rellenos guardados localmente`
+- `[SUCCESS] Verificación: X sabores y Y rellenos en SQLite`
+
+**✅ Debug visual:**
+- Botón flotante 🐛 en pantalla principal
+- Modal con contadores de datos locales
+- Estado de Firebase y Cloudinary visible
+- Logs recientes accesibles
+
+**🎯 APK lista para pruebas con todas las correcciones implementadas.**
+
+---
+
+*Bitácora actualizada el 5 de octubre de 2025 - Correcciones críticas para Android implementadas*

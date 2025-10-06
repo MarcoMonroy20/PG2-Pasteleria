@@ -325,6 +325,77 @@ export class FirebaseSync {
     return pedidos;
   }
 
+  // Limpia duplicados en Firebase: por id y por contenido (nombre+fecha+precio)
+  static async cleanupRemotePedidoDuplicates(): Promise<{ removedById: number; removedByContent: number; }> {
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return { removedById: 0, removedByContent: 0 };
+
+    const q = query(
+      collection(db, 'pedidos'),
+      where('userId', '==', userId)
+    );
+
+    const snapshot = await getDocs(q);
+    let removedById = 0;
+    let removedByContent = 0;
+
+    // 1) Duplicados por id (campo data.id)
+    const byLocalId = new Map<number, Array<any>>();
+    snapshot.docs.forEach((docSnap: any) => {
+      const data = docSnap.data() as FirebasePedido;
+      const list = byLocalId.get(data.id) || [];
+      list.push({ ref: docSnap.ref, data });
+      byLocalId.set(data.id, list);
+    });
+
+    for (const [, list] of byLocalId.entries()) {
+      if (list.length > 1) {
+        // Mantener el más reciente por updated_at
+        list.sort((a, b) => {
+          const ta = (a.data.updated_at?.seconds || 0);
+          const tb = (b.data.updated_at?.seconds || 0);
+          return tb - ta;
+        });
+        const keep = list[0];
+        const toDelete = list.slice(1);
+        await Promise.all(toDelete.map(item => deleteDoc(item.ref)));
+        removedById += toDelete.length;
+      }
+    }
+
+    // 2) Duplicados por contenido (nombre+fecha_entrega+precio_final)
+    const refreshed = await getDocs(q);
+    const byContent = new Map<string, any>();
+    const toDeleteContent: any[] = [];
+    refreshed.docs.forEach((docSnap: any) => {
+      const data = docSnap.data() as FirebasePedido;
+      const key = `${data.nombre}|${data.fecha_entrega}|${data.precio_final}`;
+      if (!byContent.has(key)) {
+        byContent.set(key, { ref: docSnap.ref, data });
+      } else {
+        // Mantener el más reciente por updated_at
+        const existing = byContent.get(key);
+        const tExisting = (existing.data.updated_at?.seconds || 0);
+        const tCurrent = (data.updated_at?.seconds || 0);
+        if (tCurrent > tExisting) {
+          toDeleteContent.push(existing.ref);
+          byContent.set(key, { ref: docSnap.ref, data });
+        } else {
+          toDeleteContent.push(docSnap.ref);
+        }
+      }
+    });
+    if (toDeleteContent.length) {
+      await Promise.all(toDeleteContent.map(ref => deleteDoc(ref)));
+      removedByContent += toDeleteContent.length;
+    }
+
+    if (removedById || removedByContent) {
+      console.log(`🧹 FirebaseSync.cleanupRemotePedidoDuplicates(): removedById=${removedById}, removedByContent=${removedByContent}`);
+    }
+    return { removedById, removedByContent };
+  }
+
   // Sync settings to Firebase
   static async syncSettingsToFirebase(localSettings: any): Promise<void> {
     if (!this.userId) return;
@@ -488,11 +559,9 @@ export class FirebaseSync {
       const mergedPedidos = this.mergePedidos(localData.pedidos, remotePedidos);
       const mergedSettings = remoteSettings || localData.settings;
 
-      // DON'T sync local data to Firebase - Firebase is the source of truth
-      // Only sync pedidos if they have local changes (not sabores/rellenos)
-      if (localData.pedidos.length > 0) {
-        await this.syncPedidosToFirebase(localData.pedidos);
-      }
+      // IMPORTANT: no subir pedidos locales en esta fase para evitar
+      // recrear duplicados remotos. Las escrituras se realizan solo en
+      // crear/actualizar/eliminar individuales del flujo de la app.
       // Skip syncing sabores and rellenos - Firebase is source of truth
 
       console.log('🔄 Firebase sync: Using Firebase as source of truth');

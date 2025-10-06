@@ -126,6 +126,21 @@ export const initDB = () => {
       insertarSaboresPorDefecto();
       insertarRellenosPorDefecto();
 
+      // Limpieza inmediata de duplicados en pedidos por contenido
+      try {
+        console.log('🧹 Depurando duplicados en pedidos (contenido) ...');
+        const before = db.getFirstSync('SELECT COUNT(*) as c FROM pedidos') as any;
+        db.runSync(`DELETE FROM pedidos WHERE id NOT IN (
+          SELECT MIN(id) FROM pedidos
+          GROUP BY nombre, fecha_entrega, precio_final, monto_abonado, COALESCE(descripcion,''), COALESCE(direccion_entrega,'')
+        )`);
+        const after = db.getFirstSync('SELECT COUNT(*) as c FROM pedidos') as any;
+        const removed = Math.max(0, (before?.c || 0) - (after?.c || 0));
+        console.log(`🧹 Eliminados ${removed} duplicados de pedidos`);
+      } catch (e) {
+        console.log('⚠️ Limpieza de duplicados de pedidos falló:', e);
+      }
+
       console.log('Base de datos inicializada correctamente');
       resolve();
     } catch (error) {
@@ -188,6 +203,36 @@ export const crearPedido = (pedido: Omit<Pedido, 'id'>): Promise<number> => {
         ]
       );
       resolve(result.lastInsertRowId as number);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// Inserta o actualiza un pedido preservando el ID proporcionado (para sincronización)
+export const upsertPedidoWithId = (pedido: Pedido): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (pedido.id == null) {
+        throw new Error('upsertPedidoWithId requiere un id');
+      }
+
+      const productosJson = JSON.stringify(pedido.productos);
+      db.runSync(
+        'INSERT INTO pedidos (id, fecha_entrega, nombre, precio_final, monto_abonado, descripcion, direccion_entrega, imagen, productos) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)\nON CONFLICT(id) DO UPDATE SET fecha_entrega = excluded.fecha_entrega, nombre = excluded.nombre, precio_final = excluded.precio_final, monto_abonado = excluded.monto_abonado, descripcion = excluded.descripcion, direccion_entrega = excluded.direccion_entrega, imagen = excluded.imagen, productos = excluded.productos',
+        [
+          pedido.id,
+          pedido.fecha_entrega,
+          pedido.nombre,
+          pedido.precio_final,
+          pedido.monto_abonado,
+          pedido.descripcion || null,
+          pedido.direccion_entrega || null,
+          pedido.imagen || null,
+          productosJson
+        ]
+      );
+      resolve();
     } catch (error) {
       reject(error);
     }

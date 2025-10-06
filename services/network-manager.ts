@@ -2,6 +2,7 @@
 import { NetInfoStateType, useNetInfo } from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HybridDatabase, FirebaseSync } from './firebase';
 
 export interface NetworkStatus {
@@ -211,7 +212,13 @@ class NetworkManager {
 
   private savePendingSyncQueue() {
     try {
-      localStorage.setItem('pasteleria_pending_sync', JSON.stringify(this.pendingSyncQueue));
+      const serialized = JSON.stringify(this.pendingSyncQueue);
+      if (Platform.OS === 'web') {
+        localStorage.setItem('pasteleria_pending_sync', serialized);
+      } else {
+        // No es necesario await; persistimos en background
+        AsyncStorage.setItem('pasteleria_pending_sync', serialized).catch(() => {});
+      }
     } catch (error) {
       console.error('Error guardando cola de sincronización:', error);
     }
@@ -219,10 +226,24 @@ class NetworkManager {
 
   private loadPendingSyncQueue() {
     try {
-      const stored = localStorage.getItem('pasteleria_pending_sync');
-      if (stored) {
-        this.pendingSyncQueue = JSON.parse(stored);
-        console.log(`📋 Cargados ${this.pendingSyncQueue.length} elementos pendientes de sincronización`);
+      if (Platform.OS === 'web') {
+        const stored = localStorage.getItem('pasteleria_pending_sync');
+        if (stored) {
+          this.pendingSyncQueue = JSON.parse(stored);
+          console.log(`📋 Cargados ${this.pendingSyncQueue.length} elementos pendientes de sincronización`);
+        }
+      } else {
+        // Carga asincrónica; no bloquea el constructor
+        AsyncStorage.getItem('pasteleria_pending_sync')
+          .then((stored) => {
+            if (stored) {
+              this.pendingSyncQueue = JSON.parse(stored);
+              console.log(`📋 Cargados ${this.pendingSyncQueue.length} elementos pendientes de sincronización (persistidos)`);
+            }
+          })
+          .catch((error) => {
+            console.error('Error cargando cola de sincronización (AsyncStorage):', error);
+          });
       }
     } catch (error) {
       console.error('Error cargando cola de sincronización:', error);

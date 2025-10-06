@@ -113,6 +113,21 @@ export const crearPedido = (pedido: Omit<Pedido, 'id'>): Promise<number> => {
   });
 };
 
+// Inserta/actualiza manteniendo el id (para sincronización desde Firebase)
+export const upsertPedidoWithId = (pedido: Pedido): Promise<void> => {
+  return new Promise((resolve) => {
+    const pedidos = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEDIDOS) || '[]');
+    const index = pedidos.findIndex((p: Pedido) => p.id === pedido.id);
+    if (index === -1) {
+      pedidos.push(pedido);
+    } else {
+      pedidos[index] = pedido;
+    }
+    localStorage.setItem(STORAGE_KEYS.PEDIDOS, JSON.stringify(pedidos));
+    resolve();
+  });
+};
+
 export const obtenerPedidos = (): Promise<Pedido[]> => {
   return new Promise((resolve) => {
     const pedidos = JSON.parse(localStorage.getItem(STORAGE_KEYS.PEDIDOS) || '[]');
