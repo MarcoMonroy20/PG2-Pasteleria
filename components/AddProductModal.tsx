@@ -121,14 +121,13 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
             </TouchableOpacity>
           </View>
 
-          <View style={styles.modalBody}>
-            <ScrollView 
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled={true}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.scrollContent}
-            >
+          <ScrollView 
+            style={styles.modalScrollView}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
 
 
             {/* 1. TIPO DE PRODUCTO */}
@@ -313,8 +312,7 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
                 numberOfLines={3}
               />
             </View>
-            </ScrollView>
-          </View>
+          </ScrollView>
 
           <View style={styles.modalButtons}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
@@ -344,13 +342,12 @@ const styles = StyleSheet.create({
     width: '95%',
     maxWidth: 500,
     alignSelf: 'center',
-    overflow: 'hidden',
-    maxHeight: '90%',
+    maxHeight: '85%',
+    flex: 1,
   },
   modalBody: {
-    minHeight: 1,
-    flexGrow: 1,
-    flexShrink: 1,
+    flex: 1,
+    minHeight: 300,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -380,11 +377,11 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     flex: 1,
+    maxHeight: 400,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    backgroundColor: Colors.light.cardBackground,
+    padding: 20,
+    paddingBottom: 20,
   },
   sectionContainer: {
     marginBottom: 20,
@@ -492,10 +489,11 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
     padding: 20,
     paddingTop: 10,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: Colors.light.background,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
   cancelButton: {
     flex: 1,

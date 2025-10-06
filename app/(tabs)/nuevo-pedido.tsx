@@ -193,23 +193,7 @@ export default function NuevoPedidoScreen() {
       return;
     }
 
-    if (!direccionEntrega.trim()) {
-      if (Platform.OS === 'web') {
-        alert('La dirección de entrega es obligatoria');
-      } else {
-        Alert.alert('Error', 'La dirección de entrega es obligatoria');
-      }
-      return;
-    }
-
-    if (productos.length === 0) {
-      if (Platform.OS === 'web') {
-        alert('Debe agregar al menos un producto');
-      } else {
-        Alert.alert('Error', 'Debe agregar al menos un producto');
-      }
-      return;
-    }
+    // Validaciones removidas: productos y dirección ya no son obligatorios
 
     try {
       const pedidoData = {
@@ -218,10 +202,10 @@ export default function NuevoPedidoScreen() {
         precio_final: parseFloat(precioTotal) || 0,
         precio_abonado: parseFloat(precioAbonado) || 0,
         monto_abonado: parseFloat(precioAbonado) || 0,
-        descripcion: descripcion,
+        descripcion: descripcion || undefined,
         fecha_entrega: fechaEntrega,
-        direccion_entrega: direccionEntrega,
-        productos: productos,
+        direccion_entrega: direccionEntrega || undefined,
+        productos: productos || [],
         imagen: imagen || undefined,
         fecha_creacion: new Date().toISOString(),
       };
@@ -381,7 +365,7 @@ export default function NuevoPedidoScreen() {
             numberOfLines={3}
           />
 
-          <Text style={styles.label}>Dirección de Entrega *</Text>
+          <Text style={styles.label}>Dirección de Entrega</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={direccionEntrega}
