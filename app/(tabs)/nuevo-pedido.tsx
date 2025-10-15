@@ -20,6 +20,7 @@ import Colors from '../../constants/Colors';
 import { scheduleMultiplePedidoNotifications } from '../../services/notifications';
 import { setNotificationIdForPedido } from '../../services/db';
 import AddProductModal from '../../components/AddProductModal';
+import { useResponsive } from '../../utils/responsive';
 
 interface Producto {
   tipo: 'pastel' | 'cupcakes' | 'otros';
@@ -41,6 +42,7 @@ export default function NuevoPedidoScreen() {
   const navigation = useNavigation();
   const { triggerRefresh, refreshTrigger } = useDataRefresh();
   const { fechaSeleccionada } = useLocalSearchParams();
+  const responsive = useResponsive();
   
   // Estados principales
   const [nombrePedido, setNombrePedido] = useState('');
@@ -269,12 +271,12 @@ export default function NuevoPedidoScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, responsive.screenStyles.container]}>
+      <View style={[styles.header, responsive.screenStyles.header]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Atrás</Text>
+          <Text style={[styles.backButtonText, { fontSize: responsive.isExtraSmallScreen ? 16 : 18 }]}>← Atrás</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Nuevo Pedido</Text>
+        <Text style={[styles.title, responsive.screenStyles.title]}>Nuevo Pedido</Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -319,9 +321,9 @@ export default function NuevoPedidoScreen() {
             </TouchableOpacity>
           )}
 
-          <Text style={styles.label}>Nombre del Pedido *</Text>
+          <Text style={[styles.label, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Nombre del Pedido *</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, responsive.screenStyles.input]}
             value={nombrePedido}
             onChangeText={setNombrePedido}
             placeholder="Ej: Pastel de Cumpleaños"
@@ -419,8 +421,8 @@ export default function NuevoPedidoScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.guardarBtn} onPress={guardarPedido}>
-          <Text style={styles.guardarBtnText}>Guardar Pedido</Text>
+        <TouchableOpacity style={[styles.guardarBtn, responsive.screenStyles.button]} onPress={guardarPedido}>
+          <Text style={[styles.guardarBtnText, { fontSize: responsive.isExtraSmallScreen ? 16 : 18 }]}>Guardar Pedido</Text>
         </TouchableOpacity>
       </ScrollView>
 

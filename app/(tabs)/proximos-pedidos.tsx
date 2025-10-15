@@ -23,6 +23,7 @@ import { scheduleMultiplePedidoNotifications, cancelNotificationById } from '../
 import Colors from '../../constants/Colors';
 import { useColorScheme } from '../../components/useColorScheme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useResponsive } from '../../utils/responsive';
 import { useDataRefresh } from '../../contexts/DataContext';
 import OptimizedList from '../../components/OptimizedList';
 import OptimizedCard from '../../components/OptimizedCard';
@@ -36,6 +37,7 @@ export default function ProximosPedidosScreen() {
   const colorScheme = useColorScheme();
   const { hasPermission } = useAuth();
   const { triggerRefresh, refreshTrigger } = useDataRefresh();
+  const responsive = useResponsive();
 
   // Animations
   const { animateIn, getAnimatedStyle } = useStaggeredAnimation(10, 50);
@@ -823,11 +825,11 @@ export default function ProximosPedidosScreen() {
       {/* Modal de edición */}
       <Modal visible={showEditModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, responsive.modalStyles.container]}>
             <ScrollView 
-              style={styles.modalScrollView}
+              style={[styles.modalScrollView, responsive.modalStyles.body]}
               contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
             >
             <Text style={styles.modalTitle}>Editar Pedido</Text>
             <View style={styles.inputGroup}>
@@ -988,18 +990,18 @@ export default function ProximosPedidosScreen() {
             </View>
             </ScrollView>
             
-            <View style={styles.modalButtons}>
+            <View style={[styles.modalButtons, responsive.modalStyles.buttons]}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, responsive.buttonStyles('medium')]}
                 onPress={() => setShowEditModal(false)}
               >
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+                <Text style={[styles.cancelBtnText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.confirmBtn}
+                style={[styles.confirmBtn, responsive.buttonStyles('medium')]}
                 onPress={handleGuardarEdicion}
               >
-                <Text style={styles.confirmBtnText}>Guardar</Text>
+                <Text style={[styles.confirmBtnText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Guardar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1009,11 +1011,11 @@ export default function ProximosPedidosScreen() {
       {/* Modal para agregar producto */}
       <Modal visible={showAddProductModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, responsive.modalStyles.container]}>
             <ScrollView 
-              style={styles.modalScrollView}
+              style={[styles.modalScrollView, responsive.modalStyles.body]}
               contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
             >
             <Text style={styles.modalTitle}>Agregar Producto</Text>
             
@@ -1137,18 +1139,18 @@ export default function ProximosPedidosScreen() {
             </View>
             </ScrollView>
             
-            <View style={styles.modalButtons}>
+            <View style={[styles.modalButtons, responsive.modalStyles.buttons]}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, responsive.buttonStyles('medium')]}
                 onPress={() => setShowAddProductModal(false)}
               >
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+                <Text style={[styles.cancelBtnText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.confirmBtn}
+                style={[styles.confirmBtn, responsive.buttonStyles('medium')]}
                 onPress={handleGuardarNuevoProducto}
               >
-                <Text style={styles.confirmBtnText}>Agregar</Text>
+                <Text style={[styles.confirmBtnText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Agregar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1158,7 +1160,7 @@ export default function ProximosPedidosScreen() {
       {/* Modal para editar producto */}
       <Modal visible={showEditProductModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, responsive.modalStyles.container]}>
             <ScrollView 
               style={styles.modalScrollView}
               contentContainerStyle={styles.modalScrollContent}
@@ -1309,7 +1311,7 @@ export default function ProximosPedidosScreen() {
       {/* Modal Abonar (móvil) */}
       <Modal visible={showAbonarModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, responsive.modalStyles.container]}>
             <View style={styles.modalScrollContent}>
               <Text style={styles.modalTitle}>Registrar Abono</Text>
               <View style={styles.inputGroup}>

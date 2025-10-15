@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import hybridDB from '../services/hybrid-db';
 import Colors from '../constants/Colors';
+import { useResponsive } from '../utils/responsive';
 
 interface Producto {
   tipo: 'pastel' | 'cupcakes' | 'otros';
@@ -29,6 +30,7 @@ interface AddProductModalProps {
 }
 
 export default function AddProductModal({ visible, onClose, onAddProduct }: AddProductModalProps) {
+  const responsive = useResponsive();
   const [productoTipo, setProductoTipo] = useState<'pastel' | 'cupcakes' | 'otros'>('pastel');
   const [productoSabor, setProductoSabor] = useState('');
   const [productoRelleno, setProductoRelleno] = useState('');
@@ -113,16 +115,16 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
       hardwareAccelerated={true}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Agregar Producto</Text>
+        <View style={[styles.modalContainer, responsive.modalStyles.container]}>
+          <View style={[styles.modalHeader, responsive.modalStyles.header]}>
+            <Text style={[styles.modalTitle, responsive.modalStyles.title]}>Agregar Producto</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView 
-            style={styles.modalScrollView}
+            style={[styles.modalScrollView, responsive.modalStyles.body]}
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
             keyboardShouldPersistTaps="handled"
@@ -199,7 +201,11 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
             {productoTipo !== 'otros' && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>2. Sabor *</Text>
-                <View style={styles.optionsContainer}>
+                <View style={[styles.optionsContainer, { 
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start'
+                }]}>
                   {sabores
                     .filter(sabor => sabor.tipo === productoTipo || sabor.tipo === 'todos')
                     .map((sabor) => (
@@ -207,13 +213,19 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
                         key={sabor.id}
                         style={[
                           styles.optionButton,
-                          productoSabor === sabor.nombre && styles.optionButtonActive
+                          responsive.buttonStyles(responsive.modalStyles.buttonGrid.buttonSize),
+                          productoSabor === sabor.nombre && styles.optionButtonActive,
+                          { 
+                            width: responsive.modalStyles.buttonGrid.columns === 2 ? '48%' : '31%',
+                            margin: responsive.modalStyles.buttonGrid.buttonMargin
+                          }
                         ]}
                         onPress={() => setProductoSabor(sabor.nombre)}
                       >
                         <Text style={[
                           styles.optionButtonText,
-                          productoSabor === sabor.nombre && styles.optionButtonTextActive
+                          productoSabor === sabor.nombre && styles.optionButtonTextActive,
+                          { fontSize: responsive.isExtraSmallScreen ? 12 : responsive.isVerySmallScreen ? 13 : 14 }
                         ]}>
                           {sabor.nombre}
                         </Text>
@@ -231,7 +243,11 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
             {productoTipo !== 'otros' && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>3. Relleno</Text>
-                <View style={styles.optionsContainer}>
+                <View style={[styles.optionsContainer, { 
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start'
+                }]}>
                   {rellenos
                     .filter(relleno => relleno.tipo === productoTipo || relleno.tipo === 'todos')
                     .map((relleno) => (
@@ -239,13 +255,19 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
                         key={relleno.id}
                         style={[
                           styles.optionButton,
-                          productoRelleno === relleno.nombre && styles.optionButtonActive
+                          responsive.buttonStyles(responsive.modalStyles.buttonGrid.buttonSize),
+                          productoRelleno === relleno.nombre && styles.optionButtonActive,
+                          { 
+                            width: responsive.modalStyles.buttonGrid.columns === 2 ? '48%' : '31%',
+                            margin: responsive.modalStyles.buttonGrid.buttonMargin
+                          }
                         ]}
                         onPress={() => setProductoRelleno(relleno.nombre)}
                       >
                         <Text style={[
                           styles.optionButtonText,
-                          productoRelleno === relleno.nombre && styles.optionButtonTextActive
+                          productoRelleno === relleno.nombre && styles.optionButtonTextActive,
+                          { fontSize: responsive.isExtraSmallScreen ? 12 : responsive.isVerySmallScreen ? 13 : 14 }
                         ]}>
                           {relleno.nombre}
                         </Text>
@@ -314,12 +336,12 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
             </View>
           </ScrollView>
 
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <View style={[styles.modalButtons, responsive.modalStyles.buttons]}>
+            <TouchableOpacity style={[styles.cancelButton, responsive.buttonStyles('medium')]} onPress={onClose}>
+              <Text style={[styles.cancelButtonText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Cancelar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
-              <Text style={styles.addButtonText}>Agregar</Text>
+            <TouchableOpacity style={[styles.addButton, responsive.buttonStyles('medium')]} onPress={handleAddProduct}>
+              <Text style={[styles.addButtonText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Agregar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -421,9 +443,6 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   optionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
     paddingBottom: 4,
   },
   optionButton: {
