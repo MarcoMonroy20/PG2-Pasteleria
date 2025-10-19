@@ -191,9 +191,12 @@ export default function ProductosTrabajarScreen() {
     return d;
   };
 
-  // Función para formatear fecha local (YYYY-MM-DD)
+  // Función para formatear fecha local (YYYY-MM-DD) sin desfase por zona horaria
   const formatLocalDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   };
 
   // Función para parsear fecha local (sin zona horaria)

@@ -6,6 +6,9 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
+    // Expo SDKs recientes requieren estas banderas en iOS
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -145,7 +148,8 @@ export const schedulePedidoNotification = async (pedidoId: number, title: string
         body,
         data: { pedidoId, scheduledAt: Date.now() }
       },
-      trigger: { type: 'date', date: triggerDate },
+      // Usar Date directamente; Expo infiere un DateTrigger
+      trigger: triggerDate as any,
     });
     
     console.log(`✅ Notification scheduled with ID: ${id}`);

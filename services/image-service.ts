@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CLOUDINARY_ENABLED, CLOUDINARY_UPLOAD_URL, cloudinaryConfig } from '../cloudinary.config';
 import NetworkManager from './network-manager';
+import { FirebaseSync } from './firebase';
 
 export interface ImageReference {
   pedidoId: number;
@@ -45,25 +46,20 @@ class HybridImageService {
 
       // Create FormData for upload
       const formData = new FormData();
+      const filename = `pedido_${pedidoId}_${Date.now()}.jpg`;
       
-      // Handle different image URI formats
-      let fileToUpload;
+      // Handle different image URI formats (typing compatible con RN + Web)
       if (imageUri.startsWith('blob:')) {
         // Web blob URL - need to fetch the blob first
         console.log('🔍 Fetching blob from web URL...');
         const response = await fetch(imageUri);
         const blob = await response.blob();
-        fileToUpload = blob;
+        // Tipa como any y pasa filename para ajustar a la sobrecarga válida del DOM
+        formData.append('file', blob as any, filename);
       } else {
-        // File URI for mobile
-        fileToUpload = {
-          uri: imageUri,
-          type: 'image/jpeg',
-          name: `pedido_${pedidoId}_${Date.now()}.jpg`
-        };
+        // File URI for mobile (React Native)
+        formData.append('file', { uri: imageUri, type: 'image/jpeg', name: filename } as any);
       }
-      
-      formData.append('file', fileToUpload);
       formData.append('upload_preset', cloudinaryConfig.uploadPreset);
       // Remove folder and public_id to avoid conflicts
       // formData.append('folder', 'pasteleria-cocina');
@@ -140,6 +136,15 @@ class HybridImageService {
 
     // Save reference
     await this.saveImageReferenceToStorage(imageRef);
+
+    // Persist Cloudinary URL en Firebase para otros dispositivos
+    try {
+      if (imageRef.uploaded && imageRef.cloudinaryUrl) {
+        await FirebaseSync.savePedidoImageRef(pedidoId, imageRef.cloudinaryUrl);
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudo guardar URL de Cloudinary en Firebase:', e);
+    }
     return imageRef;
   }
 
@@ -148,7 +153,13 @@ class HybridImageService {
     const imageRef = await this.getImageReference(pedidoId);
     
     if (!imageRef) {
-      return null;
+      // Intentar obtener URL compartida desde Firebase
+      try {
+        const remoteUrl = await FirebaseSync.getPedidoImageRef(pedidoId);
+        return remoteUrl || null;
+      } catch {
+        return null;
+      }
     }
 
     // Prefer Cloudinary URL if available
@@ -156,7 +167,12 @@ class HybridImageService {
       return imageRef.cloudinaryUrl;
     }
 
-    // Fallback to local path
+    // Fallback: si no hay Cloudinary en referencia local, intentar desde Firebase
+    try {
+      const remoteUrl = await FirebaseSync.getPedidoImageRef(pedidoId);
+      if (remoteUrl) return remoteUrl;
+    } catch {}
+    // Último recurso: ruta local
     return imageRef.localPath || null;
   }
 

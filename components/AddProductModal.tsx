@@ -31,6 +31,7 @@ interface AddProductModalProps {
 
 export default function AddProductModal({ visible, onClose, onAddProduct }: AddProductModalProps) {
   const responsive = useResponsive();
+  const btn = (s: 'small' | 'medium' | 'large') => (responsive.buttonStyles as any)(s);
   const [productoTipo, setProductoTipo] = useState<'pastel' | 'cupcakes' | 'otros'>('pastel');
   const [productoSabor, setProductoSabor] = useState('');
   const [productoRelleno, setProductoRelleno] = useState('');
@@ -115,7 +116,7 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
       hardwareAccelerated={true}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContainer, responsive.modalStyles.container]}>
+          <View style={[styles.modalContainer, responsive.modalStyles.container as any]}>
           <View style={[styles.modalHeader, responsive.modalStyles.header]}>
             <Text style={[styles.modalTitle, responsive.modalStyles.title]}>Agregar Producto</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -124,7 +125,7 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
           </View>
 
           <ScrollView 
-            style={[styles.modalScrollView, responsive.modalStyles.body]}
+            style={[styles.modalScrollView, responsive.modalStyles.body as any]}
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
             keyboardShouldPersistTaps="handled"
@@ -213,7 +214,7 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
                         key={sabor.id}
                         style={[
                           styles.optionButton,
-                          responsive.buttonStyles(responsive.modalStyles.buttonGrid.buttonSize),
+                          (responsive.buttonStyles as any)(responsive.modalStyles.buttonGrid.buttonSize),
                           productoSabor === sabor.nombre && styles.optionButtonActive,
                           { 
                             width: responsive.modalStyles.buttonGrid.columns === 2 ? '48%' : '31%',
@@ -255,7 +256,7 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
                         key={relleno.id}
                         style={[
                           styles.optionButton,
-                          responsive.buttonStyles(responsive.modalStyles.buttonGrid.buttonSize),
+                          (responsive.buttonStyles as any)(responsive.modalStyles.buttonGrid.buttonSize),
                           productoRelleno === relleno.nombre && styles.optionButtonActive,
                           { 
                             width: responsive.modalStyles.buttonGrid.columns === 2 ? '48%' : '31%',
@@ -336,11 +337,11 @@ export default function AddProductModal({ visible, onClose, onAddProduct }: AddP
             </View>
           </ScrollView>
 
-          <View style={[styles.modalButtons, responsive.modalStyles.buttons]}>
-            <TouchableOpacity style={[styles.cancelButton, responsive.buttonStyles('medium')]} onPress={onClose}>
+          <View style={[styles.modalButtons, responsive.modalStyles.buttons as any]}>
+            <TouchableOpacity style={[styles.cancelButton, btn('medium' as 'medium')]} onPress={onClose}>
               <Text style={[styles.cancelButtonText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Cancelar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.addButton, responsive.buttonStyles('medium')]} onPress={handleAddProduct}>
+            <TouchableOpacity style={[styles.addButton, btn('medium' as 'medium')]} onPress={handleAddProduct}>
               <Text style={[styles.addButtonText, { fontSize: responsive.isExtraSmallScreen ? 14 : 16 }]}>Agregar</Text>
             </TouchableOpacity>
           </View>
@@ -399,11 +400,11 @@ const styles = StyleSheet.create({
   },
   modalScrollView: {
     flex: 1,
-    maxHeight: 400,
   },
   scrollContent: {
     padding: 20,
     paddingBottom: 20,
+    flexGrow: 1,
   },
   sectionContainer: {
     marginBottom: 20,
@@ -443,16 +444,21 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   optionsContainer: {
-    paddingBottom: 4,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   optionButton: {
     margin: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
+    minWidth: 120,
+    alignItems: 'center',
   },
   optionButtonActive: {
     backgroundColor: Colors.light.tint,

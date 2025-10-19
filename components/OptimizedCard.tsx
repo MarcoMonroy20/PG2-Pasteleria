@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform, ViewStyle } from 'react-native';
+import { View, StyleSheet, Platform, ViewStyle, TouchableOpacity } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { ANIMATION_CONFIG, useAndroidTouchFeedback } from '../utils/animations';
 
@@ -75,7 +75,7 @@ const OptimizedCard: React.FC<OptimizedCardProps> = ({
   // Animated style for touch feedback
   const animatedCardStyle = useAnimatedStyle(() => ({
     ...cardStyle,
-    ...(animated && touchStyle.value),
+    ...(animated ? (touchStyle as any) : {}),
   }));
 
   const handlePressIn = () => {

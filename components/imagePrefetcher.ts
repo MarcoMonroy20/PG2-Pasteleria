@@ -1,4 +1,5 @@
-import { Image, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import React from 'react';
 import * as FileSystem from 'expo-file-system';
 
 // Interface para configuración de prefetching
@@ -139,7 +140,7 @@ class ImagePrefetcher {
       if (Platform.OS === 'web') {
         // Web: usar Image API
         return new Promise((resolve) => {
-          const img = new Image();
+          const img = new (globalThis as any).Image();
           const timeoutId = setTimeout(() => {
             img.src = ''; // Cancelar carga
             resolve(false);
@@ -159,7 +160,7 @@ class ImagePrefetcher {
         });
       } else {
         // Mobile: usar FileSystem para descargar y cachear
-        const cacheDir = FileSystem.cacheDirectory;
+        const cacheDir = (FileSystem as any).cacheDirectory as string | undefined;
         if (!cacheDir) return false;
 
         const filename = url.split('/').pop() || 'image';

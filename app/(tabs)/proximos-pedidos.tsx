@@ -15,6 +15,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Animated from 'react-native-reanimated';
 import hybridDB from '../../services/hybrid-db';
@@ -56,6 +57,7 @@ export default function ProximosPedidosScreen() {
     direccion_entrega: '',
     productos: [] as Producto[],
     fecha_entrega: '',
+    imagen: '' as string | undefined,
   });
   const [showEditDatePicker, setShowEditDatePicker] = useState(false);
   const [editFechaDate, setEditFechaDate] = useState<Date>(new Date());
@@ -166,7 +168,13 @@ export default function ProximosPedidosScreen() {
         
         // Si no hay filtros de fecha Y no hay búsqueda de texto, mostrar solo pedidos futuros
         if (!dateStart && !dateEnd && !searchText.trim()) {
-          const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+          const toLocalISODate = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+          };
+          const hoy = toLocalISODate(new Date()); // YYYY-MM-DD
           base = base.filter(p => p.fecha_entrega >= hoy);
         } else {
           // Aplicar filtros de fecha si existen
@@ -204,7 +212,13 @@ export default function ProximosPedidosScreen() {
     
     // Si no hay filtros de fecha Y no hay búsqueda de texto, aplicar filtro de fecha futura
     if (!dateStart && !dateEnd && !searchText.trim()) {
-      const hoy = new Date().toISOString().split('T')[0];
+      const toLocalISODate = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const hoy = toLocalISODate(new Date());
       base = allPedidos.filter(p => p.fecha_entrega >= hoy);
     }
     
@@ -240,8 +254,11 @@ export default function ProximosPedidosScreen() {
       direccion_entrega: pedido.direccion_entrega || '',
       productos: pedido.productos || [],
       fecha_entrega: pedido.fecha_entrega,
+      imagen: pedido.imagen,
     });
-    setEditFechaDate(new Date(pedido.fecha_entrega));
+    // Parse local YYYY-MM-DD a Date local para evitar desfases
+    const [yy, mm, dd] = pedido.fecha_entrega.split('-').map((n) => parseInt(n, 10));
+    setEditFechaDate(new Date(yy, (mm || 1) - 1, dd || 1));
     setShowEditModal(true);
   };
 
@@ -321,6 +338,7 @@ export default function ProximosPedidosScreen() {
         direccion_entrega: editForm.direccion_entrega || undefined,
         productos: editForm.productos,
         fecha_entrega: editForm.fecha_entrega,
+        imagen: editForm.imagen || undefined,
       };
 
       await hybridDB.actualizarPedido(pedidoEditando.id!, pedidoActualizado);
@@ -749,7 +767,13 @@ export default function ProximosPedidosScreen() {
                         setShowStartPicker(false);
                         const d = selectedDate || null;
                         setStartDateObj(d);
-                        setDateStart(d ? d.toISOString().split('T')[0] : '');
+                        const toLocalISODate = (dt: Date) => {
+                          const y = dt.getFullYear();
+                          const m = String(dt.getMonth() + 1).padStart(2, '0');
+                          const day = String(dt.getDate()).padStart(2, '0');
+                          return `${y}-${m}-${day}`;
+                        };
+                        setDateStart(d ? toLocalISODate(d) : '');
                         setLoading(true);
                         cargarPedidosPorRango();
                       }}
@@ -779,7 +803,13 @@ export default function ProximosPedidosScreen() {
                         setShowEndPicker(false);
                         const d = selectedDate || null;
                         setEndDateObj(d);
-                        setDateEnd(d ? d.toISOString().split('T')[0] : '');
+                        const toLocalISODate = (dt: Date) => {
+                          const y = dt.getFullYear();
+                          const m = String(dt.getMonth() + 1).padStart(2, '0');
+                          const day = String(dt.getDate()).padStart(2, '0');
+                          return `${y}-${m}-${day}`;
+                        };
+                        setDateEnd(d ? toLocalISODate(d) : '');
                         setLoading(true);
                         cargarPedidosPorRango();
                       }}
@@ -825,9 +855,9 @@ export default function ProximosPedidosScreen() {
       {/* Modal de edición */}
       <Modal visible={showEditModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, responsive.modalStyles.container]}>
+          <View style={[styles.modalContent, responsive.modalStyles.container as any]}>
             <ScrollView 
-              style={[styles.modalScrollView, responsive.modalStyles.body]}
+              style={[styles.modalScrollView, responsive.modalStyles.body as any]}
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={true}
             >
@@ -838,9 +868,11 @@ export default function ProximosPedidosScreen() {
                 <input
                   type="date"
                   value={editForm.fecha_entrega}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={(function(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; })()}
                   onChange={(e) => {
-                    setEditFechaDate(new Date(e.target.value));
+                    const [y,m,day] = e.target.value.split('-').map((n:string)=>parseInt(n,10));
+                    const local = new Date(y,(m||1)-1,day||1);
+                    setEditFechaDate(local);
                     setEditForm({...editForm, fecha_entrega: e.target.value});
                   }}
                   style={{
@@ -872,8 +904,12 @@ export default function ProximosPedidosScreen() {
                       onChange={(event, selectedDate) => {
                         setShowEditDatePicker(false);
                         if (selectedDate) {
-                          setEditFechaDate(selectedDate);
-                          setEditForm({...editForm, fecha_entrega: selectedDate.toISOString().split('T')[0]});
+                          const local = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                          setEditFechaDate(local);
+                          const y = local.getFullYear();
+                          const m = String(local.getMonth() + 1).padStart(2, '0');
+                          const day = String(local.getDate()).padStart(2, '0');
+                          setEditForm({...editForm, fecha_entrega: `${y}-${m}-${day}`});
                         }
                       }}
                     />
@@ -990,7 +1026,7 @@ export default function ProximosPedidosScreen() {
             </View>
             </ScrollView>
             
-            <View style={[styles.modalButtons, responsive.modalStyles.buttons]}>
+            <View style={[styles.modalButtons, responsive.modalStyles.buttons as any]}>
               <TouchableOpacity
                 style={[styles.cancelBtn, responsive.buttonStyles('medium')]}
                 onPress={() => setShowEditModal(false)}
@@ -1011,9 +1047,9 @@ export default function ProximosPedidosScreen() {
       {/* Modal para agregar producto */}
       <Modal visible={showAddProductModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, responsive.modalStyles.container]}>
+          <View style={[styles.modalContent, responsive.modalStyles.container as any]}>
             <ScrollView 
-              style={[styles.modalScrollView, responsive.modalStyles.body]}
+              style={[styles.modalScrollView, responsive.modalStyles.body as any]}
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={true}
             >
@@ -1139,7 +1175,7 @@ export default function ProximosPedidosScreen() {
             </View>
             </ScrollView>
             
-            <View style={[styles.modalButtons, responsive.modalStyles.buttons]}>
+            <View style={[styles.modalButtons, responsive.modalStyles.buttons as any]}>
               <TouchableOpacity
                 style={[styles.cancelBtn, responsive.buttonStyles('medium')]}
                 onPress={() => setShowAddProductModal(false)}
@@ -1160,7 +1196,7 @@ export default function ProximosPedidosScreen() {
       {/* Modal para editar producto */}
       <Modal visible={showEditProductModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, responsive.modalStyles.container]}>
+          <View style={[styles.modalContent, responsive.modalStyles.container as any]}>
             <ScrollView 
               style={styles.modalScrollView}
               contentContainerStyle={styles.modalScrollContent}
@@ -1311,7 +1347,7 @@ export default function ProximosPedidosScreen() {
       {/* Modal Abonar (móvil) */}
       <Modal visible={showAbonarModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, responsive.modalStyles.container]}>
+          <View style={[styles.modalContent, responsive.modalStyles.container as any]}>
             <View style={styles.modalScrollContent}>
               <Text style={styles.modalTitle}>Registrar Abono</Text>
               <View style={styles.inputGroup}>
@@ -1816,7 +1852,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginTop: 8,
-    maxHeight: 120,
+    alignContent: 'flex-start',
+    paddingBottom: 8,
+    marginBottom: 12,
   },
   comboOption: {
     paddingHorizontal: 12,

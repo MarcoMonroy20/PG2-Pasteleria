@@ -61,7 +61,7 @@ export const initDB = () => {
             FROM sabores 
             GROUP BY nombre, tipo 
             HAVING COUNT(*) > 1
-          `);
+          `) as Array<{ nombre: string; tipo: string; count: number }>;
           
           if (duplicates.length > 0) {
             console.log('⚠️ Eliminando duplicados en sabores...');
@@ -69,7 +69,7 @@ export const initDB = () => {
               const toDelete = db.getAllSync(
                 'SELECT id FROM sabores WHERE nombre = ? AND tipo = ? ORDER BY id',
                 [duplicate.nombre, duplicate.tipo]
-              );
+              ) as Array<{ id: number }>;
               
               // Eliminar todos excepto el primero
               for (let i = 1; i < toDelete.length; i++) {
@@ -90,7 +90,7 @@ export const initDB = () => {
           `);
           
           // Copiar datos existentes
-          const existingSabores = db.getAllSync('SELECT * FROM sabores');
+          const existingSabores = db.getAllSync('SELECT * FROM sabores') as Array<{ id: number; nombre: string; tipo?: string; activo: number }>;
           for (const sabor of existingSabores) {
             db.runSync(
               'INSERT INTO sabores_new (id, nombre, tipo, activo) VALUES (?, ?, ?, ?)',
@@ -361,6 +361,7 @@ export interface Relleno {
 export interface AppSettings {
   notifications_enabled: boolean;
   days_before: number; // 0..7
+  notification_days?: number[];
   contact_name?: string;
   company_name?: string;
   phone?: string;
@@ -538,11 +539,11 @@ export const obtenerSettings = (): Promise<AppSettings> => {
       resolve({
         notifications_enabled: Boolean(row?.notifications_enabled ?? 0),
         days_before: Number(row?.days_before ?? 0),
-        notification_days: notification_days,
+        notification_days,
         contact_name: row?.contact_name ?? '',
         company_name: row?.company_name ?? '',
         phone: row?.phone ?? '',
-      });
+      } as AppSettings);
     } catch (error) {
       reject(error);
     }

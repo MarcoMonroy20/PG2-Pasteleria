@@ -1,6 +1,19 @@
 // Navigation animations optimized for Android
 import { Platform } from 'react-native';
-import { CardStyleInterpolators } from '@react-navigation/stack';
+
+// Cargar CardStyleInterpolators de forma segura (evita error si falta el paquete de tipos)
+let CardStyleInterpolators: any = {
+  forFadeFromBottomAndroid: () => ({}),
+  forHorizontalIOS: () => ({}),
+  forBottomSheetAndroid: () => ({}),
+};
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require('@react-navigation/stack');
+  if (mod?.CardStyleInterpolators) {
+    CardStyleInterpolators = mod.CardStyleInterpolators;
+  }
+} catch {}
 
 // Android-optimized screen transition configurations
 export const AndroidScreenOptions = {
@@ -48,7 +61,7 @@ export const AndroidScreenOptions = {
 
   // Scale transition
   scale: {
-    cardStyleInterpolator: ({ current, next, layouts }) => ({
+    cardStyleInterpolator: ({ current, next, layouts }: any) => ({
       cardStyle: {
         transform: [
           {
@@ -144,7 +157,7 @@ export const AndroidHeaderOptions = {
 // Custom interpolators optimized for Android performance
 export const AndroidCustomInterpolators = {
   // Fast horizontal slide
-  fastHorizontal: ({ current, next, layouts }) => ({
+  fastHorizontal: ({ current, next, layouts }: any) => ({
     cardStyle: {
       transform: [
         {
@@ -158,7 +171,7 @@ export const AndroidCustomInterpolators = {
   }),
 
   // Vertical slide from bottom
-  verticalSlide: ({ current, next, layouts }) => ({
+  verticalSlide: ({ current, next, layouts }: any) => ({
     cardStyle: {
       transform: [
         {
@@ -172,7 +185,7 @@ export const AndroidCustomInterpolators = {
   }),
 
   // Zoom in/out transition
-  zoomTransition: ({ current, next, layouts }) => ({
+  zoomTransition: ({ current, next, layouts }: any) => ({
     cardStyle: {
       transform: [
         {
@@ -245,7 +258,7 @@ export const NavigationPerformance = {
 // Gesture navigation optimizations for Android
 export const AndroidGestureConfig = {
   // Edge swipe gestures
-  edgeSwipeEnabled: Platform.OS === 'android' && parseInt(Platform.Version as string) >= 10,
+  edgeSwipeEnabled: Platform.OS === 'android' && ((typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version) >= 10),
 
   // Gesture velocity thresholds
   swipeVelocityThreshold: Platform.OS === 'android' ? 500 : 700,

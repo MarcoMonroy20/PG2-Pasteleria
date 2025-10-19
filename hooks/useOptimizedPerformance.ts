@@ -180,7 +180,7 @@ export function useOptimizedTextInput(initialValue: string = '') {
 
   // Debounced search for Android performance
   const debouncedValue = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     return (newValue: string) => {
       clearTimeout(timeoutId);

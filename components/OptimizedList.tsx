@@ -59,10 +59,11 @@ function OptimizedList<T>({
     if (!enableStaggeredAnimation || data.length === 0) return;
 
     animationValues.forEach((anim, index) => {
-      anim.value = withTiming(1, {
-        duration: Platform.OS === 'android' ? 300 : 400,
-        delay: index * animationDelay,
-      });
+      setTimeout(() => {
+        anim.value = withTiming(1, {
+          duration: Platform.OS === 'android' ? 300 : 400,
+        });
+      }, index * animationDelay);
     });
   }, [data.length, enableStaggeredAnimation, animationDelay]);
 
@@ -144,8 +145,8 @@ function OptimizedList<T>({
     // Android-specific scroll optimizations
     ...(Platform.OS === 'android' && {
       scrollEventThrottle: 16,
-      decelerationRate: 'normal',
-      overScrollMode: 'never',
+      decelerationRate: 'normal' as const,
+      overScrollMode: 'never' as const,
       disableIntervalMomentum: true,
     }),
   };

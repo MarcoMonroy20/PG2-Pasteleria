@@ -96,7 +96,6 @@ const AccessibleInput = forwardRef<TextInput, AccessibleInputProps>(({
       {label && (
         <Text
           style={[baseLabelStyle, labelStyle]}
-          accessibilityRole="label"
           importantForAccessibility="no"
         >
           {label}
@@ -121,10 +120,8 @@ const AccessibleInput = forwardRef<TextInput, AccessibleInputProps>(({
         maxLength={maxLength}
         accessibilityLabel={fullAccessibilityLabel}
         accessibilityHint={defaultHint}
-        accessibilityRole="textbox"
         accessibilityState={{
           disabled,
-          invalid: !!error,
         }}
         importantForAccessibility="yes"
         accessibilityLiveRegion={error ? "assertive" : "polite"}

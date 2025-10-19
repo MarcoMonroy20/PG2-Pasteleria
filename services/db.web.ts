@@ -83,7 +83,8 @@ const initDefaultData = () => {
   if (!localStorage.getItem(STORAGE_KEYS.SETTINGS)) {
     const defaultSettings: AppSettings = { 
       notifications_enabled: false, 
-      days_before: 0, 
+      days_before: 0,
+      notification_days: [0],
       contact_name: '', 
       company_name: '', 
       phone: '' 

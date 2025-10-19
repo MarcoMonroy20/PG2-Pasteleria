@@ -10,6 +10,7 @@ import Animated, {
   runOnJS,
   Easing,
   interpolate,
+  interpolateColor,
   Extrapolate,
 } from 'react-native-reanimated';
 
@@ -230,10 +231,10 @@ export function useAndroidTouchFeedback() {
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    backgroundColor: interpolate(
+    backgroundColor: interpolateColor(
       backgroundColor.value,
       [0, 1],
-      ['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)']
+      ['rgba(248, 248, 248, 0)', 'rgba(0,0,0,0.05)']
     ),
   }));
 
@@ -247,7 +248,7 @@ export const PerformanceUtils = {
     func: T,
     delay: number
   ): ((...args: Parameters<T>) => void) => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     return (...args: Parameters<T>) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => func(...args), delay);

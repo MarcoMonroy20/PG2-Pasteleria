@@ -217,6 +217,46 @@ export class FirebaseSync {
     }
   }
 
+  // =====================
+  // IMAGE REFERENCES (Cloudinary URL por pedido, compartida entre dispositivos)
+  // =====================
+  static async savePedidoImageRef(pedidoId: number, url: string): Promise<void> {
+    if (!this.userId) return;
+    try {
+      const docRef = doc(db, 'pedido_images', `${this.userId}_${pedidoId}`);
+      await setDoc(docRef, { url, userId: this.userId, pedidoId, created_at: Timestamp.now(), updated_at: Timestamp.now() });
+    } catch (e) {
+      console.warn('⚠️ No se pudo guardar referencia de imagen en Firebase:', e);
+    }
+  }
+
+  static async getPedidoImageRef(pedidoId: number): Promise<string | null> {
+    const userId = this.userId || this.SHARED_APP_USER_ID;
+    if (!userId) return null;
+    try {
+      const docRef = doc(db, 'pedido_images', `${userId}_${pedidoId}`);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        return data?.url || null;
+      }
+      return null;
+    } catch (e) {
+      console.warn('⚠️ No se pudo obtener referencia de imagen de Firebase:', e);
+      return null;
+    }
+  }
+
+  static async deletePedidoImageRef(pedidoId: number): Promise<void> {
+    if (!this.userId) return;
+    try {
+      const docRef = doc(db, 'pedido_images', `${this.userId}_${pedidoId}`);
+      await deleteDoc(docRef);
+    } catch (e) {
+      console.warn('⚠️ No se pudo eliminar referencia de imagen en Firebase:', e);
+    }
+  }
+
   static getUserId(): string | null {
     return this.userId || this.SHARED_APP_USER_ID;
   }
@@ -779,7 +819,7 @@ export class HybridDatabase {
 
   // Clear all sabores from Firebase (for cleanup)
   static async clearAllSabores(): Promise<void> {
-    const userId = this.userId || this.SHARED_APP_USER_ID;
+    const userId = FirebaseSync.getUserId();
     if (!userId) return;
 
     try {
@@ -801,7 +841,7 @@ export class HybridDatabase {
 
   // Clear all rellenos from Firebase (for cleanup)
   static async clearAllRellenos(): Promise<void> {
-    const userId = this.userId || this.SHARED_APP_USER_ID;
+    const userId = FirebaseSync.getUserId();
     if (!userId) return;
 
     try {
@@ -823,7 +863,7 @@ export class HybridDatabase {
 
   // Clear all pedidos from Firebase (for cleanup)
   static async clearAllPedidos(): Promise<void> {
-    const userId = this.userId || this.SHARED_APP_USER_ID;
+    const userId = FirebaseSync.getUserId();
     if (!userId) return;
 
     try {

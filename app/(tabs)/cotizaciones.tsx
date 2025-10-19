@@ -285,17 +285,20 @@ export default function CotizacionesScreen() {
 
       if (Platform.OS === 'android') {
         try {
-          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-          if (permissions.granted) {
-            const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-            const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-              permissions.directoryUri,
-              filename,
-              'application/pdf'
-            );
-            await FileSystem.writeAsStringAsync(fileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
-            Alert.alert('Éxito', `Guardado como ${filename}`);
-            return;
+          const SAF = (FileSystem as any).StorageAccessFramework;
+          if (SAF?.requestDirectoryPermissionsAsync) {
+            const permissions = await SAF.requestDirectoryPermissionsAsync();
+            if (permissions.granted) {
+              const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' as any });
+              const fileUri = await SAF.createFileAsync(
+                permissions.directoryUri,
+                filename,
+                'application/pdf'
+              );
+              await FileSystem.writeAsStringAsync(fileUri, base64, { encoding: 'base64' as any });
+              Alert.alert('Éxito', `Guardado como ${filename}`);
+              return;
+            }
           }
         } catch (e) {
           console.log('SAF no disponible o cancelado, usando compartir:', e);

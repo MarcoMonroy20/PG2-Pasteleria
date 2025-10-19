@@ -77,7 +77,16 @@ export default function SettingsScreen() {
         await hybridDB.initialize();
         const s = await hybridDB.obtenerSettings();
         if (s) {
-          setSettings(s);
+          // Normalizar para que coincida con el tipo local (notification_days requerido)
+          const normalized = {
+            notifications_enabled: !!s.notifications_enabled,
+            days_before: s.days_before ?? 0,
+            notification_days: s.notification_days ?? [s.days_before ?? 0],
+            contact_name: s.contact_name || '',
+            company_name: s.company_name || '',
+            phone: s.phone || '',
+          } as AppSettings;
+          setSettings(normalized);
         }
 
         // Cargar estado de datos locales
@@ -425,6 +434,15 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     backgroundColor: Colors.light.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: 50,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  backButton: { marginRight: 16 },
+  backButtonText: { fontSize: 18, color: Colors.light.buttonPrimary, fontWeight: 'bold' },
   scrollContent: {
     paddingBottom: 100,
   },

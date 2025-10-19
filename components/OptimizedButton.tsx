@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { TouchableOpacity, Text, ViewStyle, TextStyle, Platform } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolate } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolateColor } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { ANIMATION_CONFIG } from '../utils/animations';
 
@@ -76,7 +76,7 @@ const OptimizedButton: React.FC<OptimizedButtonProps> = ({
   // Animated styles
   const animatedContainerStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    backgroundColor: interpolate(
+    backgroundColor: interpolateColor(
       pressed.value,
       [0, 1],
       [
@@ -87,7 +87,7 @@ const OptimizedButton: React.FC<OptimizedButtonProps> = ({
   }));
 
   const animatedTextStyle = useAnimatedStyle(() => ({
-    color: interpolate(
+    color: interpolateColor(
       pressed.value,
       [0, 1],
       [

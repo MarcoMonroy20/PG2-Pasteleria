@@ -181,7 +181,7 @@ export const AndroidAnimationConfig = {
     const deviceInfo = AndroidDeviceInfo.getDeviceInfo();
     return deviceInfo.isAndroid && (
       deviceInfo.screenWidth < 360 || // Very small screens
-      parseInt(Platform.Version as string) < 8 // Old Android versions
+      ((typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version) < 8) // Old Android versions
     );
   },
 
@@ -264,7 +264,7 @@ export const AndroidNavigationConfig = {
   },
 
   // Back gesture optimizations
-  enableBackGesture: Platform.OS === 'android' && parseInt(Platform.Version as string) >= 10,
+  enableBackGesture: Platform.OS === 'android' && ((typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version) >= 10),
 };
 
 // Android-specific storage optimizations
@@ -273,7 +273,7 @@ export const AndroidStorageConfig = {
   getStorageStrategy: () => {
     if (Platform.OS !== 'android') return 'standard';
 
-    const version = parseInt(Platform.Version as string);
+    const version = (typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version);
 
     if (version >= 11) return 'scoped-storage'; // Android 11+
     if (version >= 10) return 'legacy-scoped'; // Android 10

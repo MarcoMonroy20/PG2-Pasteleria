@@ -2,7 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Pedido } from '../services/db';
 import Colors from '../constants/Colors';
-import { formatearPrecio } from '../utils/helpers';
+const formatearPrecio = (n: number) => `Q${(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}`;
 import { useAccessibility } from '../hooks/useAccessibility';
 
 interface MemoizedPedidoItemProps {

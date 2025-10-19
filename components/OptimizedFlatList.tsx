@@ -5,7 +5,7 @@ import { useOptimizedListRendering } from '../hooks/useOptimizedPerformance';
 
 interface OptimizedFlatListProps<T> extends Omit<FlatListProps<T>, 'renderItem'> {
   data: T[];
-  renderItem: (item: T, index: number) => React.ReactNode;
+  renderItem: (item: T, index: number) => React.ReactElement | null;
   itemHeight?: number;
   enablePerformanceMonitoring?: boolean;
   enableVirtualization?: boolean;
@@ -51,7 +51,7 @@ const OptimizedFlatList = memo(forwardRef<FlatList, OptimizedFlatListProps<any>>
       performanceMonitor.endTimer(`render_item_${index}`);
     }
 
-    return element;
+    return element as any;
   }, [renderItem, enablePerformanceMonitoring, performanceMonitor]);
 
   // Memoizar keyExtractor
@@ -69,7 +69,7 @@ const OptimizedFlatList = memo(forwardRef<FlatList, OptimizedFlatListProps<any>>
     showsHorizontalScrollIndicator: false,
     scrollEventThrottle: 16,
     disableIntervalMomentum: false,
-    decelerationRate: 'normal',
+    decelerationRate: 'normal' as const,
     maxToRenderPerBatch: virtualizationConfig.maxToRenderPerBatch,
     updateCellsBatchingPeriod: virtualizationConfig.updateCellsBatchingPeriod,
     initialNumToRender: virtualizationConfig.initialNumToRender,

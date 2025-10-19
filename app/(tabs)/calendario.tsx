@@ -120,7 +120,9 @@ export default function CalendarioScreen() {
   };
 
   const formatearFecha = (fecha: string) => {
-    const date = new Date(fecha);
+    // Parse local YYYY-MM-DD para evitar desfases por zona horaria
+    const [y, m, d] = fecha.split('-').map((n) => parseInt(n, 10));
+    const date = new Date(y, (m || 1) - 1, d || 1);
     const hoy = new Date();
     const mañana = new Date();
     mañana.setDate(hoy.getDate() + 1);

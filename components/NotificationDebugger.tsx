@@ -62,7 +62,7 @@ export default function NotificationDebugger() {
 
   const testScheduledNotification = async () => {
     try {
-      const trigger = { type: 'timeInterval', seconds: 5 }; // 5 segundos
+      const trigger = { seconds: 5 } as any; // time interval trigger
       const id = await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Test Programado',

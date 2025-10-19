@@ -21,11 +21,11 @@ export function createLazyScreen<T extends ComponentType<any>>(
 ) {
   const LazyComponent = lazy(importFunc);
 
-  return React.forwardRef<any, React.ComponentProps<T>>((props, ref) => (
+  return (props: any) => (
     <Suspense fallback={<LoadingScreen message={fallbackMessage} />}>
-      <LazyComponent {...props} ref={ref} />
+      <LazyComponent {...props} />
     </Suspense>
-  ));
+  );
 }
 
 // Pantallas lazy-loaded específicas

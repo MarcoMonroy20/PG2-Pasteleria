@@ -46,7 +46,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const { imageQuality, getImageConfig } = useOptimizedImage();
 
   // Get optimized image configuration
-  const optimizedConfig = enableOptimization ? getImageConfig() : {};
+  const optimizedConfig = enableOptimization ? (getImageConfig() || {}) : {};
 
   const handleLoadStart = useCallback(() => {
     setLoading(true);
@@ -76,7 +76,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
         setError(false);
         setLoading(true);
         // Force re-render by updating source
-        setImageSource({ ...imageSource });
+        setImageSource(typeof imageSource === 'number' ? imageSource : { ...(imageSource as any) });
       }, 1000 * (retryCount + 1)); // Exponential backoff
     }
 
@@ -87,7 +87,7 @@ const OptimizedImage: React.FC<OptimizedImageProps> = ({
     setError(false);
     setLoading(true);
     setRetryCount(0);
-    setImageSource({ ...imageSource });
+    setImageSource(typeof imageSource === 'number' ? imageSource : { ...(imageSource as any) });
   }, [imageSource]);
 
   // Animated styles

@@ -28,17 +28,10 @@ export function useAccessibility(): AccessibilityState {
   useEffect(() => {
     const updateAccessibilityState = async () => {
       try {
-        const [
-          screenReaderEnabled,
-          boldTextEnabled,
-          highContrastEnabled,
-          reduceMotionEnabled,
-        ] = await Promise.all([
-          AccessibilityInfo.isScreenReaderEnabled(),
-          AccessibilityInfo.prefersBoldText?.() ?? false,
-          AccessibilityInfo.prefersHighContrast?.() ?? false,
-          AccessibilityInfo.prefersReduceMotion?.() ?? false,
-        ]);
+        const screenReaderEnabled = await AccessibilityInfo.isScreenReaderEnabled();
+        const boldTextEnabled = (AccessibilityInfo as any).prefersBoldText?.() ?? false as boolean;
+        const highContrastEnabled = (AccessibilityInfo as any).prefersHighContrast?.() ?? false as boolean;
+        const reduceMotionEnabled = (AccessibilityInfo as any).prefersReduceMotion?.() ?? false as boolean;
 
         const { width, height } = Dimensions.get('window');
         const fontScale = Dimensions.get('window').fontScale || 1;

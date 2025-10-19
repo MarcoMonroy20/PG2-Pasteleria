@@ -101,6 +101,7 @@ export interface Relleno {
 export interface AppSettings {
   notifications_enabled: boolean;
   days_before: number;
+  notification_days?: number[];
   contact_name?: string;
   company_name?: string;
   phone?: string;

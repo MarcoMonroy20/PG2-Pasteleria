@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import React from 'react';
 
 // Interfaces para el sistema de cache
 interface CacheEntry<T = any> {
@@ -106,12 +107,12 @@ class OfflineCache {
         if (stored) {
           entry = JSON.parse(stored);
           // Validar versión
-          if (entry.version !== this.config.version) {
+          if (!entry || entry.version !== this.config.version) {
             await this.delete(key);
             return null;
           }
           // Restaurar en memoria
-          this.memoryCache.set(key, entry);
+          this.memoryCache.set(key, entry as CacheEntry);
         }
       }
 

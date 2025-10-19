@@ -71,13 +71,10 @@ const TouchFeedback: React.FC<TouchFeedbackProps> = ({
   }));
 
   // Combine styles
-  const combinedStyle = useAnimatedStyle(() => ({
-    ...touchStyle.value,
-    ...customStyle.value,
-  }));
+  const combinedStyle = [touchStyle as any, customStyle];
 
   return (
-    <Animated.View style={combinedStyle}>
+    <Animated.View style={combinedStyle as any}>
       <TouchableOpacity
         style={style}
         onPressIn={handlePressIn}

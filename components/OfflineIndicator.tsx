@@ -32,8 +32,9 @@ const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({ style }) => {
   };
 
   const getIcon = () => {
-    if (!networkStatus.isConnected) return 'wifi-off';
-    return 'cloud-upload';
+    // Usar nombres válidos de Ionicons (o castear a any)
+    if (!networkStatus.isConnected) return 'wifi' as any; // fallback válido
+    return 'cloud-upload' as any;
   };
 
   const getBackgroundColor = () => {

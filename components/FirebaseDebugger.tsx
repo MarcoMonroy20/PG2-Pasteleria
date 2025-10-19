@@ -110,7 +110,17 @@ export default function FirebaseDebugger() {
         }]
       };
 
-      await hybridDB.guardarPedido(testPedido);
+      // Guardar usando la API pública de hybridDB
+      await hybridDB.crearPedido({
+        nombre: testPedido.nombre,
+        precio_final: testPedido.precio_final,
+        monto_abonado: testPedido.monto_abonado,
+        descripcion: testPedido.descripcion,
+        fecha_entrega: testPedido.fecha_entrega,
+        direccion_entrega: undefined,
+        productos: testPedido.productos,
+        imagen: undefined,
+      } as any);
       Alert.alert('✅ Éxito', 'Pedido de prueba creado y sincronizado');
     } catch (error) {
       Alert.alert('❌ Error', `Error creando pedido: ${error}`);

@@ -38,7 +38,7 @@ export const getModalStyles = () => {
     return {
       container: {
         width: '98%',
-        maxHeight: '95%',
+        maxHeight: Math.round(screenHeight * 0.95),
         padding: 8,
       },
       header: {
@@ -70,7 +70,7 @@ export const getModalStyles = () => {
     return {
       container: {
         width: '96%',
-        maxHeight: '90%',
+        maxHeight: Math.round(screenHeight * 0.90),
         padding: 12,
       },
       header: {
@@ -102,7 +102,7 @@ export const getModalStyles = () => {
     return {
       container: {
         width: '95%',
-        maxHeight: '85%',
+        maxHeight: Math.round(screenHeight * 0.85),
         padding: 16,
       },
       header: {
@@ -135,7 +135,7 @@ export const getModalStyles = () => {
     container: {
       width: '95%',
       maxWidth: 500,
-      maxHeight: '85%',
+      maxHeight: Math.round(screenHeight * 0.85),
       padding: 20,
     },
     header: {

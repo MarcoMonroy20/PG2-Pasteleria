@@ -62,7 +62,18 @@ export default function NuevoPedidoScreen() {
   const [settings, setSettings] = useState<Settings | null>(null);
   
   // Estados de fecha
-  const [fechaEntrega, setFechaEntrega] = useState(new Date().toISOString().split('T')[0]);
+  // Utilidades de fecha locales (evitan desfases por zona horaria)
+  const toLocalISODate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split('-').map(n => parseInt(n, 10));
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+  const [fechaEntrega, setFechaEntrega] = useState(toLocalISODate(new Date()));
   const [fechaEntregaDate, setFechaEntregaDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -73,8 +84,8 @@ export default function NuevoPedidoScreen() {
   // Manejar fecha seleccionada desde calendario
   useEffect(() => {
     if (fechaSeleccionada && typeof fechaSeleccionada === 'string') {
-      const fecha = new Date(fechaSeleccionada);
-      setFechaEntrega(fechaSeleccionada);
+      const fecha = parseLocalDate(fechaSeleccionada);
+      setFechaEntrega(toLocalISODate(fecha));
       setFechaEntregaDate(fecha);
     }
   }, [fechaSeleccionada]);
@@ -138,8 +149,9 @@ export default function NuevoPedidoScreen() {
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      setFechaEntregaDate(selectedDate);
-      setFechaEntrega(selectedDate.toISOString().split('T')[0]);
+      const local = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+      setFechaEntregaDate(local);
+      setFechaEntrega(toLocalISODate(local));
     }
   };
 
@@ -247,7 +259,7 @@ export default function NuevoPedidoScreen() {
       setImagen(null);
       const today = new Date();
       setFechaEntregaDate(today);
-      setFechaEntrega(today.toISOString().split('T')[0]);
+      setFechaEntrega(toLocalISODate(today));
 
       // Trigger refresh para actualizar otras pantallas
       triggerRefresh();
@@ -285,13 +297,13 @@ export default function NuevoPedidoScreen() {
           {Platform.OS === 'web' ? (
             <input
               type="date"
-              value={fechaEntregaDate.toISOString().split('T')[0]}
+              value={toLocalISODate(fechaEntregaDate)}
               onChange={(e) => {
-                const newDate = new Date(e.target.value);
+                const newDate = parseLocalDate(e.target.value);
                 setFechaEntregaDate(newDate);
-                setFechaEntrega(e.target.value);
+                setFechaEntrega(toLocalISODate(newDate));
               }}
-              min={new Date().toISOString().split('T')[0]}
+              min={toLocalISODate(new Date())}
               style={{
                 width: '100%',
                 padding: '12px 16px',
