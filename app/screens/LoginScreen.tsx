@@ -18,9 +18,9 @@ const LoginScreen: React.FC = () => {
     switch (password) {
       case '2110':
         return { username: 'admin', role: 'admin' };
-      case 'dueno2024':
+      case 'dueno2025':
         return { username: 'dueno', role: 'dueño' };
-      case 'repostero2024':
+      case 'repostero2025':
         return { username: 'repostero', role: 'repostero' };
       default:
         return null;

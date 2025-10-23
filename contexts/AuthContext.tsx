@@ -145,9 +145,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'view_calendario',
         'view_pedidos', 
         'view_productos',
-        'view_proximos_productos',
-        'view_cotizaciones',
-        'view_estadisticas'
+        'view_proximos_productos'
       ];
       
       if (readOnlyPermissions.includes(permission)) {

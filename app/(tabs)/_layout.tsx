@@ -97,13 +97,15 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <FontAwesome size={20} name="list" color={color} />,
           }}
         />
-        <Tabs.Screen
-          name="cotizaciones"
-          options={{
-            title: 'Cotiz.',
-            tabBarIcon: ({ color }) => <FontAwesome size={20} name="dollar" color={color} />,
-          }}
-        />
+        {hasPermission('view_cotizaciones') && (
+          <Tabs.Screen
+            name="cotizaciones"
+            options={{
+              title: 'Cotiz.',
+              tabBarIcon: ({ color }) => <FontAwesome size={20} name="dollar" color={color} />,
+            }}
+          />
+        )}
         {hasPermission('view_estadisticas') && (
           <Tabs.Screen
             name="two"

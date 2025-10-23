@@ -36,7 +36,7 @@ const DEFAULT_USERS: User[] = [
   { 
     id: 2, 
     username: 'dueno', 
-    password: 'dueno2024', 
+    password: 'dueno2025', 
     role: 'dueño',
            nombre: 'Administrador',
     activo: true,
@@ -45,7 +45,7 @@ const DEFAULT_USERS: User[] = [
   { 
     id: 3, 
     username: 'repostero', 
-    password: 'repostero2024', 
+    password: 'repostero2025', 
     role: 'repostero',
     nombre: 'Repostero',
     activo: true,

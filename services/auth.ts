@@ -32,8 +32,8 @@ export const createDefaultUsers = (): void => {
 
     const defaultUsers = [
       { username: 'admin', password: '2110', role: 'admin', nombre: 'Administrador' },
-      { username: 'dueno', password: 'dueno2024', role: 'dueño', nombre: 'Raquel' },
-      { username: 'repostero', password: 'repostero2024', role: 'repostero', nombre: 'Repostero' }
+      { username: 'dueno', password: 'dueno2025', role: 'dueño', nombre: 'Raquel' },
+      { username: 'repostero', password: 'repostero2025', role: 'repostero', nombre: 'Repostero' }
     ];
 
     defaultUsers.forEach(user => {

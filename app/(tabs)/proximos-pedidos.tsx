@@ -75,6 +75,7 @@ export default function ProximosPedidosScreen() {
   });
   const [sabores, setSabores] = useState<any[]>([]);
   const [rellenos, setRellenos] = useState<any[]>([]);
+  const [editImageRemoved, setEditImageRemoved] = useState(false);
 
   // Abonos
   const [showAbonarModal, setShowAbonarModal] = useState(false);
@@ -256,10 +257,61 @@ export default function ProximosPedidosScreen() {
       fecha_entrega: pedido.fecha_entrega,
       imagen: pedido.imagen,
     });
+    setEditImageRemoved(false);
     // Parse local YYYY-MM-DD a Date local para evitar desfases
     const [yy, mm, dd] = pedido.fecha_entrega.split('-').map((n) => parseInt(n, 10));
     setEditFechaDate(new Date(yy, (mm || 1) - 1, dd || 1));
     setShowEditModal(true);
+  };
+
+  const handleAddOrReplaceImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Platform.OS === 'web' ? alert('Permiso denegado para acceder a la galería') : Alert.alert('Permiso denegado', 'No se pudo acceder a la galería.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) return;
+      setEditForm({ ...editForm, imagen: uri });
+      setEditImageRemoved(false);
+    } catch (e) {
+      console.error('Error seleccionando imagen:', e);
+      Platform.OS === 'web' ? alert('No se pudo seleccionar la imagen') : Alert.alert('Error', 'No se pudo seleccionar la imagen');
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    try {
+      if (!pedidoEditando?.id) {
+        setEditForm({ ...editForm, imagen: undefined });
+        setEditImageRemoved(true);
+        return;
+      }
+      // Marcar para eliminar en guardar y limpiar UI
+      setEditForm({ ...editForm, imagen: undefined });
+      setEditImageRemoved(true);
+    } catch (e) {
+      console.error('Error al eliminar imagen:', e);
+    }
+  };
+
+  const handleImageButtonPress = async () => {
+    if (editForm.imagen) {
+      // Quitar de la vista y marcar para borrar al guardar
+      await handleRemoveImage();
+    } else {
+      // Seleccionar nueva imagen
+      await handleAddOrReplaceImage();
+    }
   };
 
   const procesarAbono = async (pedido: Pedido, montoAbono: number) => {
@@ -329,6 +381,15 @@ export default function ProximosPedidosScreen() {
     if (!pedidoEditando) return;
 
     try {
+      // Si el usuario decidió eliminar la imagen, borrar referencia (incluye Cloudinary)
+      if (editImageRemoved && pedidoEditando.id) {
+        try {
+          await hybridDB.deleteImageReference(pedidoEditando.id);
+        } catch (e) {
+          console.warn('No se pudo borrar la referencia de imagen antes de guardar:', e);
+        }
+      }
+
       const pedidoActualizado = {
         ...pedidoEditando,
         nombre: editForm.nombre,
@@ -978,6 +1039,23 @@ export default function ProximosPedidosScreen() {
                 numberOfLines={2}
                 placeholderTextColor={Colors.light.inputText}
               />
+            </View>
+
+            {/* Imagen del pedido (botón único) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Imagen</Text>
+              <TouchableOpacity onPress={handleImageButtonPress} activeOpacity={0.8}>
+                {editForm.imagen ? (
+                  <Image source={{ uri: editForm.imagen }} style={styles.imagenPedido} />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Text style={styles.agregarProductoBtnText}>+ Agregar imagen</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.imageHint}>
+                {editForm.imagen ? 'Toca la imagen para quitarla' : 'Toca para seleccionar una imagen'}
+              </Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -1663,6 +1741,23 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 8,
     marginTop: 8,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: Colors.light.cardBackground,
+    borderWidth: 1,
+    borderColor: Colors.light.inputBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageHint: {
+    marginTop: 6,
+    color: Colors.light.inputText,
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,
