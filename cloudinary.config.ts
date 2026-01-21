@@ -8,7 +8,7 @@ export const cloudinaryConfig = {
   cloudName: process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dfh83zgqi',
   uploadPreset: process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'pasteleria-upload',
   apiKey: process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY || '544228462686976',
-  apiSecret: process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET || 'P0dQzg7wNG8DV4kdp_0ZLO5ExiM'
+  apiSecret: process.env.EXPO_PUBLIC_CLOUDINARY_API_SECRET
 };
 
 // Upload URL for Cloudinary
