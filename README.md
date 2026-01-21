@@ -208,14 +208,4 @@ Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 ## 👥 Autores
 
-- **Marco Alejandro Monroy Rousselin** - *Desarrollo inicial* - [GitHub](https://github.com/marcopolo2.0)
-
-## 🙏 Agradecimientos
-
-- Equipo de Expo por la excelente plataforma
-- Comunidad de React Native
-- Documentación de Firebase
-
----
-
-**⚠️ Importante**: Nunca subas credenciales de Firebase al repositorio. Usa siempre variables de entorno.
+- **Marco Alejandro Monroy Rousselin** - *Desarrollo inicial* -
